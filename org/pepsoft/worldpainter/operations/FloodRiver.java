@@ -8,7 +8,7 @@ package org.pepsoft.worldpainter.operations;
 import java.awt.Point;
 import javax.swing.SwingUtilities;
 import org.pepsoft.worldpainter.Dimension;
-import org.pepsoft.worldpainter.QueueLinearFloodFiller;
+import org.pepsoft.worldpainter.QueueRiverFloodFiller;
 import org.pepsoft.worldpainter.WorldPainter;
 
 /**
@@ -54,14 +54,14 @@ public class FloodRiver extends MouseOrTabletOperation implements AutoBiomeOpera
         dimension.setEventsInhibited(true);
         dimension.setAutoUpdateBiomes(autoBiomesEnabled);
         try {
-            QueueLinearFloodFiller flooder = new QueueLinearFloodFiller(dimension, undo ? height : (height + 1), floodWithLava, undo);
+            QueueRiverFloodFiller flooder = new QueueRiverFloodFiller(dimension, undo ? height : (height + 1), floodWithLava, undo);
             Point imageCoords = worldToImageCoordinates(x, y);
             if (! flooder.floodFill(imageCoords.x, imageCoords.y, SwingUtilities.getWindowAncestor(getView()))) {
                 // Cancelled by user
-//                if (dimension.undoIfDirty()) {
-//                    dimension.clearRedo();
-//                    dimension.armSavePoint();
-//                }
+                if (dimension.isDirty()) {
+                    dimension.clearRedo();
+                    dimension.armSavePoint();
+                }
             }
         } finally {
             dimension.setAutoUpdateBiomes(false);

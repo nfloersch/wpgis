@@ -171,6 +171,7 @@ import org.pepsoft.worldpainter.operations.CustomTerrainPaint;
 import org.pepsoft.worldpainter.operations.Filter;
 import org.pepsoft.worldpainter.operations.Flatten;
 import org.pepsoft.worldpainter.operations.Flood;
+import org.pepsoft.worldpainter.operations.FloodRiver;
 import org.pepsoft.worldpainter.operations.Height;
 import org.pepsoft.worldpainter.operations.LayerPaint;
 import org.pepsoft.worldpainter.operations.MouseOrTabletOperation;
@@ -2149,6 +2150,7 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
         toolPanel.add(button);
         toolPanel.add(createButtonForOperation(new RaisePyramid(view), "pyramid"));
         toolPanel.add(createButtonForOperation(new Flood(view, false), "flood", 'f'));
+        toolPanel.add(createButtonForOperation(new FloodRiver(view, false), "information", 'r'));
         toolPanel.add(createButtonForOperation(new Flood(view, true), "flood_with_lava", 'l'));
         toolPanel.add(createButtonForOperation(new Height(view, this, mapDragControl), "height", 'h'));
         toolPanel.add(createButtonForOperation(new Flatten(view, this, mapDragControl), "flatten", 'a'));

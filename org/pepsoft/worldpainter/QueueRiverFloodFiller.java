@@ -13,6 +13,7 @@ import org.pepsoft.util.swing.ProgressDialog;
 import org.pepsoft.util.swing.ProgressTask;
 import org.pepsoft.worldpainter.layers.FloodWithLava;
 import static org.pepsoft.worldpainter.Constants.*;
+import javax.swing.JOptionPane;
 
 public class QueueRiverFloodFiller {
     // Dimension to flood
@@ -42,6 +43,7 @@ public class QueueRiverFloodFiller {
         height = dimension.getHeight() * TILE_SIZE;
         offsetX = dimension.getLowestX() * TILE_SIZE;
         offsetY = dimension.getLowestY() * TILE_SIZE;
+        JOptionPane.showMessageDialog(null, "River Flood Fill Instantiated");
     }
 
     public Dimension getDimension() {
@@ -57,6 +59,7 @@ public class QueueRiverFloodFiller {
     // Fills the specified point on the bitmap with the currently selected fill color.
     // int x, int y: The starting coords for the fill
     public boolean floodFill(int x, int y, Window parent) {
+        JOptionPane.showMessageDialog(null, "River Flood Fill Started");
         //Setup
         prepare();
 
