@@ -10,5 +10,7 @@ package org.pepsoft.worldpainter;
  */
 public interface RadiusControl {
     void increaseRadius(int amount);
+    void increaseRadiusByOne();
     void decreaseRadius(int amount);
+    void decreaseRadiusByOne();
 }

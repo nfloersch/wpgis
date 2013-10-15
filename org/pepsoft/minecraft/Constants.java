@@ -589,10 +589,23 @@ public final class Constants {
         "Quartz Stairs",
         "Activator Rail",
         "Dropper",
-        "Bale of Hay",
+        "Stained Clay",
         
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+
+        "Hay Bale",
         "Carpet",
-        "Hardened Clay"
+        "Hardened Clay",
+        "Coal Block"
     };
 
     public static final int DEFAULT_MAX_HEIGHT_1 = 128;

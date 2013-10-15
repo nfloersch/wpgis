@@ -475,14 +475,19 @@ public class MinecraftWorldImpl implements MinecraftWorld {
     
     @Override
     public void addEntity(int x, int y, int height, Entity entity) {
+        addEntity(x + 0.5, y + 0.5, height + 1.5, entity);
+    }
+
+    @Override
+    public void addEntity(double x, double y, double height, Entity entity) {
         if (readOnly) {
             throw new IllegalStateException("Read only");
         }
-        double[] pos = new double[] {x + 0.5, height + 1.5, y + 0.5};
-        entity.setPos(pos);
-        Chunk chunk = getChunkForEditing(x >> 4, y >> 4);
+        Entity clone = (Entity) entity.clone();
+        clone.setPos(new double[] {x, height, y});
+        Chunk chunk = getChunkForEditing(((int) x) >> 4, ((int) y) >> 4);
         if ((chunk != null) && (! chunk.isReadOnly())) {
-            chunk.getEntities().add(entity);
+            chunk.getEntities().add(clone);
         }
     }
 
@@ -499,7 +504,7 @@ public class MinecraftWorldImpl implements MinecraftWorld {
             chunk.getTileEntities().add(tileEntity);
         }
     }
-
+    
     public int getCacheSize() {
         return cache.size();
     }

@@ -41,13 +41,13 @@ public class HeightMapTileFactoryEditor extends javax.swing.JPanel implements Bu
             JOptionPane.showMessageDialog(this, "You have configured multiple terrain types with the same levels!\nRemove, or change the level of, one of the duplicates.", "Duplicate Levels", JOptionPane.WARNING_MESSAGE);
             return false;
         }
-        tileFactory.setTerrainRanges(tableModel.getTerrainRanges());
-        tileFactory.setRandomise(checkBoxRandomise.isSelected());
-        boolean beaches = checkBoxBeaches.isSelected();
-        tileFactory.setBeaches(beaches);
-        if (beaches) {
-            tileFactory.setWaterHeight(((Number) spinnerWaterLevel.getValue()).intValue());
-        }
+//        tileFactory.setTerrainRanges(tableModel.getTerrainRanges());
+//        tileFactory.setRandomise(checkBoxRandomise.isSelected());
+//        boolean beaches = checkBoxBeaches.isSelected();
+//        tileFactory.setBeaches(beaches);
+//        if (beaches) {
+//            tileFactory.setWaterHeight(((Number) spinnerWaterLevel.getValue()).intValue());
+//        }
         return true;
     }
 
@@ -58,24 +58,24 @@ public class HeightMapTileFactoryEditor extends javax.swing.JPanel implements Bu
     public void setTileFactory(HeightMapTileFactory tileFactory) {
         this.tileFactory = tileFactory;
         if (tileFactory != null) {
-            tableModel = new TerrainRangesTableModel(tileFactory.getTerrainRanges());
-            jTable1.setModel(tableModel);
-            
-            jTable1.setDefaultRenderer(Integer.class, new DefaultTableCellRenderer());
-            jTable1.setDefaultRenderer(Terrain.class, new TerrainTableCellRenderer());
-            jTable1.setDefaultRenderer(JButton.class, new JButtonTableCellRenderer());
-            
-            jTable1.setDefaultEditor(Integer.class, new JSpinnerTableCellEditor(new SpinnerNumberModel(1, 1, tileFactory.getMaxHeight() - 1, 1)));
-            JComboBox terrainEditor = new JComboBox(Terrain.getConfiguredValue());
-            terrainEditor.setRenderer(new TerrainListCellRenderer());
-            jTable1.setDefaultEditor(Terrain.class, new DefaultCellEditor(terrainEditor));
-            jTable1.setDefaultEditor(JButton.class, new JButtonTableCellEditor(this));
-            
-            checkBoxBeaches.setSelected(tileFactory.isBeaches());
-            spinnerWaterLevel.setModel(new SpinnerNumberModel(tileFactory.getWaterHeight(), 0, tileFactory.getMaxHeight() - 1, 1));
-            spinnerWaterLevel.setEnabled(checkBoxBeaches.isSelected());
-            
-            checkBoxRandomise.setSelected(tileFactory.isRandomise());
+//            tableModel = new TerrainRangesTableModel(tileFactory.getTerrainRanges());
+//            jTable1.setModel(tableModel);
+//            
+//            jTable1.setDefaultRenderer(Integer.class, new DefaultTableCellRenderer());
+//            jTable1.setDefaultRenderer(Terrain.class, new TerrainTableCellRenderer());
+//            jTable1.setDefaultRenderer(JButton.class, new JButtonTableCellRenderer());
+//            
+//            jTable1.setDefaultEditor(Integer.class, new JSpinnerTableCellEditor(new SpinnerNumberModel(1, 1, tileFactory.getMaxHeight() - 1, 1)));
+//            JComboBox terrainEditor = new JComboBox(Terrain.getConfiguredValue());
+//            terrainEditor.setRenderer(new TerrainListCellRenderer());
+//            jTable1.setDefaultEditor(Terrain.class, new DefaultCellEditor(terrainEditor));
+//            jTable1.setDefaultEditor(JButton.class, new JButtonTableCellEditor(this));
+//            
+//            checkBoxBeaches.setSelected(tileFactory.isBeaches());
+//            spinnerWaterLevel.setModel(new SpinnerNumberModel(tileFactory.getWaterHeight(), 0, tileFactory.getMaxHeight() - 1, 1));
+//            spinnerWaterLevel.setEnabled(checkBoxBeaches.isSelected());
+//            
+//            checkBoxRandomise.setSelected(tileFactory.isRandomise());
         }
     }
 

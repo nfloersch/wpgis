@@ -788,7 +788,7 @@ public final class Material implements Serializable {
     }
     
     public static Material get(int blockType, int data) {
-        return MATERIALS[blockType * 16 + data];
+        return MATERIALS[(blockType << 4) | data];
     }
 
     @Override

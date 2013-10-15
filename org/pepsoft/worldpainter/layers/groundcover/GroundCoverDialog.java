@@ -12,20 +12,13 @@ package org.pepsoft.worldpainter.layers.groundcover;
 
 import javax.swing.JColorChooser;
 import java.awt.Color;
-import org.pepsoft.minecraft.Material;
-import java.awt.event.ActionEvent;
-import java.awt.event.KeyEvent;
-import java.net.MalformedURLException;
-import java.net.URL;
-import javax.swing.AbstractAction;
-import javax.swing.ActionMap;
-import javax.swing.DefaultComboBoxModel;
-import javax.swing.InputMap;
-import javax.swing.JComponent;
-import javax.swing.KeyStroke;
+import java.awt.Window;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 import org.pepsoft.worldpainter.ColourScheme;
-import static org.pepsoft.minecraft.Constants.*;
-import org.pepsoft.util.DesktopUtils;
+import org.pepsoft.worldpainter.CustomMaterialDialog;
+import org.pepsoft.worldpainter.MixedMaterial;
+import org.pepsoft.worldpainter.NoiseSettings;
 import org.pepsoft.worldpainter.layers.CustomLayerDialog;
 
 /**
@@ -33,71 +26,77 @@ import org.pepsoft.worldpainter.layers.CustomLayerDialog;
  * @author pepijn
  */
 public class GroundCoverDialog extends CustomLayerDialog<GroundCoverLayer> {
-    /** Creates new form GroundCoverDialog */
-    public GroundCoverDialog(java.awt.Frame parent, Material material, ColourScheme colourScheme, boolean extendedBlockIds) {
+    public GroundCoverDialog(Window parent, MixedMaterial material, ColourScheme colourScheme, boolean extendedBlockIds) {
         this(parent, material, null, colourScheme, extendedBlockIds);
     }
     
-    /** Creates new form GroundCoverDialog */
-    public GroundCoverDialog(java.awt.Frame parent, GroundCoverLayer existingLayer, ColourScheme colourScheme, boolean extendedBlockIds) {
+    public GroundCoverDialog(Window parent, GroundCoverLayer existingLayer, ColourScheme colourScheme, boolean extendedBlockIds) {
         this(parent, null, existingLayer, colourScheme, extendedBlockIds);
     }
     
-    /** Creates new form GroundCoverDialog */
-    public GroundCoverDialog(java.awt.Frame parent, Material material, GroundCoverLayer existingLayer, ColourScheme colourScheme, boolean extendedBlockIds) {
-        super(parent, true);
+    public GroundCoverDialog(Window parent, MixedMaterial material, GroundCoverLayer existingLayer, ColourScheme colourScheme, boolean extendedBlockIds) {
+        super(parent);
         this.colourScheme = colourScheme;
-        BLOCK_TYPES = new String[extendedBlockIds ? 4096 : 256];
-        for (int i = 0; i < BLOCK_TYPES.length; i++) {
-            if ((i >= BLOCK_TYPE_NAMES.length) || (BLOCK_TYPE_NAMES[i] == null)) {
-                BLOCK_TYPES[i] = Integer.toString(i);
-            } else {
-                BLOCK_TYPES[i] = i + " " + BLOCK_TYPE_NAMES[i];
-            }
-        }
+        this.extendedBlockIds = extendedBlockIds;
 
         initComponents();
         
         if (existingLayer != null) {
             layer = existingLayer;
-            comboBoxBlockId.setSelectedIndex(existingLayer.getMaterial().getBlockType());
-            spinnerDataValue.setValue(existingLayer.getMaterial().getData());
+            this.material = layer.getMaterial();
             fieldName.setText(existingLayer.getName());
             spinnerThickness.setValue(existingLayer.getThickness());
             selectedColour = existingLayer.getColour();
-//            if (existingLayer.isTaperedEdge()) {
-//                spinnerEdgeTapering.setValue(existingLayer.getEdgeWidth());
-//            } else {
-//                spinnerEdgeTapering.setValue(0);
-//            }
+            switch (layer.getEdgeShape()) {
+                case SHEER:
+                    radioButtonSheerEdge.setSelected(true);
+                    break;
+                case LINEAR:
+                    radioButtonLinearEdge.setSelected(true);
+                    break;
+                case SMOOTH:
+                    radioButtonSmoothEdge.setSelected(true);
+                    break;
+                case ROUNDED:
+                    radioButtonRoundedEdge.setSelected(true);
+                    break;
+            }
+            spinnerEdgeWidth.setValue(layer.getEdgeWidth());
+            if (layer.getNoiseSettings() != null) {
+                noiseSettingsEditor1.setNoiseSettings(layer.getNoiseSettings());
+            }
         } else {
-            comboBoxBlockId.setSelectedIndex(material.getBlockType());
-            spinnerDataValue.setValue(material.getData());
+            this.material = material;
+            fieldName.setText(material.getName());
+            if (material.getColour() != null) {
+                selectedColour = material.getColour();
+            }
         }
+        labelMixedMaterial.setText("<html><u>" + this.material.getName() + "</u></html>");
         
         setLabelColour();
+        setControlStates();
         
-        ActionMap actionMap = rootPane.getActionMap();
-        actionMap.put("cancel", new AbstractAction("cancel") {
+        fieldName.getDocument().addDocumentListener(new DocumentListener() {
             @Override
-            public void actionPerformed(ActionEvent e) {
-                cancel();
+            public void insertUpdate(DocumentEvent e) {
+                setControlStates();
             }
 
-            private static final long serialVersionUID = 1L;
+            @Override
+            public void removeUpdate(DocumentEvent e) {
+                setControlStates();
+            }
+
+            @Override
+            public void changedUpdate(DocumentEvent e) {
+                setControlStates();
+            }
         });
-
-        InputMap inputMap = rootPane.getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT);
-        inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "cancel");
-
-        rootPane.setDefaultButton(buttonOK);
         
+        rootPane.setDefaultButton(buttonOK);
+        pack();
         setLocationRelativeTo(parent);
-    }
-
-    @Override
-    public boolean isCancelled() {
-        return cancelled;
     }
     
     @Override
@@ -105,8 +104,8 @@ public class GroundCoverDialog extends CustomLayerDialog<GroundCoverLayer> {
         return layer;
     }
     
-    private void ok() {
-        Material material = Material.get(comboBoxBlockId.getSelectedIndex(), (Integer) spinnerDataValue.getValue());
+    @Override
+    protected void ok() {
         if (layer == null) {
             layer = new GroundCoverLayer(fieldName.getText(), material, selectedColour);
         } else {
@@ -115,19 +114,23 @@ public class GroundCoverDialog extends CustomLayerDialog<GroundCoverLayer> {
             layer.setColour(selectedColour);
         }
         layer.setThickness((Integer) spinnerThickness.getValue());
-//        int edgeWidth = (Integer) spinnerEdgeTapering.getValue();
-//        if (edgeWidth > 0) {
-//            layer.setEdgeWidth(edgeWidth);
-//            layer.setTaperedEdge(true);
-//        } else {
-//            layer.setTaperedEdge(false);
-//        }
-        cancelled = false;
-        dispose();
-    }
-    
-    private void cancel() {
-        dispose();
+        if (radioButtonSheerEdge.isSelected()) {
+            layer.setEdgeShape(GroundCoverLayer.EdgeShape.SHEER);
+        } else if (radioButtonLinearEdge.isSelected()) {
+            layer.setEdgeShape(GroundCoverLayer.EdgeShape.LINEAR);
+        } else if (radioButtonSmoothEdge.isSelected()) {
+            layer.setEdgeShape(GroundCoverLayer.EdgeShape.SMOOTH);
+        } else if (radioButtonRoundedEdge.isSelected()) {
+            layer.setEdgeShape(GroundCoverLayer.EdgeShape.ROUNDED);
+        }
+        layer.setEdgeWidth((Integer) spinnerEdgeWidth.getValue());
+        NoiseSettings noiseSettings = noiseSettingsEditor1.getNoiseSettings();
+        if (noiseSettings.getRange() == 0) {
+            layer.setNoiseSettings(null);
+        } else {
+            layer.setNoiseSettings(noiseSettings);
+        }
+        super.ok();
     }
     
     private void pickColour() {
@@ -142,18 +145,36 @@ public class GroundCoverDialog extends CustomLayerDialog<GroundCoverLayer> {
         jLabel5.setBackground(new Color(selectedColour));
     }
     
-    private void updateNameAndColour() {
-        Material material = Material.get(comboBoxBlockId.getSelectedIndex(), (Integer) spinnerDataValue.getValue());
-        fieldName.setText(material.toString());
-        int colour = colourScheme.getColour(material);
-        if (colour != 0) {
-            selectedColour = colour;
-            setLabelColour();
-        }
+    private void setControlStates() {
+        int thickness = (Integer) spinnerThickness.getValue();
+        spinnerEdgeWidth.setEnabled((thickness < -1 || thickness > 1) && (! radioButtonSheerEdge.isSelected()));
+        radioButtonSheerEdge.setEnabled(thickness < -1 || thickness > 1);
+        radioButtonLinearEdge.setEnabled(thickness < -1 || thickness > 1);
+        radioButtonSmoothEdge.setEnabled(thickness < -1 || thickness > 1);
+        radioButtonRoundedEdge.setEnabled(thickness < -1 || thickness > 1);
+        buttonOK.setEnabled((thickness != 0) && (! fieldName.getText().trim().isEmpty()));
     }
     
-    private void setControlStates() {
-//        spinnerEdgeTapering.setEnabled((Integer) spinnerThickness.getValue() > 1);
+    private void configureMaterial() {
+        String previousMaterialName = material.getName();
+        CustomMaterialDialog dialog = new CustomMaterialDialog(this, material, extendedBlockIds);
+        dialog.setVisible(true);
+        if (! dialog.isCancelled()) {
+            material = dialog.getMaterial();
+            labelMixedMaterial.setText("<html><u>" + material.getName() + "</u></html>");
+            if (fieldName.getText().equals(previousMaterialName)) {
+                // Only update name and colour if the name was previously the
+                // same as the name of the material
+                fieldName.setText(material.getName());
+                if (material.getColour() != null) {
+                    int colour = colourScheme.getColour(material.getColour());
+                    if (colour != 0) {
+                        selectedColour = colour;
+                        setLabelColour();
+                    }
+                }
+            }
+        }
     }
     
     /** This method is called from within the constructor to
@@ -165,11 +186,8 @@ public class GroundCoverDialog extends CustomLayerDialog<GroundCoverLayer> {
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
 
-        jLabel1 = new javax.swing.JLabel();
+        buttonGroup1 = new javax.swing.ButtonGroup();
         jLabel2 = new javax.swing.JLabel();
-        comboBoxBlockId = new javax.swing.JComboBox();
-        jLabel3 = new javax.swing.JLabel();
-        spinnerDataValue = new javax.swing.JSpinner();
         buttonOK = new javax.swing.JButton();
         buttonCancel = new javax.swing.JButton();
         jLabel4 = new javax.swing.JLabel();
@@ -179,25 +197,28 @@ public class GroundCoverDialog extends CustomLayerDialog<GroundCoverLayer> {
         fieldName = new javax.swing.JTextField();
         jLabel7 = new javax.swing.JLabel();
         spinnerThickness = new javax.swing.JSpinner();
+        jLabel9 = new javax.swing.JLabel();
+        jLabel10 = new javax.swing.JLabel();
+        radioButtonSheerEdge = new javax.swing.JRadioButton();
+        radioButtonLinearEdge = new javax.swing.JRadioButton();
+        jLabel11 = new javax.swing.JLabel();
+        radioButtonSmoothEdge = new javax.swing.JRadioButton();
+        jLabel12 = new javax.swing.JLabel();
+        spinnerEdgeWidth = new javax.swing.JSpinner();
+        radioButtonRoundedEdge = new javax.swing.JRadioButton();
+        jLabel13 = new javax.swing.JLabel();
+        noiseSettingsEditor1 = new org.pepsoft.worldpainter.NoiseSettingsEditor();
+        labelMixedMaterial = new javax.swing.JLabel();
+        jLabel1 = new javax.swing.JLabel();
+        jLabel3 = new javax.swing.JLabel();
         jLabel8 = new javax.swing.JLabel();
+        jLabel14 = new javax.swing.JLabel();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
         setTitle("Define Custom Ground Cover Layer");
+        setResizable(false);
 
-        jLabel1.setText("Select the block ID and data value for your custom material:");
-
-        jLabel2.setText("Block ID:");
-
-        comboBoxBlockId.setModel(new DefaultComboBoxModel(BLOCK_TYPES));
-        comboBoxBlockId.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                comboBoxBlockIdActionPerformed(evt);
-            }
-        });
-
-        jLabel3.setText("Data value:");
-
-        spinnerDataValue.setModel(new javax.swing.SpinnerNumberModel(0, 0, 15, 1));
+        jLabel2.setText("Material:");
 
         buttonOK.setText("OK");
         buttonOK.addActionListener(new java.awt.event.ActionListener() {
@@ -233,21 +254,76 @@ public class GroundCoverDialog extends CustomLayerDialog<GroundCoverLayer> {
 
         jLabel7.setText("Thickness:");
 
-        spinnerThickness.setModel(new javax.swing.SpinnerNumberModel(1, 1, 255, 1));
+        spinnerThickness.setModel(new javax.swing.SpinnerNumberModel(1, -255, 255, 1));
         spinnerThickness.addChangeListener(new javax.swing.event.ChangeListener() {
             public void stateChanged(javax.swing.event.ChangeEvent evt) {
                 spinnerThicknessStateChanged(evt);
             }
         });
 
-        jLabel8.setForeground(new java.awt.Color(0, 0, 255));
-        jLabel8.setText("<html><u>Look up block ID's and data values</u></html>");
-        jLabel8.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
-        jLabel8.addMouseListener(new java.awt.event.MouseAdapter() {
-            public void mouseClicked(java.awt.event.MouseEvent evt) {
-                jLabel8MouseClicked(evt);
+        jLabel9.setText("(negative values will dig down into the terrain)");
+
+        jLabel10.setText("Edge ");
+
+        buttonGroup1.add(radioButtonSheerEdge);
+        radioButtonSheerEdge.setSelected(true);
+        radioButtonSheerEdge.setText("sheer");
+        radioButtonSheerEdge.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                radioButtonSheerEdgeActionPerformed(evt);
             }
         });
+
+        buttonGroup1.add(radioButtonLinearEdge);
+        radioButtonLinearEdge.setText("linear");
+        radioButtonLinearEdge.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                radioButtonLinearEdgeActionPerformed(evt);
+            }
+        });
+
+        jLabel11.setText("shape:");
+
+        buttonGroup1.add(radioButtonSmoothEdge);
+        radioButtonSmoothEdge.setText("smooth");
+        radioButtonSmoothEdge.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                radioButtonSmoothEdgeActionPerformed(evt);
+            }
+        });
+
+        jLabel12.setText("width:");
+
+        spinnerEdgeWidth.setModel(new javax.swing.SpinnerNumberModel(1, 1, 255, 1));
+        spinnerEdgeWidth.setEnabled(false);
+
+        buttonGroup1.add(radioButtonRoundedEdge);
+        radioButtonRoundedEdge.setText("rounded");
+        radioButtonRoundedEdge.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                radioButtonRoundedEdgeActionPerformed(evt);
+            }
+        });
+
+        jLabel13.setText("Variation:");
+
+        labelMixedMaterial.setForeground(new java.awt.Color(0, 0, 255));
+        labelMixedMaterial.setText("<html><u>click to configure</u></html>");
+        labelMixedMaterial.setToolTipText("");
+        labelMixedMaterial.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
+        labelMixedMaterial.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseClicked(java.awt.event.MouseEvent evt) {
+                labelMixedMaterialMouseClicked(evt);
+            }
+        });
+
+        jLabel1.setIcon(new javax.swing.ImageIcon(getClass().getResource("/org/pepsoft/worldpainter/icons/edge_sheer.png"))); // NOI18N
+
+        jLabel3.setIcon(new javax.swing.ImageIcon(getClass().getResource("/org/pepsoft/worldpainter/icons/edge_linear.png"))); // NOI18N
+
+        jLabel8.setIcon(new javax.swing.ImageIcon(getClass().getResource("/org/pepsoft/worldpainter/icons/edge_smooth.png"))); // NOI18N
+
+        jLabel14.setIcon(new javax.swing.ImageIcon(getClass().getResource("/org/pepsoft/worldpainter/icons/edge_rounded.png"))); // NOI18N
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
         getContentPane().setLayout(layout);
@@ -256,22 +332,22 @@ public class GroundCoverDialog extends CustomLayerDialog<GroundCoverLayer> {
             .addGroup(layout.createSequentialGroup()
                 .addContainerGap()
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
-                        .addGap(0, 0, Short.MAX_VALUE)
-                        .addComponent(buttonOK)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(buttonCancel))
                     .addGroup(layout.createSequentialGroup()
                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addComponent(jLabel1)
                             .addGroup(layout.createSequentialGroup()
                                 .addComponent(jLabel2)
                                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                .addComponent(comboBoxBlockId, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addComponent(labelMixedMaterial, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                            .addGroup(layout.createSequentialGroup()
+                                .addComponent(jLabel7)
                                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                .addComponent(jLabel3)
+                                .addComponent(spinnerThickness, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                .addComponent(spinnerDataValue, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                                .addComponent(jLabel9))
+                            .addGroup(layout.createSequentialGroup()
+                                .addComponent(jLabel13)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                .addComponent(noiseSettingsEditor1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
                             .addGroup(layout.createSequentialGroup()
                                 .addComponent(jLabel4)
                                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
@@ -283,30 +359,71 @@ public class GroundCoverDialog extends CustomLayerDialog<GroundCoverLayer> {
                                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                                 .addComponent(fieldName, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
                             .addGroup(layout.createSequentialGroup()
-                                .addComponent(jLabel7)
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                .addComponent(spinnerThickness, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-                            .addComponent(jLabel8, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-                        .addGap(0, 114, Short.MAX_VALUE)))
-                .addContainerGap())
+                                .addComponent(jLabel10)
+                                .addGap(0, 0, 0)
+                                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                                    .addGroup(layout.createSequentialGroup()
+                                        .addComponent(jLabel12)
+                                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                        .addComponent(spinnerEdgeWidth, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                                    .addGroup(layout.createSequentialGroup()
+                                        .addComponent(jLabel11)
+                                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                        .addComponent(radioButtonSheerEdge)
+                                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                        .addComponent(jLabel1)
+                                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                        .addComponent(radioButtonLinearEdge)
+                                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                        .addComponent(jLabel3)
+                                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                        .addComponent(radioButtonSmoothEdge)
+                                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                        .addComponent(jLabel8)
+                                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                        .addComponent(radioButtonRoundedEdge)
+                                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                        .addComponent(jLabel14)))))
+                        .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
+                        .addGap(0, 0, Short.MAX_VALUE)
+                        .addComponent(buttonOK)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(buttonCancel)
+                        .addGap(11, 11, 11))))
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(layout.createSequentialGroup()
                 .addContainerGap()
-                .addComponent(jLabel1)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(jLabel2)
-                    .addComponent(comboBoxBlockId, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(jLabel3)
-                    .addComponent(spinnerDataValue, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(jLabel8, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(labelMixedMaterial, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
                 .addGap(18, 18, 18)
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(jLabel7)
-                    .addComponent(spinnerThickness, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addComponent(spinnerThickness, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(jLabel9))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(jLabel13)
+                    .addComponent(noiseSettingsEditor1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addGap(18, 18, 18)
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(jLabel10)
+                    .addComponent(radioButtonSheerEdge)
+                    .addComponent(radioButtonLinearEdge)
+                    .addComponent(jLabel11)
+                    .addComponent(radioButtonSmoothEdge)
+                    .addComponent(radioButtonRoundedEdge)
+                    .addComponent(jLabel1)
+                    .addComponent(jLabel3)
+                    .addComponent(jLabel8)
+                    .addComponent(jLabel14))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(jLabel12)
+                    .addComponent(spinnerEdgeWidth, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
                 .addGap(18, 18, 18)
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(jLabel6)
@@ -316,7 +433,7 @@ public class GroundCoverDialog extends CustomLayerDialog<GroundCoverLayer> {
                     .addComponent(jLabel4)
                     .addComponent(jLabel5)
                     .addComponent(jButton1))
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 6, Short.MAX_VALUE)
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(buttonCancel)
                     .addComponent(buttonOK))
@@ -338,29 +455,42 @@ public class GroundCoverDialog extends CustomLayerDialog<GroundCoverLayer> {
         pickColour();
     }//GEN-LAST:event_jButton1ActionPerformed
 
-    private void comboBoxBlockIdActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_comboBoxBlockIdActionPerformed
-        updateNameAndColour();
-    }//GEN-LAST:event_comboBoxBlockIdActionPerformed
-
-    private void jLabel8MouseClicked(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_jLabel8MouseClicked
-        try {
-            DesktopUtils.open(new URL("http://www.minecraftwiki.net/wiki/Data_values"));
-        } catch (MalformedURLException e) {
-            throw new RuntimeException("Malformed URL exception while trying to open http://www.minecraftwiki.net/wiki/Data_values", e);
-        }
-    }//GEN-LAST:event_jLabel8MouseClicked
-
     private void spinnerThicknessStateChanged(javax.swing.event.ChangeEvent evt) {//GEN-FIRST:event_spinnerThicknessStateChanged
         setControlStates();
     }//GEN-LAST:event_spinnerThicknessStateChanged
 
+    private void radioButtonSheerEdgeActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_radioButtonSheerEdgeActionPerformed
+        setControlStates();
+    }//GEN-LAST:event_radioButtonSheerEdgeActionPerformed
+
+    private void radioButtonLinearEdgeActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_radioButtonLinearEdgeActionPerformed
+        setControlStates();
+    }//GEN-LAST:event_radioButtonLinearEdgeActionPerformed
+
+    private void radioButtonSmoothEdgeActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_radioButtonSmoothEdgeActionPerformed
+        setControlStates();
+    }//GEN-LAST:event_radioButtonSmoothEdgeActionPerformed
+
+    private void radioButtonRoundedEdgeActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_radioButtonRoundedEdgeActionPerformed
+        setControlStates();
+    }//GEN-LAST:event_radioButtonRoundedEdgeActionPerformed
+
+    private void labelMixedMaterialMouseClicked(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_labelMixedMaterialMouseClicked
+        configureMaterial();
+    }//GEN-LAST:event_labelMixedMaterialMouseClicked
+
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JButton buttonCancel;
+    private javax.swing.ButtonGroup buttonGroup1;
     private javax.swing.JButton buttonOK;
-    private javax.swing.JComboBox comboBoxBlockId;
     private javax.swing.JTextField fieldName;
     private javax.swing.JButton jButton1;
     private javax.swing.JLabel jLabel1;
+    private javax.swing.JLabel jLabel10;
+    private javax.swing.JLabel jLabel11;
+    private javax.swing.JLabel jLabel12;
+    private javax.swing.JLabel jLabel13;
+    private javax.swing.JLabel jLabel14;
     private javax.swing.JLabel jLabel2;
     private javax.swing.JLabel jLabel3;
     private javax.swing.JLabel jLabel4;
@@ -368,15 +498,22 @@ public class GroundCoverDialog extends CustomLayerDialog<GroundCoverLayer> {
     private javax.swing.JLabel jLabel6;
     private javax.swing.JLabel jLabel7;
     private javax.swing.JLabel jLabel8;
-    private javax.swing.JSpinner spinnerDataValue;
+    private javax.swing.JLabel jLabel9;
+    private javax.swing.JLabel labelMixedMaterial;
+    private org.pepsoft.worldpainter.NoiseSettingsEditor noiseSettingsEditor1;
+    private javax.swing.JRadioButton radioButtonLinearEdge;
+    private javax.swing.JRadioButton radioButtonRoundedEdge;
+    private javax.swing.JRadioButton radioButtonSheerEdge;
+    private javax.swing.JRadioButton radioButtonSmoothEdge;
+    private javax.swing.JSpinner spinnerEdgeWidth;
     private javax.swing.JSpinner spinnerThickness;
     // End of variables declaration//GEN-END:variables
     
     private final ColourScheme colourScheme;
+    private final boolean extendedBlockIds;
     private GroundCoverLayer layer;
-    private boolean cancelled = true;
-    private int selectedColour = Color.ORANGE.getRGB();
-    private final String[] BLOCK_TYPES;
+    private int selectedColour = Color.RED.getRGB();
+    private MixedMaterial material;
 
     private static final long serialVersionUID = 1L;
 }

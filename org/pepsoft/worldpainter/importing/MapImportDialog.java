@@ -417,7 +417,7 @@ public class MapImportDialog extends javax.swing.JDialog {
                         waterLevel = 62;
                     }
                     int terrainLevel = waterLevel - 4;
-                    TileFactory tileFactory = TileFactoryFactory.createNoiseTileFactory(Terrain.GRASS, maxHeight, terrainLevel, waterLevel, false, true, 20, 1.0);
+                    TileFactory tileFactory = TileFactoryFactory.createNoiseTileFactory(0, Terrain.GRASS, maxHeight, terrainLevel, waterLevel, false, true, 20, 1.0);
                     final MapImporter importer = new MapImporter(tileFactory, levelDatFile, false, chunksToSkip, readOnlyOption);
                     World2 world = importer.doImport(progressReceiver);
                     if (importer.getWarnings() != null) {

@@ -24,7 +24,7 @@ public class MirroredObject extends AbstractObject {
         this.object = object;
         this.mirrorYAxis = mirrorYAxis;
         dimensions = object.getDimensions();
-        Map<String, Serializable> attributes = (object.getAttributes() != null) ? object.getAttributes() : new HashMap<String, Serializable>();
+        Map<String, Serializable> attributes = (object.getAttributes() != null) ? new HashMap<String, Serializable>(object.getAttributes()) : new HashMap<String, Serializable>();
         Point3i offset = attributes.containsKey(WPObject.ATTRIBUTE_OFFSET) ? (Point3i) attributes.get(WPObject.ATTRIBUTE_OFFSET) : new Point3i();
         offset = mirrorYAxis
             ? new Point3i(offset.x, -(dimensions.y - (-offset.y) - 1), offset.z)
@@ -62,7 +62,24 @@ public class MirroredObject extends AbstractObject {
 
     @Override
     public List<Entity> getEntities() {
-        return object.getEntities();
+        List<Entity> objectEntities = object.getEntities();
+        if (objectEntities != null) {
+            List<Entity> entities = new ArrayList<Entity>(objectEntities.size());
+            for (Entity objectEntity: objectEntities) {
+                Entity entity = (Entity) objectEntity.clone();
+                double[] pos = entity.getPos();
+                if (mirrorYAxis) {
+                    pos[2] = dimensions.y - pos[2];
+                } else {
+                    pos[0] = dimensions.x - pos[0];
+                }
+                entity.setPos(pos);
+                entities.add(entity);
+            }
+            return entities;
+        } else {
+            return null;
+        }
     }
 
     @Override
@@ -102,6 +119,11 @@ public class MirroredObject extends AbstractObject {
 
     @Override
     public void setAttributes(Map<String, Serializable> attributes) {
+        throw new UnsupportedOperationException("Not supported");
+    }
+
+    @Override
+    public void setAttribute(String key, Serializable value) {
         throw new UnsupportedOperationException("Not supported");
     }
     

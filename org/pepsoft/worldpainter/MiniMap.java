@@ -10,6 +10,7 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 import org.pepsoft.util.swing.TiledImageViewer;
+import org.pepsoft.worldpainter.biomeschemes.CustomBiomeManager;
 import org.pepsoft.worldpainter.layers.Layer;
 
 /**
@@ -44,6 +45,15 @@ public class MiniMap extends TiledImageViewer implements PropertyChangeListener,
         if (dimension != null) {
             register(dimension);
         }
+        refreshTileProvider();
+    }
+
+    public CustomBiomeManager getCustomBiomeManager() {
+        return customBiomeManager;
+    }
+
+    public void setCustomBiomeManager(CustomBiomeManager customBiomeManager) {
+        this.customBiomeManager = customBiomeManager;
         refreshTileProvider();
     }
 
@@ -131,7 +141,7 @@ public class MiniMap extends TiledImageViewer implements PropertyChangeListener,
     
     private void refreshTileProvider() {
         if ((view != null) && (dimension != null)) {
-            WPTileProvider tileProvider = new WPTileProvider(dimension, view.getColourScheme(), view.getBiomeScheme(), view.getHiddenLayers(), false, view.getLightOrigin(), true);
+            WPTileProvider tileProvider = new WPTileProvider(dimension, view.getColourScheme(), view.getBiomeScheme(), customBiomeManager, view.getHiddenLayers(), false, view.getLightOrigin(), true);
             tileProvider.setZoom(16);
             setTileProvider(tileProvider);
         } else {
@@ -141,6 +151,7 @@ public class MiniMap extends TiledImageViewer implements PropertyChangeListener,
     
     private WorldPainter view;
     private Dimension dimension;
+    private CustomBiomeManager customBiomeManager;
     
     private static final Set<String> PROPERTIES_OF_INTEREST = new HashSet<String>(Arrays.asList("dimension", "colourScheme", "biomeScheme", "hiddenLayers", "lightOrigin"));
     

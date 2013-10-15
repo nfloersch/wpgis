@@ -4,18 +4,36 @@
  */
 package org.pepsoft.worldpainter.layers.renderers;
 
-import java.awt.image.BufferedImage;
-import java.io.IOException;
-import javax.imageio.ImageIO;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import org.pepsoft.util.ColourUtils;
 import org.pepsoft.worldpainter.BiomeScheme;
 import org.pepsoft.worldpainter.ColourScheme;
+import org.pepsoft.worldpainter.biomeschemes.CustomBiome;
+import org.pepsoft.worldpainter.biomeschemes.CustomBiomeManager;
+import org.pepsoft.worldpainter.biomeschemes.CustomBiomeManager.CustomBiomeListener;
 
 /**
  *
  * @author pepijn
  */
-public class BiomeRenderer implements ByteLayerRenderer, ColourSchemeRenderer {
+public class BiomeRenderer implements ByteLayerRenderer, ColourSchemeRenderer, CustomBiomeListener {
+    public BiomeRenderer(CustomBiomeManager customBiomeManager) {
+        if (customBiomeManager != null) {
+            List<CustomBiome> customBiomes = customBiomeManager.getCustomBiomes();
+            if (customBiomes != null) {
+                for (CustomBiome customBiome: customBiomes) {
+                    customColours.put(customBiome.getId(), customBiome.getColour());
+                }
+            }
+            resetColours();
+            customBiomeManager.addListener(this);
+        } else {
+            resetColours();
+        }
+    }
+    
     public ColourScheme getColourScheme() {
         return colourScheme;
     }
@@ -23,13 +41,7 @@ public class BiomeRenderer implements ByteLayerRenderer, ColourSchemeRenderer {
     @Override
     public void setColourScheme(ColourScheme colourScheme) {
         this.colourScheme = colourScheme;
-        if (biomeScheme != null) {
-            int count = biomeScheme.getBiomeCount();
-            colours = new int[count];
-            for (int i = 0; i < count; i++) {
-                colours[i] = biomeScheme.getColour(i, colourScheme);
-            }
-        }
+        resetColours();
     }
     
     public BiomeScheme getBiomeScheme() {
@@ -44,62 +56,67 @@ public class BiomeRenderer implements ByteLayerRenderer, ColourSchemeRenderer {
             for (int i = 0; i < count; i++) {
                 patterns[i] = biomeScheme.getPattern(i);
             }
-            if (colourScheme != null) {
-                colours = new int[count];
-                for (int i = 0; i < count; i++) {
-                    colours[i] = biomeScheme.getColour(i, colourScheme);
-                }
-            }
         } else {
             patterns = null;
-            colours = null;
         }
+        resetColours();
     }
 
     @Override
     public int getPixelColour(int x, int y, int underlyingColour, int value) {
-        if (patterns == null) {
-            // TODO: this should never happen, but we know it does from bug
-            // reports. Investigate how this can happen!
-            return underlyingColour;
-        } else if (value >= patterns.length) {
-            // TODO: this can happen if the user selects a Minecraft 1.1 biome
-            // scheme but then tries to paint a 1.2 exclusive biome. Make that
-            // impossible. It can also happen if a user imports a map with
-            // custom, non-standard biomes
-            return UNKNOWN_PATTERN[x & 0xF][y & 0xF] ? ColourUtils.mix(underlyingColour, BLACK) : underlyingColour;
-        } else if ((patterns[value] != null) && patterns[value][x & 0xF][y & 0xF]) {
+        if ((patterns != null) && (value < patterns.length) && (patterns[value] != null) && patterns[value][x & 0xF][y & 0xF]) {
             return ColourUtils.mix(underlyingColour, BLACK);
         } else {
             return ColourUtils.mix(underlyingColour, colours[value]);
         }
     }
 
-    private BiomeScheme biomeScheme;
-    private ColourScheme colourScheme;
-    private int[] colours;
-    private boolean[][][] patterns;
+    // CustomBiomeListener
     
-    private static final boolean[][] UNKNOWN_PATTERN;
-    private static final int BLACK = 0;
-    
-    static {
-        try {
-            BufferedImage image = ImageIO.read(ClassLoader.getSystemResourceAsStream("org/pepsoft/worldpainter/icons/unknown_pattern.png"));
-            UNKNOWN_PATTERN = createPattern(image);
-        } catch (IOException e) {
-            throw new RuntimeException("I/O error loading image", e);
-}
+    @Override
+    public void customBiomeAdded(CustomBiome customBiome) {
+        customColours.put(customBiome.getId(), customBiome.getColour());
+        resetColours();
+    }
+
+    @Override
+    public void customBiomeChanged(CustomBiome customBiome) {
+        customColours.put(customBiome.getId(), customBiome.getColour());
+        resetColours();
+    }
+
+    @Override
+    public void customBiomeRemoved(CustomBiome customBiome) {
+        customColours.remove(customBiome.getId());
+        resetColours();
     }
     
-    private static boolean[][] createPattern(BufferedImage image) {
-        boolean[][] pattern = new boolean[16][];
-        for (int x = 0; x < 16; x++) {
-            pattern[x] = new boolean[16];
-            for (int y = 0; y < 16; y++) {
-                pattern[x][y] = image.getRGB(x, y) != -1;
+    private void resetColours() {
+        for (int i = 0; i < 256; i++) {
+            if ((biomeScheme != null) && (i < biomeScheme.getBiomeCount()) && (colourScheme != null)) {
+                colours[i] = biomeScheme.getColour(i, colourScheme);
+            } else if (customColours.containsKey(i)) {
+                colours[i] = customColours.get(i);
+            } else {
+                colours[i] = ((((i & 0x02) == 0x02)
+                        ? (((i & 0x01) == 0x01) ? 255 : 192)
+                        : (((i & 0x01) == 0x01) ? 128 :   0)) << 16)
+                    | ((((i & 0x08) == 0x08)
+                        ? (((i & 0x04) == 0x04) ? 255 : 192)
+                        : (((i & 0x04) == 0x04) ? 128 :   0)) << 8)
+                    | (((i & 0x20) == 0x20)
+                        ? (((i & 0x10) == 0x10) ? 255 : 192)
+                        : (((i & 0x10) == 0x10) ? 128 :   0));
             }
         }
-        return pattern;
+        
     }
+
+    private final int[] colours = new int[256];
+    private BiomeScheme biomeScheme;
+    private ColourScheme colourScheme;
+    private boolean[][][] patterns;
+    private Map<Integer, Integer> customColours = new HashMap<Integer, Integer>();
+    
+    private static final int BLACK = 0;
 }

@@ -36,9 +36,10 @@ import org.pepsoft.worldpainter.layers.exporters.ChasmsExporter.ChasmsSettings;
 import org.pepsoft.worldpainter.layers.exporters.FrostExporter.FrostSettings;
 import org.pepsoft.worldpainter.layers.exporters.ResourcesExporter.ResourcesExporterSettings;
 import org.pepsoft.worldpainter.layers.exporters.TreesExporter.TreeLayerSettings;
-import org.pepsoft.worldpainter.terrainRanges.TerrainListCellRenderer;
+import org.pepsoft.worldpainter.themes.TerrainListCellRenderer;
 
 import static org.pepsoft.minecraft.Constants.*;
+import org.pepsoft.worldpainter.themes.SimpleTheme;
 
 /**
  *
@@ -69,8 +70,6 @@ public class DimensionPropertiesEditor extends javax.swing.JPanel {
             jLabel47.setVisible(false);
         }
 
-        comboBoxSubsurfaceMaterial.setRenderer(new TerrainListCellRenderer());
-        
         jSpinner2.setEditor(new NumberEditor(jSpinner2, "0"));
         jSpinner3.setEditor(new NumberEditor(jSpinner3, "0"));
         jSpinner4.setEditor(new NumberEditor(jSpinner4, "0"));
@@ -124,6 +123,15 @@ public class DimensionPropertiesEditor extends javax.swing.JPanel {
         addListeners(spinnerChasmsMinLevel, spinnerChasmsMaxLevel);
     }
 
+    public void setColourScheme(ColourScheme colourScheme) {
+        comboBoxSubsurfaceMaterial.setRenderer(new TerrainListCellRenderer(colourScheme));
+        themeEditor.setColourScheme(colourScheme);
+    }
+    
+    public ColourScheme getColourScheme() {
+        return themeEditor.getColourScheme();
+    }
+    
     public void setExportMode() {
         if (! exportMode) {
             exportMode = true;
@@ -212,7 +220,7 @@ public class DimensionPropertiesEditor extends javax.swing.JPanel {
         jSpinner32.setEnabled(enabled);
         jSpinner33.setEnabled(enabled);
         jSpinner34.setEnabled(enabled);
-        terrainRangesEditor1.setEnabled(enabled);
+        themeEditor.setEnabled(enabled);
         spinnerMinSurfaceDepth.setEnabled(enabled);
         spinnerMaxSurfaceDepth.setEnabled(enabled);
         checkBoxBottomless.setEnabled(enabled);
@@ -227,7 +235,7 @@ public class DimensionPropertiesEditor extends javax.swing.JPanel {
         int maxHeight = dimension.getMaxHeight() - 1;
         
         // terrain ranges
-        if ((! exportMode) && (! terrainRangesEditor1.save())) {
+        if ((! exportMode) && (! themeEditor.save())) {
             jTabbedPane1.setSelectedIndex(1);
             return false;
         }
@@ -303,8 +311,8 @@ public class DimensionPropertiesEditor extends javax.swing.JPanel {
         }
         chasmsSettings.setFloodWithLava(checkBoxCavernsFloodWithLava.isSelected());
         chasmsSettings.setLeaveWater(! checkBoxCavernsRemoveWater.isSelected());
-//        chasmsSettings.setMinimumLevel((Integer) spinnerChasmsMinLevel.getValue());
-//        chasmsSettings.setMaximumLevel((Integer) spinnerChasmsMaxLevel.getValue());
+        chasmsSettings.setMinimumLevel((Integer) spinnerChasmsMinLevel.getValue());
+        chasmsSettings.setMaximumLevel((Integer) spinnerChasmsMaxLevel.getValue());
         dimension.setLayerSettings(Chasms.INSTANCE, chasmsSettings);
         
         // populate
@@ -369,6 +377,7 @@ public class DimensionPropertiesEditor extends javax.swing.JPanel {
         }
         frostSettings.setFrostEverywhere(jCheckBox3.isSelected());
         frostSettings.setMode(jCheckBox9.isSelected() ? 2 : 0);
+        frostSettings.setSnowUnderTrees(checkBoxSnowUnderTrees.isSelected());
         dimension.setLayerSettings(Frost.INSTANCE, frostSettings);
         
         // resources
@@ -504,9 +513,9 @@ public class DimensionPropertiesEditor extends javax.swing.JPanel {
         }
         checkBoxChasmsBreakSurface.setSelected(chasmsSettings.isSurfaceBreaking());
         ((SpinnerNumberModel) spinnerChasmsMinLevel.getModel()).setMaximum(maxHeight);
-//        spinnerChasmsMinLevel.setValue(chasmsSettings.getMinimumLevel());
+        spinnerChasmsMinLevel.setValue(chasmsSettings.getMinimumLevel());
         ((SpinnerNumberModel) spinnerChasmsMaxLevel.getModel()).setMaximum(maxHeight);
-//        spinnerChasmsMaxLevel.setValue(Math.min(chasmsSettings.getMaximumLevel(), maxHeight));
+        spinnerChasmsMaxLevel.setValue(Math.min(chasmsSettings.getMaximumLevel(), maxHeight));
         
         // populate
         checkBoxPopulate.setSelected(dimension.isPopulate());
@@ -570,6 +579,7 @@ public class DimensionPropertiesEditor extends javax.swing.JPanel {
         }
         jCheckBox3.setSelected(frostSettings.isFrostEverywhere());
         jCheckBox9.setSelected(frostSettings.getMode() == 2);
+        checkBoxSnowUnderTrees.setSelected(frostSettings.isSnowUnderTrees());
         
         // resources
         ResourcesExporterSettings resourcesSettings = (ResourcesExporterSettings) dimension.getLayerSettings(Resources.INSTANCE);
@@ -642,8 +652,10 @@ public class DimensionPropertiesEditor extends javax.swing.JPanel {
         // terrain ranges
         
         if (! exportMode) {
-            if ((dimension.getTileFactory() instanceof HeightMapTileFactory) && (((HeightMapTileFactory) dimension.getTileFactory()).getTerrainRanges() != null)) {
-                terrainRangesEditor1.setTileFactory((HeightMapTileFactory) dimension.getTileFactory());
+            if ((dimension.getTileFactory() instanceof HeightMapTileFactory)
+                    && (((HeightMapTileFactory) dimension.getTileFactory()).getTheme() instanceof SimpleTheme)
+                    && (((SimpleTheme) ((HeightMapTileFactory) dimension.getTileFactory()).getTheme()).getTerrainRanges() != null)) {
+                themeEditor.setTheme((SimpleTheme) ((HeightMapTileFactory) dimension.getTileFactory()).getTheme());
             } else {
                 jTabbedPane1.setEnabledAt(1, false);
             }
@@ -739,7 +751,7 @@ public class DimensionPropertiesEditor extends javax.swing.JPanel {
         checkBoxBottomless = new javax.swing.JCheckBox();
         jLabel67 = new javax.swing.JLabel();
         jPanel5 = new javax.swing.JPanel();
-        terrainRangesEditor1 = new org.pepsoft.worldpainter.terrainRanges.HeightMapTileFactoryEditor();
+        themeEditor = new org.pepsoft.worldpainter.themes.SimpleThemeEditor();
         jLabel45 = new javax.swing.JLabel();
         jLabel46 = new javax.swing.JLabel();
         jPanel3 = new javax.swing.JPanel();
@@ -869,6 +881,7 @@ public class DimensionPropertiesEditor extends javax.swing.JPanel {
         checkBoxSwamplandEverywhere = new javax.swing.JCheckBox();
         jLabel69 = new javax.swing.JLabel();
         jSlider6 = new javax.swing.JSlider();
+        checkBoxSnowUnderTrees = new javax.swing.JCheckBox();
 
         buttonGroup1.add(radioButtonWaterBorder);
         radioButtonWaterBorder.setText("Water");
@@ -1072,7 +1085,7 @@ public class DimensionPropertiesEditor extends javax.swing.JPanel {
             .addGroup(jPanel5Layout.createSequentialGroup()
                 .addContainerGap()
                 .addGroup(jPanel5Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addComponent(terrainRangesEditor1, javax.swing.GroupLayout.DEFAULT_SIZE, 583, Short.MAX_VALUE)
+                    .addComponent(themeEditor, javax.swing.GroupLayout.DEFAULT_SIZE, 583, Short.MAX_VALUE)
                     .addGroup(jPanel5Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING, false)
                         .addComponent(jLabel46, javax.swing.GroupLayout.Alignment.LEADING)
                         .addComponent(jLabel45, javax.swing.GroupLayout.Alignment.LEADING, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)))
@@ -1086,7 +1099,7 @@ public class DimensionPropertiesEditor extends javax.swing.JPanel {
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(jLabel46)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(terrainRangesEditor1, javax.swing.GroupLayout.DEFAULT_SIZE, 272, Short.MAX_VALUE)
+                .addComponent(themeEditor, javax.swing.GroupLayout.DEFAULT_SIZE, 272, Short.MAX_VALUE)
                 .addContainerGap())
         );
 
@@ -1824,6 +1837,8 @@ public class DimensionPropertiesEditor extends javax.swing.JPanel {
         jSlider6.setPaintTicks(true);
         jSlider6.setSnapToTicks(true);
 
+        checkBoxSnowUnderTrees.setText("Frost under trees (also applies to hand-painted Frost layer)");
+
         javax.swing.GroupLayout jPanel2Layout = new javax.swing.GroupLayout(jPanel2);
         jPanel2.setLayout(jPanel2Layout);
         jPanel2Layout.setHorizontalGroup(
@@ -1861,7 +1876,8 @@ public class DimensionPropertiesEditor extends javax.swing.JPanel {
                                         .addGap(12, 12, 12)
                                         .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                                             .addComponent(jSlider6, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                            .addComponent(sliderJungleLevel, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)))))))
+                                            .addComponent(sliderJungleLevel, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)))))
+                            .addComponent(checkBoxSnowUnderTrees)))
                     .addGroup(jPanel2Layout.createSequentialGroup()
                         .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                             .addComponent(checkBoxDeciduousEverywhere)
@@ -1916,7 +1932,9 @@ public class DimensionPropertiesEditor extends javax.swing.JPanel {
                     .addComponent(jLabel50))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(jCheckBox9)
-                .addContainerGap(88, Short.MAX_VALUE))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(checkBoxSnowUnderTrees)
+                .addContainerGap(65, Short.MAX_VALUE))
         );
 
         jTabbedPane1.addTab("Other Layers", jPanel2);
@@ -1925,7 +1943,7 @@ public class DimensionPropertiesEditor extends javax.swing.JPanel {
         this.setLayout(layout);
         layout.setHorizontalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addComponent(jTabbedPane1)
+            .addComponent(jTabbedPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 608, Short.MAX_VALUE)
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -2049,6 +2067,7 @@ public class DimensionPropertiesEditor extends javax.swing.JPanel {
     private javax.swing.JCheckBox checkBoxJungleEverywhere;
     private javax.swing.JCheckBox checkBoxPineEverywhere;
     private javax.swing.JCheckBox checkBoxPopulate;
+    private javax.swing.JCheckBox checkBoxSnowUnderTrees;
     private javax.swing.JCheckBox checkBoxSwamplandEverywhere;
     private javax.swing.JComboBox comboBoxSubsurfaceMaterial;
     private javax.swing.JCheckBox jCheckBox3;
@@ -2190,7 +2209,7 @@ public class DimensionPropertiesEditor extends javax.swing.JPanel {
     private javax.swing.JSpinner spinnerMaxSurfaceDepth;
     private javax.swing.JSpinner spinnerMinSurfaceDepth;
     private javax.swing.JSpinner spinnerMinecraftSeed;
-    private org.pepsoft.worldpainter.terrainRanges.HeightMapTileFactoryEditor terrainRangesEditor1;
+    private org.pepsoft.worldpainter.themes.SimpleThemeEditor themeEditor;
     // End of variables declaration//GEN-END:variables
 
     private Dimension dimension;

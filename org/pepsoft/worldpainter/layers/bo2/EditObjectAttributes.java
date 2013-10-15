@@ -32,16 +32,10 @@ import static org.pepsoft.worldpainter.objects.WPObject.*;
  * @author pepijn
  */
 public class EditObjectAttributes extends javax.swing.JDialog {
-    /**
-     * Creates new form EditObjectAttributes
-     */
     public EditObjectAttributes(Window parent, WPObject object, ColourScheme colourScheme) {
         this(parent, Collections.singleton(object), colourScheme);
     }
     
-    /**
-     * Creates new form EditObjectAttributes
-     */
     public EditObjectAttributes(Window parent, Collection<WPObject> objects, ColourScheme colourScheme) {
         super(parent, ModalityType.DOCUMENT_MODAL);
         this.objects = objects;
@@ -89,9 +83,9 @@ public class EditObjectAttributes extends javax.swing.JDialog {
             checkBoxOnWater.setTristateMode(false);
             checkBoxOnLava.setSelected(object.getAttribute(ATTRIBUTE_SPAWN_ON_LAVA, false));
             checkBoxOnLava.setTristateMode(false);
-            comboBoxCollisionMode.setSelectedIndex(object.getAttribute(ATTRIBUTE_COLLISION_MODE, 2));
-            comboBoxUndergroundMode.setSelectedIndex(object.getAttribute(ATTRIBUTE_UNDERGROUND_MODE, 1));
-            collisionModeChanged = undergroundModeChanged = false;
+            comboBoxCollisionMode.setSelectedIndex(object.getAttribute(ATTRIBUTE_COLLISION_MODE, COLLISION_MODE_SOLID));
+            comboBoxUndergroundMode.setSelectedIndex(object.getAttribute(ATTRIBUTE_UNDERGROUND_MODE, COLLISION_MODE_ALL));
+            comboBoxLeafDecayMode.setSelectedIndex(object.getAttribute(ATTRIBUTE_LEAF_DECAY_MODE, LEAF_DECAY_NO_CHANGE));
             spinnerFrequency.setValue(object.getAttribute(ATTRIBUTE_FREQUENCY, 100));
             Previewer previewer = new Previewer(colourScheme);
             previewer.setObject(object);
@@ -101,9 +95,19 @@ public class EditObjectAttributes extends javax.swing.JDialog {
             fieldName.setText("multiple");
             fieldName.setEnabled(false);
             file = null;
+            long frequencyTotal = 0;
+            int firstFrequency = -1;
+            boolean allFrequenciesIdentical = true;
             for (WPObject object: objects) {
                 if (object.getAttribute(ATTRIBUTE_OFFSET, null) != null) {
                     offsets.put(object, object.getAttribute(ATTRIBUTE_OFFSET, (Point3i) null));
+                }
+                int frequency = object.getAttribute(ATTRIBUTE_FREQUENCY, 100);
+                frequencyTotal += frequency;
+                if (firstFrequency == -1) {
+                    firstFrequency = frequency;
+                } else if (frequency != firstFrequency) {
+                    allFrequenciesIdentical = false;
                 }
             }
             labelOffset.setText("multiple");
@@ -114,9 +118,16 @@ public class EditObjectAttributes extends javax.swing.JDialog {
             checkBoxOnSolidLand.setIndeterminate();
             checkBoxOnWater.setIndeterminate();
             checkBoxOnLava.setIndeterminate();
-            spinnerFrequency.setEnabled(false);
             labelOffset.setCursor(null);
             labelOffset.setForeground(null);
+            int averageFrequency = (int) (frequencyTotal / objects.size());
+            spinnerFrequency.setValue(averageFrequency);
+            if (! allFrequenciesIdentical) {
+                checkBoxFrequencyActive.setSelected(false);
+                checkBoxFrequencyActive.setToolTipText("<html>The relative frequencies of the selected objects are not all the same.<br>Check the checkbox if you want to set them all to the same value.</html>");
+                checkBoxFrequencyActive.setEnabled(true);
+                spinnerFrequency.setEnabled(false);
+            }
         }
         pack();
         
@@ -168,7 +179,7 @@ public class EditObjectAttributes extends javax.swing.JDialog {
             if (attributes == null) {
                 attributes = new HashMap<String, Serializable>();
             }
-            if (singleSelection) {
+            if (checkBoxFrequencyActive.isSelected()) {
                 int frequency = (Integer) spinnerFrequency.getValue();
                 if (frequency != 100) {
                     attributes.put(ATTRIBUTE_FREQUENCY, frequency);
@@ -208,6 +219,9 @@ public class EditObjectAttributes extends javax.swing.JDialog {
             }
             if (undergroundModeChanged && comboBoxUndergroundMode.getSelectedIndex() > 0) {
                 attributes.put(ATTRIBUTE_UNDERGROUND_MODE, comboBoxUndergroundMode.getSelectedIndex());
+            }
+            if (leafDecayModeChanged && comboBoxLeafDecayMode.getSelectedIndex() > 0) {
+                attributes.put(ATTRIBUTE_LEAF_DECAY_MODE, comboBoxLeafDecayMode.getSelectedIndex());
             }
             if (! attributes.isEmpty()) {
                 object.setAttributes(attributes);
@@ -277,10 +291,6 @@ public class EditObjectAttributes extends javax.swing.JDialog {
             JOptionPane.showMessageDialog(this, objects.size() + " offsets reset");
         }
     }
-
-    private void reload() {
-        throw new UnsupportedOperationException("Not yet implemented");
-    }
     
     /**
      * This method is called from within the constructor to initialize the form.
@@ -317,6 +327,9 @@ public class EditObjectAttributes extends javax.swing.JDialog {
         checkBoxUnderWater = new org.pepsoft.worldpainter.util.TristateCheckBox();
         checkBoxUnderLava = new org.pepsoft.worldpainter.util.TristateCheckBox();
         checkBoxOnLava = new org.pepsoft.worldpainter.util.TristateCheckBox();
+        checkBoxFrequencyActive = new javax.swing.JCheckBox();
+        jLabel9 = new javax.swing.JLabel();
+        comboBoxLeafDecayMode = new javax.swing.JComboBox();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
         setTitle("Edit Object Attributes");
@@ -456,6 +469,24 @@ public class EditObjectAttributes extends javax.swing.JDialog {
             }
         });
 
+        checkBoxFrequencyActive.setSelected(true);
+        checkBoxFrequencyActive.setText(" ");
+        checkBoxFrequencyActive.setEnabled(false);
+        checkBoxFrequencyActive.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                checkBoxFrequencyActiveActionPerformed(evt);
+            }
+        });
+
+        jLabel9.setText("Leaf blocks should:");
+
+        comboBoxLeafDecayMode.setModel(new javax.swing.DefaultComboBoxModel(new String[] { "no change", "behave as exported", "decay", "not decay" }));
+        comboBoxLeafDecayMode.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                comboBoxLeafDecayModeActionPerformed(evt);
+            }
+        });
+
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
         getContentPane().setLayout(layout);
         layout.setHorizontalGroup(
@@ -480,6 +511,8 @@ public class EditObjectAttributes extends javax.swing.JDialog {
                             .addGroup(layout.createSequentialGroup()
                                 .addComponent(jLabel4)
                                 .addGap(18, 18, 18)
+                                .addComponent(checkBoxFrequencyActive)
+                                .addGap(0, 0, 0)
                                 .addComponent(spinnerFrequency, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                                 .addGap(0, 0, 0)
                                 .addComponent(jLabel5))
@@ -503,7 +536,11 @@ public class EditObjectAttributes extends javax.swing.JDialog {
                                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                                     .addComponent(checkBoxOnAir, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                                     .addComponent(checkBoxOnWater, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                    .addComponent(checkBoxOnLava, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))))
+                                    .addComponent(checkBoxOnLava, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                            .addGroup(layout.createSequentialGroup()
+                                .addComponent(jLabel9)
+                                .addGap(18, 18, 18)
+                                .addComponent(comboBoxLeafDecayMode, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)))
                         .addGap(18, 18, 18)
                         .addComponent(jPanel1, javax.swing.GroupLayout.DEFAULT_SIZE, 200, Short.MAX_VALUE))
                     .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
@@ -542,7 +579,8 @@ public class EditObjectAttributes extends javax.swing.JDialog {
                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                             .addComponent(jLabel4)
                             .addComponent(spinnerFrequency, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                            .addComponent(jLabel5))
+                            .addComponent(jLabel5)
+                            .addComponent(checkBoxFrequencyActive))
                         .addGap(18, 18, 18)
                         .addComponent(checkBoxRandomRotation, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
@@ -566,6 +604,10 @@ public class EditObjectAttributes extends javax.swing.JDialog {
                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                             .addComponent(jLabel7)
                             .addComponent(comboBoxUndergroundMode, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                            .addComponent(jLabel9)
+                            .addComponent(comboBoxLeafDecayMode, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
                         .addGap(0, 0, Short.MAX_VALUE))
                     .addComponent(jPanel1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
@@ -634,11 +676,20 @@ public class EditObjectAttributes extends javax.swing.JDialog {
         undergroundModeChanged = true;
     }//GEN-LAST:event_comboBoxUndergroundModeActionPerformed
 
+    private void checkBoxFrequencyActiveActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_checkBoxFrequencyActiveActionPerformed
+        spinnerFrequency.setEnabled(checkBoxFrequencyActive.isSelected());
+    }//GEN-LAST:event_checkBoxFrequencyActiveActionPerformed
+
+    private void comboBoxLeafDecayModeActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_comboBoxLeafDecayModeActionPerformed
+        leafDecayModeChanged = true;
+    }//GEN-LAST:event_comboBoxLeafDecayModeActionPerformed
+
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JButton buttonCancel;
     private javax.swing.JButton buttonOK;
     private javax.swing.JButton buttonOffsetAuto;
     private javax.swing.JButton buttonOffsetReset;
+    private javax.swing.JCheckBox checkBoxFrequencyActive;
     private org.pepsoft.worldpainter.util.TristateCheckBox checkBoxOnAir;
     private org.pepsoft.worldpainter.util.TristateCheckBox checkBoxOnLava;
     private org.pepsoft.worldpainter.util.TristateCheckBox checkBoxOnSolidLand;
@@ -647,6 +698,7 @@ public class EditObjectAttributes extends javax.swing.JDialog {
     private org.pepsoft.worldpainter.util.TristateCheckBox checkBoxUnderLava;
     private org.pepsoft.worldpainter.util.TristateCheckBox checkBoxUnderWater;
     private javax.swing.JComboBox comboBoxCollisionMode;
+    private javax.swing.JComboBox comboBoxLeafDecayMode;
     private javax.swing.JComboBox comboBoxUndergroundMode;
     private javax.swing.JTextField fieldName;
     private javax.swing.JLabel jLabel1;
@@ -657,6 +709,7 @@ public class EditObjectAttributes extends javax.swing.JDialog {
     private javax.swing.JLabel jLabel6;
     private javax.swing.JLabel jLabel7;
     private javax.swing.JLabel jLabel8;
+    private javax.swing.JLabel jLabel9;
     private javax.swing.JPanel jPanel1;
     private javax.swing.JLabel labelFile;
     private javax.swing.JLabel labelOffset;
@@ -667,7 +720,7 @@ public class EditObjectAttributes extends javax.swing.JDialog {
     private final File file;
     private final Map<WPObject, Point3i> offsets = new HashMap<WPObject, Point3i>();
     private final ColourScheme colourScheme;
-    private boolean cancelled = true, randomRotationChanged, spawnOnAirChanged, spawnInWaterChanged, spawnInLavaChanged, spawnSolidLandChanged, spawnOnWaterChanged, spawnOnLavaChanged, collisionModeChanged, undergroundModeChanged;
+    private boolean cancelled = true, randomRotationChanged, spawnOnAirChanged, spawnInWaterChanged, spawnInLavaChanged, spawnSolidLandChanged, spawnOnWaterChanged, spawnOnLavaChanged, collisionModeChanged, undergroundModeChanged, leafDecayModeChanged;
     
     private static final long serialVersionUID = 1L;
 }

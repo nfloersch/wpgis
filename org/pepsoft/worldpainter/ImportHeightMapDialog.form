@@ -7,6 +7,7 @@
   </Properties>
   <SyntheticProperties>
     <SyntheticProperty name="formSizePolicy" type="int" value="1"/>
+    <SyntheticProperty name="generateCenter" type="boolean" value="false"/>
   </SyntheticProperties>
   <AuxValues>
     <AuxValue name="FormSettings_autoResourcing" type="java.lang.Integer" value="0"/>
@@ -89,7 +90,7 @@
     </Component>
     <Component class="javax.swing.JLabel" name="labelImageDimensions">
       <Properties>
-        <Property name="text" type="java.lang.String" value="Image size: ? x ?"/>
+        <Property name="text" type="java.lang.String" value="Image size: ? x ?, bit depth: ?, lowest value: ?, highest value: ?"/>
       </Properties>
     </Component>
     <Component class="javax.swing.JButton" name="buttonCancel">
@@ -168,7 +169,7 @@
                               <Component id="spinnerVoidBelow" min="-2" max="-2" attributes="0"/>
                           </Group>
                       </Group>
-                      <EmptySpace pref="39" max="32767" attributes="0"/>
+                      <EmptySpace max="32767" attributes="0"/>
                   </Group>
               </Group>
             </DimensionLayout>
@@ -224,7 +225,7 @@
             </Component>
             <Component class="javax.swing.JLabel" name="labelWorldDimensions">
               <Properties>
-                <Property name="text" type="java.lang.String" value="World size: ? x ? blocks (in multiples of 128)"/>
+                <Property name="text" type="java.lang.String" value="Scaled size: ? x ? blocks"/>
               </Properties>
             </Component>
             <Component class="javax.swing.JComboBox" name="comboBoxHeight">
@@ -481,7 +482,7 @@
               <Group type="103" groupAlignment="0" attributes="0">
                   <Group type="102" alignment="0" attributes="0">
                       <EmptySpace max="-2" attributes="0"/>
-                      <Component id="heightMapTileFactoryEditor1" pref="529" max="32767" attributes="0"/>
+                      <Component id="heightMapTileFactoryEditor1" pref="408" max="32767" attributes="0"/>
                       <EmptySpace max="-2" attributes="0"/>
                   </Group>
               </Group>
@@ -490,14 +491,14 @@
               <Group type="103" groupAlignment="0" attributes="0">
                   <Group type="102" alignment="0" attributes="0">
                       <EmptySpace max="-2" attributes="0"/>
-                      <Component id="heightMapTileFactoryEditor1" pref="268" max="32767" attributes="0"/>
+                      <Component id="heightMapTileFactoryEditor1" pref="223" max="32767" attributes="0"/>
                       <EmptySpace max="-2" attributes="0"/>
                   </Group>
               </Group>
             </DimensionLayout>
           </Layout>
           <SubComponents>
-            <Component class="org.pepsoft.worldpainter.terrainRanges.HeightMapTileFactoryEditor" name="heightMapTileFactoryEditor1">
+            <Component class="org.pepsoft.worldpainter.themes.SimpleThemeEditor" name="heightMapTileFactoryEditor1">
             </Component>
           </SubComponents>
         </Container>

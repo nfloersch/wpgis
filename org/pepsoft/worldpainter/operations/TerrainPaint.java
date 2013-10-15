@@ -39,7 +39,7 @@ public class TerrainPaint extends RadiusOperation implements TerrainOperation {
         Dimension dimension = getDimension();
         dimension.setEventsInhibited(true);
         try {
-            int radius = getRadius();
+            int radius = getEffectiveRadius();
             for (int x = centerX - radius; x <= centerX + radius; x++) {
                 for (int y = centerY - radius; y <= centerY + radius; y++) {
                     float strength = dynamicLevel * getStrength(centerX, centerY, x, y);

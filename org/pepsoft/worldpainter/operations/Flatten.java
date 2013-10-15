@@ -28,7 +28,7 @@ public class Flatten extends RadiusOperation {
 //        System.out.println("targetHeight: " + targetHeight);
         dimension.setEventsInhibited(true);
         try {
-            int radius = getRadius();
+            int radius = getEffectiveRadius();
             for (int x = centerX - radius; x <= centerX + radius; x++) {
                 for (int y = centerY - radius; y <= centerY + radius; y++) {
                     float currentHeight = dimension.getHeightAt(x, y);

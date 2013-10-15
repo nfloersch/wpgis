@@ -43,6 +43,7 @@ import org.pepsoft.worldpainter.App;
 import org.pepsoft.worldpainter.ColourScheme;
 import static org.pepsoft.worldpainter.Constants.*;
 import org.pepsoft.worldpainter.Dimension;
+import org.pepsoft.worldpainter.biomeschemes.CustomBiomeManager;
 import org.pepsoft.worldpainter.util.BetterAction;
 
 /**
@@ -50,10 +51,11 @@ import org.pepsoft.worldpainter.util.BetterAction;
  * @author pepijn
  */
 public class ThreeDeeFrame extends JFrame implements WindowListener {
-    public ThreeDeeFrame(Dimension dimension, ColourScheme colourScheme, Point initialCoords) throws HeadlessException {
+    public ThreeDeeFrame(Dimension dimension, ColourScheme colourScheme, CustomBiomeManager customBiomeManager, Point initialCoords) throws HeadlessException {
         super("WorldPainter - 3D View");
         setIconImage(App.ICON);
         this.colourScheme = colourScheme;
+        this.customBiomeManager = customBiomeManager;
         this.coords = initialCoords;
         
         scrollPane = new JScrollPane();
@@ -139,7 +141,7 @@ public class ThreeDeeFrame extends JFrame implements WindowListener {
     public final void setDimension(Dimension dimension) {
         this.dimension = dimension;
         if (dimension != null) {
-            threeDeeView = new ThreeDeeView(dimension, colourScheme, null, rotation);
+            threeDeeView = new ThreeDeeView(dimension, colourScheme, null, customBiomeManager, rotation);
             scrollPane.setViewportView(threeDeeView);
             MOVE_TO_SPAWN_ACTION.setEnabled(dimension.getDim() == DIM_NORMAL);
         }
@@ -176,7 +178,7 @@ public class ThreeDeeFrame extends JFrame implements WindowListener {
                 rotation = 3;
             }
             Point centreMostTile = threeDeeView.getCentreMostTile();
-            threeDeeView = new ThreeDeeView(dimension, colourScheme, null, rotation);
+            threeDeeView = new ThreeDeeView(dimension, colourScheme, null, customBiomeManager, rotation);
             scrollPane.setViewportView(threeDeeView);
 //            scrollPane.getViewport().setViewPosition(new Point((threeDeeView.getWidth() - scrollPane.getWidth()) / 2, (threeDeeView.getHeight() - scrollPane.getHeight()) / 2));
             threeDeeView.moveToTile(centreMostTile.x, centreMostTile.y);
@@ -198,7 +200,7 @@ public class ThreeDeeFrame extends JFrame implements WindowListener {
                 rotation = 0;
             }
             Point centreMostTile = threeDeeView.getCentreMostTile();
-            threeDeeView = new ThreeDeeView(dimension, colourScheme, null, rotation);
+            threeDeeView = new ThreeDeeView(dimension, colourScheme, null, customBiomeManager, rotation);
             scrollPane.setViewportView(threeDeeView);
 //            scrollPane.getViewport().setViewPosition(new Point((threeDeeView.getWidth() - scrollPane.getWidth()) / 2, (threeDeeView.getHeight() - scrollPane.getHeight()) / 2));
             threeDeeView.moveToTile(centreMostTile.x, centreMostTile.y);
@@ -323,12 +325,13 @@ public class ThreeDeeFrame extends JFrame implements WindowListener {
         private static final long serialVersionUID = 1L;
     };
     
-    private Dimension dimension;
     private final JScrollPane scrollPane;
+    private final GlassPane glassPane;
+    private final CustomBiomeManager customBiomeManager;
+    private Dimension dimension;
     private ThreeDeeView threeDeeView;
     private ColourScheme colourScheme;
     private int rotation = 3;
-    private final GlassPane glassPane;
     private Point coords;
     
     private static final Direction[] DIRECTIONS = {Direction.EAST, Direction.SOUTH, Direction.WEST, Direction.NORTH};

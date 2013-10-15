@@ -506,10 +506,10 @@ public class UndoManager {
                     return (T) copy;
                 } else if (IMMUTABLE_TYPES.contains(object.getClass())) {
                     return object;
-                } else if (object instanceof Cloneable) {
-                    return ((Cloneable<T>) object).clone();
                 } else if (object instanceof DeeplyCopyable) {
                     return ((DeeplyCopyable<T>) object).deepCopy();
+                } else if (object instanceof Cloneable) {
+                    return ((Cloneable<T>) object).clone();
                 } else {
                     throw new UnsupportedOperationException("Don't know how to copy a " + object.getClass());
                 }

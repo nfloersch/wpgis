@@ -16,8 +16,9 @@ import org.pepsoft.worldpainter.heightMaps.ConstantHeightMap;
 @Deprecated
 public class FlatTileFactory extends HeightMapTileFactory {
     private FlatTileFactory() {
-        super(null, 0, 0, false, false, false);
+        super(0, null, 0, false, null);
         height = 0;
+        throw new UnsupportedOperationException("Only exists for deserialising old worlds");
     }
 
     private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
@@ -26,7 +27,7 @@ public class FlatTileFactory extends HeightMapTileFactory {
         // Legacy support
         if (getHeightMap() == null) {
             setHeightMap(new ConstantHeightMap(height));
-    }
+        }
     }
     
     private final int height;

@@ -49,6 +49,8 @@ import org.pepsoft.worldpainter.util.MinecraftUtil;
 import static org.pepsoft.worldpainter.Constants.*;
 import org.pepsoft.worldpainter.Generator;
 import org.pepsoft.worldpainter.biomeschemes.Minecraft1_3LargeBiomeScheme;
+import org.pepsoft.worldpainter.biomeschemes.Minecraft1_6BiomeScheme;
+import org.pepsoft.worldpainter.biomeschemes.Minecraft1_6LargeBiomeScheme;
 
 /**
  *
@@ -57,8 +59,12 @@ import org.pepsoft.worldpainter.biomeschemes.Minecraft1_3LargeBiomeScheme;
 public class BiomesViewerFrame extends JFrame {
     public BiomesViewerFrame(long seed, BiomeScheme biomeScheme, SeedListener seedListener) throws HeadlessException {
         super("WorldPainter - Biomes Viewer");
-        if ((! (biomeScheme instanceof Minecraft1_1BiomeScheme)) && (! (biomeScheme instanceof Minecraft1_2BiomeScheme)) && (! (biomeScheme instanceof Minecraft1_3LargeBiomeScheme))) {
-            throw new IllegalArgumentException("A Minecraft 1.5, 1.4, 1.3, 1.2 or 1.1 biome scheme must be selected");
+        if (! ((biomeScheme instanceof Minecraft1_1BiomeScheme)
+                || (biomeScheme instanceof Minecraft1_2BiomeScheme)
+                || (biomeScheme instanceof Minecraft1_3LargeBiomeScheme)
+                || (biomeScheme instanceof Minecraft1_6BiomeScheme)
+                || (biomeScheme instanceof Minecraft1_6LargeBiomeScheme))) {
+            throw new IllegalArgumentException("A Minecraft 1.6 or 1.1 - 1.5 biome scheme must be selected");
         }
         this.biomeScheme = biomeScheme;
         this.seedListener = seedListener;
@@ -95,7 +101,7 @@ public class BiomesViewerFrame extends JFrame {
 
         JToolBar toolBar = new JToolBar();
         toolBar.add(new JLabel("Biome scheme:"));
-        schemeChooser = new JComboBox(new Object[] {"Minecraft 1.5 Default (or 1.2 - 1.4)", "Minecraft 1.5 Large Biomes (or 1.3 - 1.4)", "Minecraft 1.1"});
+        schemeChooser = new JComboBox(new Object[] {"Minecraft 1.6 Default (or 1.2 - 1.5)", "Minecraft 1.6 Large Biomes (or 1.3 - 1.5)", "Minecraft 1.1"});
         seedSpinner = new JSpinner(new SpinnerNumberModel(Long.valueOf(seed), Long.valueOf(Long.MIN_VALUE), Long.valueOf(Long.MAX_VALUE), Long.valueOf(1L)));
         if (biomeScheme instanceof Minecraft1_1BiomeScheme) {
             schemeChooser.setSelectedIndex(1);

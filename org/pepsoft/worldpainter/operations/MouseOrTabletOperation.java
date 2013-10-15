@@ -97,8 +97,7 @@ public abstract class MouseOrTabletOperation extends AbstractOperation implement
      * Convert view coordinates (may be zoomed and translated) to world
      * coordinates (unzoomed and relative to world origin).
      *
-     * @param x The X view coordinate.
-     * @param y The Y view coordinate.
+     * @param viewCoordinates The view coordinates.
      * @return The corresponding point in world coordinates.
      */
     public Point viewToWorldCoordinates(Point viewCoordinates) {
@@ -106,7 +105,7 @@ public abstract class MouseOrTabletOperation extends AbstractOperation implement
         return view.imageToWorldCoordinates(imageCoordinates);
     }
 
-    public Point viewToWorldCoordinates(float x, float y) {
+    public Point viewToWorldCoordinates(int x, int y) {
         Point imageCoordinates = view.viewToImageCoordinates(x, y);
         return view.imageToWorldCoordinates(imageCoordinates);
     }
@@ -189,7 +188,7 @@ public abstract class MouseOrTabletOperation extends AbstractOperation implement
                     timer = new Timer(delay, new ActionListener() {
                         @Override
                         public void actionPerformed(ActionEvent e) {
-                            Point worldCoords = viewToWorldCoordinates(x, y);
+                            Point worldCoords = viewToWorldCoordinates((int) x, (int) y);
                             tick(worldCoords.x, worldCoords.y, undo, first, (stylus || eraser) ? dynamicLevel : 1.0f);
                             view.updateStatusBar(worldCoords.x, worldCoords.y);
                             first = false;
@@ -203,7 +202,7 @@ public abstract class MouseOrTabletOperation extends AbstractOperation implement
                 SwingUtilities.invokeLater(new Runnable() {
                     @Override
                     public void run() {
-                        Point worldCoords = viewToWorldCoordinates(x, y);
+                        Point worldCoords = viewToWorldCoordinates((int) x, (int) y);
                         tick(worldCoords.x, worldCoords.y, eraser || (buttonType == PButton.Type.RIGHT), true, 1.0f);
                         view.updateStatusBar(worldCoords.x, worldCoords.y);
                         getDimension().armSavePoint();
@@ -246,7 +245,7 @@ public abstract class MouseOrTabletOperation extends AbstractOperation implement
                 timer = new Timer(delay, new ActionListener() {
                     @Override
                     public void actionPerformed(ActionEvent e) {
-                        Point worldCoords = viewToWorldCoordinates(x, y);
+                        Point worldCoords = viewToWorldCoordinates((int) x, (int) y);
                         tick(worldCoords.x, worldCoords.y, undo, first, 1.0f);
                         view.updateStatusBar(worldCoords.x, worldCoords.y);
                         first = false;
@@ -257,7 +256,7 @@ public abstract class MouseOrTabletOperation extends AbstractOperation implement
 //                start = System.currentTimeMillis();
             }
         } else {
-            Point worldCoords = viewToWorldCoordinates(x, y);
+            Point worldCoords = viewToWorldCoordinates((int) x, (int) y);
             tick(worldCoords.x, worldCoords.y, undo, true, 1.0f);
             view.updateStatusBar(worldCoords.x, worldCoords.y);
             getDimension().armSavePoint();

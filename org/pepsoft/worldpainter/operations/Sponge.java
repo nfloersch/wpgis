@@ -24,9 +24,9 @@ public class Sponge extends RadiusOperation {
 
     @Override
     protected void tick(int x, int y, boolean inverse, boolean first, float level) {
-        int waterHeight;
-        Dimension dimension = getDimension();
-        TileFactory tileFactory = dimension.getTileFactory();
+        final int waterHeight;
+        final Dimension dimension = getDimension();
+        final TileFactory tileFactory = dimension.getTileFactory();
         if (tileFactory instanceof HeightMapTileFactory) {
             waterHeight = ((HeightMapTileFactory) tileFactory).getWaterHeight();
         } else {
@@ -38,7 +38,7 @@ public class Sponge extends RadiusOperation {
         }
         dimension.setEventsInhibited(true);
         try {
-            int radius = getRadius();
+            final int radius = getEffectiveRadius();
             for (int dx = -radius; dx <= radius; dx++) {
                 for (int dy = -radius; dy <= radius; dy++) {
                     if (getStrength(x, y, x + dx, y + dy) != 0f) {

@@ -58,10 +58,10 @@ public class FloodRiver extends MouseOrTabletOperation implements AutoBiomeOpera
             Point imageCoords = worldToImageCoordinates(x, y);
             if (! flooder.floodFill(imageCoords.x, imageCoords.y, SwingUtilities.getWindowAncestor(getView()))) {
                 // Cancelled by user
-                if (dimension.undoIfDirty()) {
-                    dimension.clearRedo();
-                    dimension.armSavePoint();
-                }
+//                if (dimension.undoIfDirty()) {
+//                    dimension.clearRedo();
+//                    dimension.armSavePoint();
+//                }
             }
         } finally {
             dimension.setAutoUpdateBiomes(false);

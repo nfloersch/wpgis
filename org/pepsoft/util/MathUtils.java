@@ -136,6 +136,10 @@ public final class MathUtils {
             return (float) Math.sqrt(dx * dx + dy * dy + dz * dz);
         }
     }
+    
+    public static int clamp(int min, int value, int max) {
+        return (value < min) ? min : ((value > max) ? max : value);
+    }
 
     private static final float[][] DISTANCES_2D = new float[301][301];
     private static final float[][][] DISTANCES_3D = new float[51][51][51];

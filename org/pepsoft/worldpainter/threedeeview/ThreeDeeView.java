@@ -33,6 +33,7 @@ import static org.pepsoft.worldpainter.Constants.*;
 import org.pepsoft.worldpainter.Dimension;
 import org.pepsoft.worldpainter.HeightMapTileFactory;
 import org.pepsoft.worldpainter.Tile;
+import org.pepsoft.worldpainter.biomeschemes.CustomBiomeManager;
 import org.pepsoft.worldpainter.layers.Layer;
 
 /**
@@ -40,10 +41,11 @@ import org.pepsoft.worldpainter.layers.Layer;
  * @author pepijn
  */
 public class ThreeDeeView extends JComponent implements Dimension.Listener, Tile.Listener, HierarchyListener, ActionListener, Scrollable {
-    public ThreeDeeView(Dimension dimension, ColourScheme colourScheme, BiomeScheme biomeScheme, int rotation) {
+    public ThreeDeeView(Dimension dimension, ColourScheme colourScheme, BiomeScheme biomeScheme, CustomBiomeManager customBiomeManager, int rotation) {
         this.dimension = dimension;
         this.colourScheme = colourScheme;
         this.biomeScheme = biomeScheme;
+        this.customBiomeManager = customBiomeManager;
         this.rotation = rotation;
         maxHeight = dimension.getMaxHeight();
         if (dimension.getTileFactory() instanceof HeightMapTileFactory) {
@@ -104,7 +106,7 @@ public class ThreeDeeView extends JComponent implements Dimension.Listener, Tile
                 throw new IllegalArgumentException();
         }
         zSortedTiles.addAll(dimension.getTiles());
-        threeDeeRenderManager = new ThreeDeeRenderManager(dimension, colourScheme, biomeScheme, rotation);
+        threeDeeRenderManager = new ThreeDeeRenderManager(dimension, colourScheme, biomeScheme, customBiomeManager, rotation);
 
         dimension.addDimensionListener(this);
         for (Tile tile: dimension.getTiles()) {
@@ -158,7 +160,7 @@ public class ThreeDeeView extends JComponent implements Dimension.Listener, Tile
     }
 
     public BufferedImage getImage(ProgressReceiver progressReceiver) throws ProgressReceiver.OperationCancelled {
-        Tile3DRenderer renderer = new Tile3DRenderer(dimension, colourScheme, biomeScheme, rotation);
+        Tile3DRenderer renderer = new Tile3DRenderer(dimension, colourScheme, biomeScheme, customBiomeManager, rotation);
 
         // Paint the complete image
         java.awt.Dimension preferredSize = getPreferredSize();
@@ -497,14 +499,15 @@ public class ThreeDeeView extends JComponent implements Dimension.Listener, Tile
     private final ThreeDeeRenderManager threeDeeRenderManager;
     private final ColourScheme colourScheme;
     private final BiomeScheme biomeScheme;
-    private Timer timer;
     private final List<Tile> tilesWaitingToBeRendered = new LinkedList<Tile>();
-    private long lastTileChange;
-    private RefreshMode refreshMode = RefreshMode.DELAYED;
     private final int maxHeight;
     private final int xOffset, yOffset, maxX, maxY;
     private final int rotation;
     private final SortedSet<Tile> zSortedTiles;
+    private final CustomBiomeManager customBiomeManager;
+    private Timer timer;
+    private long lastTileChange;
+    private RefreshMode refreshMode = RefreshMode.DELAYED;
     private Point centreTile;
     private int waterLevel;
     private Point highlightTile, highlightPoint;

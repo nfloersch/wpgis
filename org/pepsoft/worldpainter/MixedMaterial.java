@@ -1,5 +1,6 @@
 package org.pepsoft.worldpainter;
 
+import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.Serializable;
@@ -20,7 +21,7 @@ public class MixedMaterial implements Serializable {
             total += row.occurrence;
         }
         if (total != 1000) {
-            throw new IllegalArgumentException("Total permillage is not 1000");
+            throw new IllegalArgumentException("Total occurrence is not 1000");
         }
         this.name = name;
         this.rows = rows;
@@ -51,36 +52,53 @@ public class MixedMaterial implements Serializable {
         return colour;
     }
 
+    public BufferedImage getIcon(ColourScheme colourScheme) {
+        final BufferedImage icon = new BufferedImage(16, 16, BufferedImage.TYPE_INT_RGB);
+        // Draw the border
+        for (int i = 0; i < 15; i++) {
+            icon.setRGB(     i,      0, 0);
+            icon.setRGB(    15,      i, 0);
+            icon.setRGB(15 - i,     15, 0);
+            icon.setRGB(     0, 15 - i, 0);
+        }
+        // Draw the terrain
+        if (colour != null) {
+            int colourInt = colour;
+            for (int x = 1; x < 15; x++) {
+                for (int y = 1; y < 15; y++) {
+                    icon.setRGB(x, y, colourInt);
+                }
+            }
+        } else {
+            for (int x = 1; x < 15; x++) {
+                for (int y = 1; y < 15; y++) {
+                    icon.setRGB(x, y, colourScheme.getColour(getMaterial(0, x, y, 0)));
+                }
+            }
+        }
+        return icon;
+    }
+    
     public Material getMaterial(long seed, int x, int y, int z) {
-        if (noise) {
-//            random.setSeed(seed + x * 65537 + y * 257 + z);
+        if (simple) {
+            return simpleMaterial;
+        } else if (noise) {
             return materials[random.nextInt(1000)];
         } else {
-            if (rows.length == 1) {
-                return rows[0].material;
-            } else {
-                double xx = x / Constants.TINY_BLOBS, yy = y / Constants.TINY_BLOBS, zz = z / Constants.TINY_BLOBS;
-                if (seed + 1 != noiseGenerators[0].getSeed()) {
-                    for (int i = 0; i < noiseGenerators.length; i++) {
-                        noiseGenerators[i].setSeed(seed + i + 1);
-                    }
+            double xx = x / Constants.TINY_BLOBS, yy = y / Constants.TINY_BLOBS, zz = z / Constants.TINY_BLOBS;
+            if (seed + 1 != noiseGenerators[0].getSeed()) {
+                for (int i = 0; i < noiseGenerators.length; i++) {
+                    noiseGenerators[i].setSeed(seed + i + 1);
                 }
-                Material material = sortedRows[sortedRows.length - 1].material;
-                for (int i = noiseGenerators.length - 1; i >= 0; i--) {
-                    final float rowScale = sortedRows[i].scale * this.scale;
-                    if (noiseGenerators[i].getPerlinNoise(xx / rowScale, yy / rowScale, zz / rowScale) >= sortedRows[i].chance) {
-                        material = sortedRows[i].material;
-                    }
-                }
-                return material;
-//                for (int i = 0; i < noiseGenerators.length; i++) {
-//                    final float rowScale = sortedRows[i].scale * this.scale;
-//                    if (noiseGenerators[i].getPerlinNoise(xx / rowScale, yy / rowScale, zz / rowScale) >= sortedRows[i].chance) {
-//                        return sortedRows[i].material;
-//                    }
-//                }
-//                return sortedRows[sortedRows.length - 1].material;
             }
+            Material material = sortedRows[sortedRows.length - 1].material;
+            for (int i = noiseGenerators.length - 1; i >= 0; i--) {
+                final float rowScale = sortedRows[i].scale * this.scale;
+                if (noiseGenerators[i].getPerlinNoise(xx / rowScale, yy / rowScale, zz / rowScale) >= sortedRows[i].chance) {
+                    material = sortedRows[i].material;
+                }
+            }
+            return material;
         }
     }
 
@@ -137,13 +155,40 @@ public class MixedMaterial implements Serializable {
         return true;
     }
 
+    /**
+     * Utility method for creating a simple mixed material, consisting of one
+     * block type with data value 0.
+     * 
+     * @param blockType The block type the mixed material should consist of
+     * @return A new mixed material with the specified block type, and the
+     *     block type's name
+     */
+    public static MixedMaterial create(final int blockType) {
+        return create(Material.get(blockType));
+    }
+
+    /**
+     * Utility method for creating a simple mixed material, consisting of one
+     * material.
+     * 
+     * @param material The simple material the mixed material should consist of
+     * @return A new mixed material with the specified material and an
+     *     appropriate name
+     */
+    public static MixedMaterial create(final Material material) {
+        return new MixedMaterial(material.toString(), new Row[] {new Row(material, 1000, 1.0f)}, -1, true, 1.0f, null);
+    }
+    
     private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
         in.defaultReadObject();
         init();
     }
     
     private void init() {
-        if (noise) {
+        if (rows.length == 1) {
+            simple = true;
+            simpleMaterial = rows[0].material;
+        } else if (noise) {
             materials = new Material[1000];
             int index = 0;
             for (Row row: rows) {
@@ -180,6 +225,8 @@ public class MixedMaterial implements Serializable {
     private transient PerlinNoise[] noiseGenerators;
     private transient Material[] materials;
     private transient Random random;
+    private transient boolean simple;
+    private transient Material simpleMaterial;
 
     public static class Row implements Serializable {
         public Row(Material material, int occurrence, float scale) {

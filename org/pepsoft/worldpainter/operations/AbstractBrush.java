@@ -42,7 +42,7 @@ public abstract class AbstractBrush implements Brush, Cloneable {
     }
     
     @Override
-    public Brush clone() {
+    public AbstractBrush clone() {
         try {
             AbstractBrush clone = (AbstractBrush) super.clone();
             clone.perlinNoise = (PerlinNoise) perlinNoise.clone();

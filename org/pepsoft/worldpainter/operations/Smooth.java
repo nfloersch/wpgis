@@ -22,7 +22,7 @@ public class Smooth extends RadiusOperation {
 
     @Override
     protected void tick(int centerX, int centerY, boolean undo, boolean first, float dynamicLevel) {
-        int radius = getRadius(), diameter = radius * 2 + 1;
+        int radius = getEffectiveRadius(), diameter = radius * 2 + 1;
         if ((totals == null) || (totals.length < (diameter + 10))) {
             totals = new float[diameter + 10][diameter + 10];
             currentHeights = new float[diameter + 10][diameter + 10];

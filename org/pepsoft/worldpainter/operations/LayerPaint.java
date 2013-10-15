@@ -10,6 +10,7 @@ import org.pepsoft.worldpainter.MapDragControl;
 import org.pepsoft.worldpainter.RadiusControl;
 import org.pepsoft.worldpainter.WorldPainterView;
 import org.pepsoft.worldpainter.layers.Bo2Layer;
+import org.pepsoft.worldpainter.layers.CombinedLayer;
 import org.pepsoft.worldpainter.layers.CustomLayer;
 import org.pepsoft.worldpainter.layers.Frost;
 import org.pepsoft.worldpainter.layers.Layer;
@@ -36,7 +37,7 @@ public class LayerPaint extends RadiusOperation {
         Dimension dimension = getDimension();
         dimension.setEventsInhibited(true);
         try {
-            int radius = getRadius();
+            int radius = getEffectiveRadius();
             for (int x = centerX - radius; x <= centerX + radius; x++) {
                 for (int y = centerY - radius; y <= centerY + radius; y++) {
                     switch (layer.getDataSize()) {
@@ -76,6 +77,8 @@ public class LayerPaint extends RadiusOperation {
             sb.append("custom.groundCover.");
         } else if (layer instanceof UndergroundPocketsLayer) {
             sb.append("custom.undergroundPockets.");
+        } else if (layer instanceof CombinedLayer) {
+            sb.append("custom.combined.");
         } else if (layer instanceof CustomLayer) {
             sb.append("custom.unknown.");
         }

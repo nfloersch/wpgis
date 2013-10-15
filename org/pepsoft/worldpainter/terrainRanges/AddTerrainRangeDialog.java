@@ -102,9 +102,13 @@ public class AddTerrainRangeDialog extends javax.swing.JDialog {
 
         jLabel3.setText("Terrain type:");
 
-        comboBoxTerrainType.setModel(new DefaultComboBoxModel(Terrain.getConfiguredValue()));
         comboBoxTerrainType.setSelectedItem(Terrain.DIRT);
         comboBoxTerrainType.setRenderer(new TerrainListCellRenderer());
+        comboBoxTerrainType.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                comboBoxTerrainTypeActionPerformed(evt);
+            }
+        });
 
         buttonCancel.setText("Cancel");
         buttonCancel.addActionListener(new java.awt.event.ActionListener() {
@@ -173,6 +177,10 @@ public class AddTerrainRangeDialog extends javax.swing.JDialog {
         cancelled = false;
         dispose();
     }//GEN-LAST:event_buttonOKActionPerformed
+
+    private void comboBoxTerrainTypeActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_comboBoxTerrainTypeActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_comboBoxTerrainTypeActionPerformed
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JButton buttonCancel;

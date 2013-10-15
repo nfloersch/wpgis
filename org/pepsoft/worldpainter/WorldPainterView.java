@@ -20,7 +20,7 @@ public abstract class WorldPainterView extends JComponent {
 
     public abstract Point imageToWorldCoordinates(Point imageCoordinates);
 
-    public abstract Point viewToImageCoordinates(float x, float y);
+    public abstract Point viewToImageCoordinates(int x, int y);
 
     public abstract Point worldToImageCoordinates(int x, int y);
     

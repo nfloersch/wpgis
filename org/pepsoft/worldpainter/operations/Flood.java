@@ -10,6 +10,7 @@ import javax.swing.SwingUtilities;
 import org.pepsoft.worldpainter.Dimension;
 import org.pepsoft.worldpainter.QueueLinearFloodFiller;
 import org.pepsoft.worldpainter.WorldPainter;
+import org.pepsoft.worldpainter.layers.FloodWithLava;
 
 /**
  *
@@ -42,30 +43,49 @@ public class Flood extends MouseOrTabletOperation implements AutoBiomeOperation 
             return;
         }
         int waterLevel = dimension.getWaterLevelAt(x, y);
-        if (undo && (waterLevel <= terrainHeight)) {
+        boolean fluidPresent = waterLevel > terrainHeight;
+        if (undo && (! fluidPresent)) {
             // No point lowering the water level if there is no water...
             return;
         }
         int height = Math.max(terrainHeight, waterLevel);
-        if (undo ? (height <= 0) : (height >= (dimension.getMaxHeight() - 1))) {
-            // Already at the lowest or highest possible point
-            return;
+        int floodToHeight;
+        if (fluidPresent && (floodWithLava != dimension.getBitLayerValueAt(FloodWithLava.INSTANCE, x, y))) {
+            // There is fluid present of a different type; don't change the
+            // height, just change the type
+            floodToHeight = height;
+            undo = false;
+        } else {
+            if (undo ? (height <= 0) : (height >= (dimension.getMaxHeight() - 1))) {
+                // Already at the lowest or highest possible point
+                return;
+            }
+            floodToHeight = undo ? height : (height + 1);
         }
-        dimension.setEventsInhibited(true);
-        dimension.setAutoUpdateBiomes(autoBiomesEnabled);
+        synchronized (dimension) {
+            dimension.setEventsInhibited(true);
+            dimension.setAutoUpdateBiomes(autoBiomesEnabled);
+        }
         try {
-            QueueLinearFloodFiller flooder = new QueueLinearFloodFiller(dimension, undo ? height : (height + 1), floodWithLava, undo);
+            synchronized (dimension) {
+                dimension.rememberChanges();
+            }
+            QueueLinearFloodFiller flooder = new QueueLinearFloodFiller(dimension, floodToHeight, floodWithLava, undo);
             Point imageCoords = worldToImageCoordinates(x, y);
             if (! flooder.floodFill(imageCoords.x, imageCoords.y, SwingUtilities.getWindowAncestor(getView()))) {
                 // Cancelled by user
-                if (dimension.undoIfDirty()) {
-                    dimension.clearRedo();
-                    dimension.armSavePoint();
+                synchronized (dimension) {
+                    if (dimension.undoChanges()) {
+                        dimension.clearRedo();
+                        dimension.armSavePoint();
+                    }
                 }
             }
         } finally {
-            dimension.setAutoUpdateBiomes(false);
-            dimension.setEventsInhibited(false);
+            synchronized (dimension) {
+                dimension.setAutoUpdateBiomes(false);
+                dimension.setEventsInhibited(false);
+            }
         }
     }
 

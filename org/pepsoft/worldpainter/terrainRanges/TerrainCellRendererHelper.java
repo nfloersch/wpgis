@@ -18,14 +18,14 @@ import org.pepsoft.worldpainter.Terrain;
 class TerrainCellRendererHelper {
     void configure(JLabel label, Terrain terrain) {
         if (terrain != null) {
-            BufferedImage image = terrain.getIcon();
-            ImageIcon icon = iconCache.get(image);
-            if (icon == null) {
-                icon = new ImageIcon(image);
-                iconCache.put(image, icon);
-            }
-            label.setIcon(icon);
-            label.setText(terrain.getName());
+//            BufferedImage image = terrain.getIcon();
+//            ImageIcon icon = iconCache.get(image);
+//            if (icon == null) {
+//                icon = new ImageIcon(image);
+//                iconCache.put(image, icon);
+//            }
+//            label.setIcon(icon);
+//            label.setText(terrain.getName());
         }
     }
     

@@ -27,7 +27,6 @@ import org.pepsoft.util.undo.UndoManager;
 import org.pepsoft.worldpainter.layers.Biome;
 import org.pepsoft.worldpainter.layers.Layer;
 import static org.pepsoft.worldpainter.Constants.*;
-import org.pepsoft.worldpainter.MixedMaterial.Row;
 
 /**
  *
@@ -38,9 +37,9 @@ public class World2 extends InstanceKeeper implements Serializable, Cloneable {
         this.maxheight = maxHeight;
     }
     
-    public World2(long minecraftSeed, long worldpainterSeed, TileFactory tileFactory, int maxHeight) {
+    public World2(long minecraftSeed, TileFactory tileFactory, int maxHeight) {
         this.maxheight = maxHeight;
-        Dimension dim = new Dimension(minecraftSeed, worldpainterSeed, tileFactory, 0, maxHeight);
+        Dimension dim = new Dimension(minecraftSeed, tileFactory, 0, maxHeight);
         addDimension(dim);
     }
     
@@ -228,7 +227,11 @@ public class World2 extends InstanceKeeper implements Serializable, Cloneable {
                 Generator oldGenerator = generator;
                 generator = Generator.LARGE_BIOMES;
                 propertyChangeSupport.firePropertyChange("generator", oldGenerator, generator);
-            } else if ((biomeAlgorithm != BIOME_ALGORITHM_1_3_LARGE) && (generator == Generator.LARGE_BIOMES)) {
+            } else if ((biomeAlgorithm != BIOME_ALGORITHM_1_3_LARGE)
+                    && (biomeAlgorithm != BIOME_ALGORITHM_AUTO_BIOMES)
+                    && (biomeAlgorithm != BIOME_ALGORITHM_CUSTOM_BIOMES)
+                    && (biomeAlgorithm != BIOME_ALGORITHM_NONE)
+                    && (generator == Generator.LARGE_BIOMES)) {
                 Generator oldGenerator = generator;
                 if (dimensions.containsKey(DIM_NORMAL)
                         && (dimensions.get(DIM_NORMAL).getTileFactory() instanceof HeightMapTileFactory)
@@ -463,14 +466,16 @@ public class World2 extends InstanceKeeper implements Serializable, Cloneable {
             biomeAlgorithm = BIOME_ALGORITHM_NONE;
             customBiomes = false;
         }
-        if (customMaterials != null) {
+        if (mixedMaterials == null) {
             mixedMaterials = new MixedMaterial[Terrain.CUSTOM_TERRAIN_COUNT];
-            for (int i = 0; i < customMaterials.length; i++) {
-                if (customMaterials[i] != null) {
-                    mixedMaterials[i] = new MixedMaterial(customMaterials[i].toString(), new Row[] {new Row(customMaterials[i], 1000, 1.0f)}, -1, true, 1.0f, null);
+            if (customMaterials != null) {
+                for (int i = 0; i < customMaterials.length; i++) {
+                    if (customMaterials[i] != null) {
+                        mixedMaterials[i] = MixedMaterial.create(customMaterials[i]);
+                    }
                 }
+                customMaterials = null;
             }
-            customMaterials = null;
         }
         
         // Bug fix: fix the maxHeight of the dimensions, which somehow is not

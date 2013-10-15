@@ -16,6 +16,7 @@ import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -42,6 +43,10 @@ import static org.pepsoft.minecraft.Constants.DEFAULT_MAX_HEIGHT_2;
 import static org.pepsoft.minecraft.Material.DIRT;
 import static org.pepsoft.worldpainter.World2.BIOME_ALGORITHM_AUTO_BIOMES;
 import static org.pepsoft.worldpainter.World2.BIOME_ALGORITHM_NONE;
+import org.pepsoft.worldpainter.layers.Layer;
+import org.pepsoft.worldpainter.themes.Filter;
+import org.pepsoft.worldpainter.themes.HeightFilter;
+import org.pepsoft.worldpainter.themes.SimpleTheme;
 
 /**
  *
@@ -547,7 +552,7 @@ public final class Configuration implements Serializable, EventLogger, Minecraft
             defaultBiomeAlgorithm = BIOME_ALGORITHM_AUTO_BIOMES;
         }
         if (defaultTerrainAndLayerSettings == null) {
-            defaultTerrainAndLayerSettings = new Dimension(World2.DEFAULT_OCEAN_SEED, new Random().nextLong(), TileFactoryFactory.createNoiseTileFactory(surface, defaultMaxHeight, level, waterLevel, lava, beaches, 20, 1.0), Constants.DIM_NORMAL, defaultMaxHeight);
+            defaultTerrainAndLayerSettings = new Dimension(World2.DEFAULT_OCEAN_SEED, TileFactoryFactory.createNoiseTileFactory(new Random().nextLong(), surface, defaultMaxHeight, level, waterLevel, lava, beaches, 20, 1.0), Constants.DIM_NORMAL, defaultMaxHeight);
         }
         
         // New legacy mechanism with version number
@@ -594,12 +599,43 @@ public final class Configuration implements Serializable, EventLogger, Minecraft
             customLayers = new ArrayList<CustomLayer>();
             mixedMaterials = new ArrayList<MixedMaterial>();
         }
+        if (version < 8) {
+            // Check whether the default terrain map still has the deprecated
+            // "snow on rock" terrain type, and if so replace it with a layer.
+            // Note that this isn't perfect: it assumes that the "snow on rock"
+            // terrain type, if it exists, is the highest one and should
+            // continue to the top of the map
+            if ((defaultTerrainAndLayerSettings.getTileFactory() instanceof HeightMapTileFactory)
+                    && (((HeightMapTileFactory) defaultTerrainAndLayerSettings.getTileFactory()).getTheme() instanceof SimpleTheme)) {
+                SimpleTheme theme = (SimpleTheme) ((HeightMapTileFactory) defaultTerrainAndLayerSettings.getTileFactory()).getTheme();
+                // Very old maps don't have terrainRanges set. They are out of
+                // luck; it's not worth migrating them as well
+                if (theme.getTerrainRanges() != null) {
+                    SortedMap<Integer, Terrain> terrainRanges = theme.getTerrainRanges();
+                    Map<Filter, Layer> layerMap = new HashMap<Filter, Layer>();
+                    boolean frostAdded = false;
+                    for (Iterator<Map.Entry<Integer, Terrain>> i = terrainRanges.entrySet().iterator(); i.hasNext(); ) {
+                        Map.Entry<Integer, Terrain> entry = i.next();
+                        if (entry.getValue() == Terrain.SNOW) {
+                            if (! frostAdded) {
+                                layerMap.put(new HeightFilter(defaultMaxHeight, entry.getKey(), defaultMaxHeight - 1, theme.isRandomise()), Frost.INSTANCE);
+                                frostAdded = true;
+                            }
+                            entry.setValue(Terrain.ROCK);
+                        }
+                    }
+                    if (! layerMap.isEmpty()) {
+                        theme.setLayerMap(layerMap);
+                    }
+                }
+            }
+        }
         version = CURRENT_VERSION;
         
         // Bug fix: make sure terrain ranges map conforms to surface material setting
         TileFactory tileFactory = defaultTerrainAndLayerSettings.getTileFactory();
-        if (tileFactory instanceof HeightMapTileFactory) {
-            SortedMap<Integer, Terrain> defaultTerrainRanges = ((HeightMapTileFactory) tileFactory).getTerrainRanges();
+        if ((tileFactory instanceof HeightMapTileFactory) && (((HeightMapTileFactory) tileFactory).getTheme() instanceof SimpleTheme)) {
+            SortedMap<Integer, Terrain> defaultTerrainRanges = ((SimpleTheme) ((HeightMapTileFactory) tileFactory).getTheme()).getTerrainRanges();
             // Find what is probably meant to be the surface material. With the
             // default settings this should be -1, but if someone configured a
             // default underwater material, try not to change that
@@ -704,7 +740,7 @@ public final class Configuration implements Serializable, EventLogger, Minecraft
     private int undoLevels = 100, defaultGridSize = 128, defaultContourSeparation = 10, defaultWidth = 5, defaultHeight = 5, defaultMaxHeight = World2.DEFAULT_MAX_HEIGHT;
     @Deprecated
     private int defaultBiomeAlgorithm = BIOME_ALGORITHM_NONE;
-    private Dimension defaultTerrainAndLayerSettings = new Dimension(World2.DEFAULT_OCEAN_SEED, new Random().nextLong(), TileFactoryFactory.createNoiseTileFactory(surface, defaultMaxHeight, level, waterLevel, lava, beaches, 20, 1.0), Constants.DIM_NORMAL, defaultMaxHeight);
+    private Dimension defaultTerrainAndLayerSettings = new Dimension(World2.DEFAULT_OCEAN_SEED, TileFactoryFactory.createNoiseTileFactory(new Random().nextLong(), surface, defaultMaxHeight, level, waterLevel, lava, beaches, 20, 1.0), Constants.DIM_NORMAL, defaultMaxHeight);
     private boolean toolbarsLocked;
     @Deprecated
     private boolean saveAsWarningShown = true;
@@ -725,7 +761,7 @@ public final class Configuration implements Serializable, EventLogger, Minecraft
     private static final Logger logger = Logger.getLogger(Configuration.class.getName());
     private static final long serialVersionUID = 2011041801L;
     private static final int CIRCULAR_WORLD = -1;
-    private static final int CURRENT_VERSION = 7;
+    private static final int CURRENT_VERSION = 8;
     
     public enum DonationStatus {DONATED, NO_THANK_YOU}
 }

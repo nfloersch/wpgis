@@ -85,15 +85,17 @@ public class QueueLinearFloodFiller {
 
                     @Override
                     public Dimension execute(ProgressReceiver progressReceiver) throws OperationCancelled {
-                        //***Call floodfill routine while floodfill ranges still exist on the queue
-                        FloodFillRange range;
-                        while (ranges.size() > 0) {
-                            //**Get Next Range Off the Queue
-                            range = ranges.remove();
-                            processRange(range);
-                            progressReceiver.checkForCancellation();
+                        synchronized (dimension) {
+                            //***Call floodfill routine while floodfill ranges still exist on the queue
+                            FloodFillRange range;
+                            while (ranges.size() > 0) {
+                                //**Get Next Range Off the Queue
+                                range = ranges.remove();
+                                processRange(range);
+                                progressReceiver.checkForCancellation();
+                            }
+                            return dimension;
                         }
-                        return dimension;
                     }
                 }) == null) {
                     // Operation cancelled
@@ -195,7 +197,6 @@ public class QueueLinearFloodFiller {
     protected boolean checkBlock(int px) {
         int y = px / width;
         int x = px % width;
-        // If block is VOID return
         if (dimension.getBitLayerValueAt(org.pepsoft.worldpainter.layers.Void.INSTANCE, offsetX + x, offsetY + y)) {
             return false;
         } else {
@@ -207,7 +208,8 @@ public class QueueLinearFloodFiller {
             } else {
                 return (height != -1)
                     && (waterLevel > height)
-                    && (waterLevel > dimension.getWaterLevelAt(offsetX + x, offsetY + y));
+                    && ((waterLevel > dimension.getWaterLevelAt(offsetX + x, offsetY + y))
+                        || (floodWithLava != dimension.getBitLayerValueAt(FloodWithLava.INSTANCE, offsetX + x, offsetY + y)));
             }
         }
     }

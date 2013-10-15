@@ -50,15 +50,17 @@ import static org.pepsoft.worldpainter.Constants.DIM_NORMAL;
 import static org.pepsoft.worldpainter.Constants.TILE_SIZE;
 import static org.pepsoft.worldpainter.Constants.TILE_SIZE_BITS;
 import static org.pepsoft.worldpainter.Constants.VOID_COLOUR;
+import org.pepsoft.worldpainter.biomeschemes.CustomBiomeManager;
 
 /**
  *
  * @author pepijn
  */
 public class WorldPainter extends WorldPainterView implements Dimension.Listener, Tile.Listener, MouseMotionListener, Scrollable, PropertyChangeListener {
-    public WorldPainter(ColourScheme colourScheme, BiomeScheme biomeScheme) {
+    public WorldPainter(ColourScheme colourScheme, BiomeScheme biomeScheme, CustomBiomeManager customBiomeManager) {
         this.colourScheme = colourScheme;
         this.biomeScheme = biomeScheme;
+        this.customBiomeManager = customBiomeManager;
         setOpaque(true);
         addMouseMotionListener(this);
         labelFont = new Font(Font.DIALOG, Font.PLAIN, 8);
@@ -67,8 +69,8 @@ public class WorldPainter extends WorldPainterView implements Dimension.Listener
         labelLineHeight = fontMetrics.getHeight();
     }
 
-    public WorldPainter(Dimension dimension, ColourScheme colourScheme, BiomeScheme biomeScheme) {
-        this(colourScheme, biomeScheme);
+    public WorldPainter(Dimension dimension, ColourScheme colourScheme, BiomeScheme biomeScheme, CustomBiomeManager customBiomeManager) {
+        this(colourScheme, biomeScheme, customBiomeManager);
         setDimension(dimension);
     }
 
@@ -93,7 +95,7 @@ public class WorldPainter extends WorldPainterView implements Dimension.Listener
         dirtyTiles.clear();
         dirtyTileNeighbours.clear();
         if (dimension != null) {
-            tileRenderer = new TileRenderer(dimension, colourScheme, biomeScheme);
+            tileRenderer = new TileRenderer(dimension, colourScheme, biomeScheme, customBiomeManager);
             tileRenderer.setLightOrigin(lightOrigin);
             drawContours = dimension.isContoursEnabled();
             tileRenderer.setContourLines(drawContours);
@@ -223,11 +225,11 @@ public class WorldPainter extends WorldPainterView implements Dimension.Listener
      * @return The corresponding point in image coordinates.
      */
     @Override
-    public Point viewToImageCoordinates(float x, float y) {
+    public Point viewToImageCoordinates(int x, int y) {
         if (zoom == 0) {
-            return new Point ((int) (x + 0.5f), (int) (y + 0.5f));
+            return new Point (x, y);
         } else {
-            return new Point ((int) (x / scale + 0.5f), (int) (y / scale + 0.5f));
+            return new Point((int) (x / scale), (int) (y / scale));
         }
     }
     
@@ -342,10 +344,17 @@ public class WorldPainter extends WorldPainterView implements Dimension.Listener
 
     public void setRadius(int radius) {
         int oldRadius = this.radius;
+        int oldEffectiveRadius = this.effectiveRadius;
         this.radius = radius;
+        if ((brushShape == BrushShape.CIRCLE) || ((brushRotation % 90) == 0)) {
+            effectiveRadius = radius;
+        } else {
+            double a = brushRotation / 180.0 * Math.PI;
+            effectiveRadius = (int) Math.ceil(Math.abs(Math.sin(a)) * radius + Math.abs(Math.cos(a)) * radius);
+        }
         firePropertyChange("radius", oldRadius, radius);
         if (drawRadius) {
-            int largestRadius = Math.max(oldRadius, radius);
+            int largestRadius = Math.max(oldEffectiveRadius, effectiveRadius);
             int extraPixels = Math.max((int) (1 / scale), 1);
             int diameter = largestRadius * 2 + 1 + 2 * extraPixels; // Extra pixels because when zoomed in, Swing colours outside the lines...
             repaint(imageToViewCoordinates(mouseX - largestRadius - extraPixels, mouseY - largestRadius - extraPixels, diameter, diameter));
@@ -359,12 +368,20 @@ public class WorldPainter extends WorldPainterView implements Dimension.Listener
     public void setBrushShape(BrushShape brushShape) {
         if (brushShape != this.brushShape) {
             BrushShape oldBrushShape = this.brushShape;
+            int oldEffectiveRadius = effectiveRadius;
             this.brushShape = brushShape;
+            if ((brushShape == BrushShape.CIRCLE) || ((brushRotation % 90) == 0)) {
+                effectiveRadius = radius;
+            } else {
+                double a = brushRotation / 180.0 * Math.PI;
+                effectiveRadius = (int) Math.ceil(Math.abs(Math.sin(a)) * radius + Math.abs(Math.cos(a)) * radius);
+            }
             firePropertyChange("brushShape", oldBrushShape, brushShape);
             if (drawRadius) {
+                int largestRadius = Math.max(oldEffectiveRadius, effectiveRadius);
                 int extraPixels = Math.max((int) (1 / scale), 1);
-                int diameter = radius * 2 + 1 + 2 * extraPixels; // Extra pixels because when zoomed in, Swing colours outside the lines...
-                repaint(imageToViewCoordinates(mouseX - radius - extraPixels, mouseY - radius - extraPixels, diameter, diameter));
+                int diameter = largestRadius * 2 + 1 + 2 * extraPixels; // Extra pixels because when zoomed in, Swing colours outside the lines...
+                repaint(imageToViewCoordinates(mouseX - largestRadius - extraPixels, mouseY - largestRadius - extraPixels, diameter, diameter));
             }
         }
     }
@@ -537,6 +554,25 @@ public class WorldPainter extends WorldPainterView implements Dimension.Listener
         }
     }
 
+    public boolean isInhibitUpdates() {
+        return inhibitUpdates;
+    }
+
+    public void setInhibitUpdates(boolean inhibitUpdates) {
+        if (inhibitUpdates != this.inhibitUpdates) {
+            this.inhibitUpdates = inhibitUpdates;
+            if (inhibitUpdates) {
+                synchronized (dirtyTiles) {
+                    dirtyTiles.clear();
+                    dirtyTileNeighbours.clear();
+                }
+            } else {
+                refreshTiles();
+            }
+            firePropertyChange("inhibitUpdates", ! inhibitUpdates, inhibitUpdates);
+        }
+    }
+
     public void refreshBrush() {
         Point mousePos = getMousePosition();
 //        System.out.println("refreshBrush(): mousePos: " + mousePos);
@@ -570,7 +606,7 @@ public class WorldPainter extends WorldPainterView implements Dimension.Listener
     }
 
     public Set<Layer> getHiddenLayers() {
-        return Collections.unmodifiableSet(hiddenLayers);
+        return (Set<Layer>) hiddenLayers.clone();
     }
 
     public void refreshTiles() {
@@ -721,13 +757,38 @@ public class WorldPainter extends WorldPainterView implements Dimension.Listener
             return null;
         }
     }
+
+    public int getBrushRotation() {
+        return brushRotation;
+    }
+    
+    public void setBrushRotation(int brushRotation) {
+        int oldBrushRotation = this.brushRotation;
+        int oldEffectiveRadius = effectiveRadius;
+        this.brushRotation = brushRotation;
+        if ((brushShape == BrushShape.CIRCLE) || ((brushRotation % 90) == 0)) {
+            effectiveRadius = radius;
+        } else {
+            double a = brushRotation / 180.0 * Math.PI;
+            effectiveRadius = (int) Math.ceil(Math.abs(Math.sin(a)) * radius + Math.abs(Math.cos(a)) * radius);
+        }
+        firePropertyChange("brushRotation", oldBrushRotation, brushRotation);
+        if (drawRadius && (brushShape != BrushShape.CIRCLE)) {
+            int largestRadius = Math.max(oldEffectiveRadius, effectiveRadius);
+            int extraPixels = Math.max((int) (1 / scale), 1);
+            int diameter = largestRadius * 2 + 1 + 2 * extraPixels; // Extra pixels because when zoomed in, Swing colours outside the lines...
+            repaint(imageToViewCoordinates(mouseX - largestRadius - extraPixels, mouseY - largestRadius - extraPixels, diameter, diameter));
+        }
+    }
     
     // Dimension.Listener
 
     @Override
     public void tileAdded(Dimension dimension, Tile tile) {
         tile.addListener(this);
-        queueDirtyTiles(tile);
+        if (! inhibitUpdates) {
+            queueDirtyTiles(tile);
+        }
     }
 
     @Override
@@ -755,7 +816,7 @@ public class WorldPainter extends WorldPainterView implements Dimension.Listener
     }
     
     public void minecraftSeedChanged(Dimension dimension, long newSeed) {
-        if (! hiddenLayers.contains(Biome.INSTANCE)) {
+        if ((! inhibitUpdates) && (! hiddenLayers.contains(Biome.INSTANCE))) {
             refreshTiles();
         }
     }
@@ -764,66 +825,80 @@ public class WorldPainter extends WorldPainterView implements Dimension.Listener
 
     @Override
     public void heightMapChanged(Tile tile) {
-        if (logger.isLoggable(Level.FINER)) {
-            logger.finer(tile + " height map changed; queueing for repaint");
+        if (! inhibitUpdates) {
+            if (logger.isLoggable(Level.FINER)) {
+                logger.finer(tile + " height map changed; queueing for repaint");
+            }
+            queueDirtyTiles(tile);
         }
-        queueDirtyTiles(tile);
     }
 
     @Override
     public void terrainChanged(Tile tile) {
-        if (logger.isLoggable(Level.FINER)) {
-            logger.finer(tile + " terrain changed; queueing for repaint");
+        if (! inhibitUpdates) {
+            if (logger.isLoggable(Level.FINER)) {
+                logger.finer(tile + " terrain changed; queueing for repaint");
+            }
+            queueDirtyTiles(tile);
         }
-        queueDirtyTiles(tile);
     }
 
     @Override
     public void waterLevelChanged(Tile tile) {
-        if (logger.isLoggable(Level.FINER)) {
-            logger.finer(tile + " water level changed; queueing for repaint");
+        if (! inhibitUpdates) {
+            if (logger.isLoggable(Level.FINER)) {
+                logger.finer(tile + " water level changed; queueing for repaint");
+            }
+            queueDirtyTiles(tile);
         }
-        queueDirtyTiles(tile);
     }
 
     @Override
     public void seedsChanged(Tile tile) {
-        if (logger.isLoggable(Level.FINER)) {
-            logger.finer(tile + " seeds changed; queueing for repaint");
+        if (! inhibitUpdates) {
+            if (logger.isLoggable(Level.FINER)) {
+                logger.finer(tile + " seeds changed; queueing for repaint");
+            }
+            queueDirtyTiles(tile);
         }
-        queueDirtyTiles(tile);
     }
 
     @Override
     public void layerDataChanged(Tile tile, Set<Layer> changedLayers) {
-        for (Layer layer: changedLayers) {
-            if (! hiddenLayers.contains(layer)) {
-                if (logger.isLoggable(Level.FINER)) {
-                    logger.finer(tile + " " + changedLayers + " layer data changed; queueing for repaint");
+        if (! inhibitUpdates) {
+            for (Layer layer: changedLayers) {
+                if (! hiddenLayers.contains(layer)) {
+                    if (logger.isLoggable(Level.FINER)) {
+                        logger.finer(tile + " " + changedLayers + " layer data changed; queueing for repaint");
+                    }
+                    queueDirtyTiles(tile);
+                    return;
                 }
-                queueDirtyTiles(tile);
-                return;
             }
-        }
-        if (logger.isLoggable(Level.FINER)) {
-            logger.finer(tile + " " + changedLayers + " layer data changed; none are visible, not queueing for repaint");
+            if (logger.isLoggable(Level.FINER)) {
+                logger.finer(tile + " " + changedLayers + " layer data changed; none are visible, not queueing for repaint");
+            }
         }
     }
 
     @Override
     public void allBitLayerDataChanged(Tile tile) {
-        if (logger.isLoggable(Level.FINER)) {
-            logger.finer(tile + " all bit layer data changed; queueing for repaint");
+        if (! inhibitUpdates) {
+            if (logger.isLoggable(Level.FINER)) {
+                logger.finer(tile + " all bit layer data changed; queueing for repaint");
+            }
+            queueDirtyTiles(tile);
         }
-        queueDirtyTiles(tile);
     }
 
     @Override
     public void allNonBitlayerDataChanged(Tile tile) {
-        if (logger.isLoggable(Level.FINER)) {
-            logger.finer(tile + " all non-bit layer data changed; queueing for repaint");
+        if (! inhibitUpdates) {
+            if (logger.isLoggable(Level.FINER)) {
+                logger.finer(tile + " all non-bit layer data changed; queueing for repaint");
+            }
+            queueDirtyTiles(tile);
         }
-        queueDirtyTiles(tile);
     }
     
     // MouseMotionListener
@@ -834,9 +909,12 @@ public class WorldPainter extends WorldPainterView implements Dimension.Listener
         int oldMouseY = mouseY;
         mouseX = (int) (e.getX() / scale);
         mouseY = (int) (e.getY() / scale);
-        int repaintRadius = 0;
+        if ((mouseX == oldMouseX) && (mouseY == oldMouseY)) {
+            return;
+        }
+        int repaintRadius = -1;
         if (drawRadius) {
-            repaintRadius = radius;
+            repaintRadius = effectiveRadius;
         }
         if (drawViewDistance && (VIEW_DISTANCE_RADIUS > repaintRadius)) {
             repaintRadius = VIEW_DISTANCE_RADIUS;
@@ -844,13 +922,15 @@ public class WorldPainter extends WorldPainterView implements Dimension.Listener
         if (drawWalkingDistance && (DAY_NIGHT_WALK_DISTANCE_RADIUS > repaintRadius)) {
             repaintRadius = DAY_NIGHT_WALK_DISTANCE_RADIUS;
         }
-        if (repaintRadius > 0) {
+        if (repaintRadius != -1) {
             int extraPixels = Math.max((int) (1 / scale), 1);  // Extra pixels because when zoomed in, Swing colours outside the lines...
-            int diameter = repaintRadius * 2 + 1 + 2 * extraPixels;
-            Rectangle oldRectangle = new Rectangle(oldMouseX - repaintRadius - extraPixels, oldMouseY - repaintRadius - extraPixels, diameter, diameter);
-            Rectangle newRectangle = new Rectangle(mouseX - repaintRadius - extraPixels, mouseY - repaintRadius - extraPixels, diameter, diameter);
+            int diameter = repaintRadius * 2 + 1;
+            Rectangle oldRectangle = new Rectangle(oldMouseX - repaintRadius, oldMouseY - repaintRadius, diameter, diameter);
+            Rectangle newRectangle = new Rectangle(mouseX - repaintRadius, mouseY - repaintRadius, diameter, diameter);
             Rectangle unionRectangle = oldRectangle.union(newRectangle);
-            repaint(imageToViewCoordinates(unionRectangle));
+            Rectangle viewRectangle = imageToViewCoordinates(unionRectangle);
+            Rectangle adjustedRectangle = new Rectangle(viewRectangle.x - extraPixels, viewRectangle.y - extraPixels, viewRectangle.width + extraPixels * 2, viewRectangle.height + extraPixels * 2);
+            repaint(adjustedRectangle);
         }
     }
 
@@ -944,8 +1024,8 @@ public class WorldPainter extends WorldPainterView implements Dimension.Listener
                     g2.setColor(Color.RED);
                     g2.setStroke(new BasicStroke());
                     Point spawnPoint = dimension.getWorld().getSpawnPoint();
-                    g2.drawLine(-imageX * TILE_SIZE + spawnPoint.x - 1, -imageY * TILE_SIZE + spawnPoint.y    , -imageX * TILE_SIZE + spawnPoint.x + 1, -imageY * TILE_SIZE + spawnPoint.y);
-                    g2.drawLine(-imageX * TILE_SIZE + spawnPoint.x    , -imageY * TILE_SIZE + spawnPoint.y - 1, -imageX * TILE_SIZE + spawnPoint.x    , -imageY * TILE_SIZE + spawnPoint.y + 1);
+                    g2.fillRect(-imageX * TILE_SIZE + spawnPoint.x - 1, -imageY * TILE_SIZE + spawnPoint.y    , 3, 1);
+                    g2.fillRect(-imageX * TILE_SIZE + spawnPoint.x    , -imageY * TILE_SIZE + spawnPoint.y - 1, 1, 3);
                 }
                 if (drawOverlay && (overlay != null)) {
 //                    start5 = System.nanoTime();
@@ -959,13 +1039,23 @@ public class WorldPainter extends WorldPainterView implements Dimension.Listener
                 if (drawRadius) {
                     float strokeWidth = 1 / scale;
                     g2.setStroke(new BasicStroke(strokeWidth, BasicStroke.CAP_SQUARE, BasicStroke.JOIN_MITER, 10.0f, new float[] {3 * strokeWidth, 3 * strokeWidth}, 0));
-                    int diameter = radius * 2;
+                    int diameter = radius * 2 + 1;
                     switch (brushShape) {
                         case CIRCLE:
                             g2.drawOval(mouseX - radius, mouseY - radius, diameter, diameter);
                             break;
                         case SQUARE:
-                            g2.drawRect(mouseX - radius, mouseY - radius, diameter, diameter);
+                            if (brushRotation % 90 == 0) {
+                                g2.drawRect(mouseX - radius, mouseY - radius, diameter, diameter);
+                            } else {
+                                AffineTransform existingTransform = g2.getTransform();
+                                try {
+                                    g2.rotate(brushRotation / 180.0 * Math.PI, mouseX, mouseY);
+                                    g2.drawRect(mouseX - radius, mouseY - radius, diameter, diameter);
+                                } finally {
+                                    g2.setTransform(existingTransform);
+                                }
+                            }
                             break;
                     }
                 }
@@ -1023,7 +1113,7 @@ public class WorldPainter extends WorldPainterView implements Dimension.Listener
 
     BufferedImage paintImage(Dimension dimension, ProgressReceiver progressReceiver) throws ProgressReceiver.OperationCancelled {
 //        long start = System.currentTimeMillis();
-        TileRenderer myTileRenderer = new TileRenderer(dimension, colourScheme, biomeScheme);
+        TileRenderer myTileRenderer = new TileRenderer(dimension, colourScheme, biomeScheme, customBiomeManager);
         myTileRenderer.setContourLines(dimension.isContoursEnabled());
         myTileRenderer.setContourSeparation(dimension.getContourSeparation());
         DimensionRenderer dimensionRenderer = new DimensionRenderer(dimension, myTileRenderer);
@@ -1128,12 +1218,14 @@ public class WorldPainter extends WorldPainterView implements Dimension.Listener
     }
 
     private void paintTile(Tile tile) {
-        int tileX = tile.getX();
-        int tileY = tile.getY();
-        if (logger.isLoggable(Level.FINER)) {
-            logger.finer("Painting tile " + tileX + ", " + tileY + " at " + ((tileX - imageX) * TILE_SIZE) + ", " + ((tileY - imageY) * TILE_SIZE));
+        synchronized (tile) {
+            int tileX = tile.getX();
+            int tileY = tile.getY();
+            if (logger.isLoggable(Level.FINER)) {
+                logger.finer("Painting tile " + tileX + ", " + tileY + " at " + ((tileX - imageX) * TILE_SIZE) + ", " + ((tileY - imageY) * TILE_SIZE));
+            }
+            worldRenderer.renderTile(worldImage, tileX, tileY);
         }
-        worldRenderer.renderTile(worldImage, tileX, tileY);
     }
 
     private void resizeImageIfNecessary() {
@@ -1393,27 +1485,27 @@ public class WorldPainter extends WorldPainterView implements Dimension.Listener
         return null;
     }
     
+    private final Set<Point> dirtyTiles = new HashSet<Point>(), dirtyTileNeighbours = new HashSet<Point>();
+    private final HashSet<Layer> hiddenLayers = new HashSet<Layer>();
+    private final Font labelFont;
+    private final int labelAscent, labelLineHeight;
+    private final boolean createOptimalImage = ! "false".equalsIgnoreCase(System.getProperty("org.pepsoft.worldpainter.createOptimalImage"));
+    private final CustomBiomeManager customBiomeManager;
     private Dimension dimension;
     private BufferedImage worldImage;
     private TileRenderer tileRenderer;
     private DimensionRenderer worldRenderer;
-    private final Set<Point> dirtyTiles = new HashSet<Point>();
-    private final Set<Point> dirtyTileNeighbours = new HashSet<Point>();
-    private int imageX, imageY, imageWidth, imageHeight, mouseX, mouseY, radius;
+    private int imageX, imageY, imageWidth, imageHeight, mouseX, mouseY, radius, effectiveRadius, zoom, overlayOffsetX, overlayOffsetY, gridSize, contourSeparation, brushRotation;
     private boolean drawRadius, drawGrid, drawOverlay, drawContours, drawViewDistance, drawWalkingDistance, drawLabels;
     private BrushShape brushShape;
-    private final Set<Layer> hiddenLayers = new HashSet<Layer>();
-    private int zoom, overlayOffsetX, overlayOffsetY, gridSize, contourSeparation;
     private float scale = 1.0f, overlayScale = 1.0f, overlayTransparency = 0.5f;
     private ColourScheme colourScheme;
     private BiomeScheme biomeScheme;
     private BufferedImage overlay/*, scaledOverlay*/;
 //    private BufferedImageOp scalingOp;
 //    private float scalingOpScale;
-    private final Font labelFont;
-    private final int labelAscent, labelLineHeight;
     private LightOrigin lightOrigin = LightOrigin.NORTHWEST;
-    private final boolean createOptimalImage = ! "false".equalsIgnoreCase(System.getProperty("org.pepsoft.worldpainter.createOptimalImage"));
+    private volatile boolean inhibitUpdates;
     
     private static final int VIEW_DISTANCE_RADIUS = 210;
     private static final int VIEW_DISTANCE_DIAMETER = 2 * VIEW_DISTANCE_RADIUS;

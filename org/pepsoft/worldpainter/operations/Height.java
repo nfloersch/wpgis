@@ -53,7 +53,7 @@ public class Height extends RadiusOperation {
         }
         dimension.setEventsInhibited(true);
         try {
-            int radius = getRadius();
+            int radius = getEffectiveRadius();
             float maxZ = dimension.getMaxHeight() - 1;
             for (int x = centerX - radius; x <= centerX + radius; x++) {
                 for (int y = centerY - radius; y <= centerY + radius; y++) {

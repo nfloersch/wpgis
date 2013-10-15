@@ -13,7 +13,7 @@ package org.pepsoft.worldpainter;
 import java.util.SortedMap;
 import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
-import org.pepsoft.worldpainter.terrainRanges.TerrainListCellRenderer;
+import org.pepsoft.worldpainter.themes.TerrainListCellRenderer;
 import java.io.IOException;
 import java.util.Random;
 import javax.swing.*;
@@ -21,6 +21,7 @@ import static org.pepsoft.worldpainter.Terrain.*;
 import static org.pepsoft.minecraft.Constants.*;
 import static org.pepsoft.worldpainter.Constants.*;
 import org.pepsoft.worldpainter.TileRenderer.LightOrigin;
+import org.pepsoft.worldpainter.themes.SimpleTheme;
 
 /**
  *
@@ -28,14 +29,15 @@ import org.pepsoft.worldpainter.TileRenderer.LightOrigin;
  */
 public class PreferencesDialog extends javax.swing.JDialog {
     /** Creates new form PreferencesDialog */
-    public PreferencesDialog(java.awt.Frame parent) {
+    public PreferencesDialog(java.awt.Frame parent, ColourScheme colourScheme) {
         super(parent, true);
+        this.colourScheme = colourScheme;
         
         initComponents();
         
-        Object[] materials = new Object[] {GRASS, BARE_GRASS, DIRT, CLAY, SAND, DESERT, SANDSTONE, STONE, RESOURCES, ROCK, COBBLESTONE, OBSIDIAN, BEDROCK, SNOW, DEEP_SNOW, NETHERRACK, SOUL_SAND, NETHERLIKE, END_STONE};
+        Object[] materials = new Object[] {GRASS, BARE_GRASS, DIRT, CLAY, SAND, DESERT, SANDSTONE, STONE, RESOURCES, ROCK, COBBLESTONE, OBSIDIAN, BEDROCK, DEEP_SNOW, NETHERRACK, SOUL_SAND, NETHERLIKE, END_STONE};
         comboBoxSurfaceMaterial.setModel(new DefaultComboBoxModel(materials));
-        comboBoxSurfaceMaterial.setRenderer(new TerrainListCellRenderer());
+        comboBoxSurfaceMaterial.setRenderer(new TerrainListCellRenderer(colourScheme));
         
         loadSettings();
         
@@ -191,16 +193,18 @@ public class PreferencesDialog extends javax.swing.JDialog {
     private void editTerrainAndLayerSettings() {
         Configuration config = Configuration.getInstance();
         Dimension defaultSettings = config.getDefaultTerrainAndLayerSettings();
-        DimensionPropertiesDialog dialog = new DimensionPropertiesDialog(this, defaultSettings, true);
+        DimensionPropertiesDialog dialog = new DimensionPropertiesDialog(this, defaultSettings, colourScheme, true);
         dialog.setVisible(true);
         TileFactory tileFactory = defaultSettings.getTileFactory();
-        if (tileFactory instanceof HeightMapTileFactory) {
+        if ((tileFactory instanceof HeightMapTileFactory)
+                && (((HeightMapTileFactory) tileFactory).getTheme() instanceof SimpleTheme)) {
             HeightMapTileFactory heightMapTileFactory = (HeightMapTileFactory) tileFactory;
-            checkBoxBeaches.setSelected(heightMapTileFactory.isBeaches());
+            SimpleTheme theme = (SimpleTheme) ((HeightMapTileFactory) tileFactory).getTheme();
+            checkBoxBeaches.setSelected(theme.isBeaches());
             int waterLevel = heightMapTileFactory.getWaterHeight();
             spinnerWaterLevel.setValue(waterLevel);
             defaultSettings.setBorderLevel(heightMapTileFactory.getWaterHeight());
-            SortedMap<Integer, Terrain> terrainRanges = heightMapTileFactory.getTerrainRanges();
+            SortedMap<Integer, Terrain> terrainRanges = theme.getTerrainRanges();
             comboBoxSurfaceMaterial.setSelectedItem(terrainRanges.get(terrainRanges.headMap(waterLevel + 3).lastKey()));
         }
     }
@@ -831,8 +835,9 @@ public class PreferencesDialog extends javax.swing.JDialog {
         Configuration config = Configuration.getInstance();
         Dimension defaultSettings = config.getDefaultTerrainAndLayerSettings();
         TileFactory tileFactory = defaultSettings.getTileFactory();
-        if (tileFactory instanceof HeightMapTileFactory) {
-            SortedMap<Integer, Terrain> defaultTerrainRanges = ((HeightMapTileFactory) tileFactory).getTerrainRanges();
+        if ((tileFactory instanceof HeightMapTileFactory)
+                && (((HeightMapTileFactory) tileFactory).getTheme() instanceof SimpleTheme)) {
+            SortedMap<Integer, Terrain> defaultTerrainRanges = ((SimpleTheme) ((HeightMapTileFactory) tileFactory).getTheme()).getTerrainRanges();
             // Find what is probably meant to be the surface material. With the
             // default settings this should be -1, but if someone configured a
             // default underwater material, try not to change that
@@ -855,7 +860,7 @@ public class PreferencesDialog extends javax.swing.JDialog {
             comboBoxSurfaceMaterial.setSelectedItem(GRASS);
             checkBoxAutomaticBiomes.setSelected(true);
             checkBoxCustomBiomes.setSelected(false);
-            Configuration.getInstance().setDefaultTerrainAndLayerSettings(new Dimension(World2.DEFAULT_OCEAN_SEED, new Random().nextLong(), TileFactoryFactory.createNoiseTileFactory(GRASS, DEFAULT_MAX_HEIGHT_2, 58, 62, false, true, 20, 1.0), DIM_NORMAL, DEFAULT_MAX_HEIGHT_2));
+            Configuration.getInstance().setDefaultTerrainAndLayerSettings(new Dimension(World2.DEFAULT_OCEAN_SEED, TileFactoryFactory.createNoiseTileFactory(new Random().nextLong(), GRASS, DEFAULT_MAX_HEIGHT_2, 58, 62, false, true, 20, 1.0), DIM_NORMAL, DEFAULT_MAX_HEIGHT_2));
         }
     }//GEN-LAST:event_buttonResetActionPerformed
 
@@ -957,6 +962,7 @@ public class PreferencesDialog extends javax.swing.JDialog {
     private javax.swing.JSpinner spinnerWorldBackups;
     // End of variables declaration//GEN-END:variables
 
+    private final ColourScheme colourScheme;
     private boolean pingNotSet, cancelled = true;
     private int previousExp;
     

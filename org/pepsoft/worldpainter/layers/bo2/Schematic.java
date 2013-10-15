@@ -43,12 +43,22 @@ public final class Schematic extends AbstractNBTItem implements WPObject, Bo2Obj
         blocks = getByteArray("Blocks");
         data = getByteArray("Data");
         List<Tag> entityTags = getList("Entities");
-        for (Tag entityTag: entityTags) {
-            entities.add(new Entity((CompoundTag) entityTag));
+        if (entityTags.isEmpty()) {
+            entities = null;
+        } else {
+            entities = new ArrayList<Entity>(entityTags.size());
+            for (Tag entityTag: entityTags) {
+                entities.add(new Entity((CompoundTag) entityTag));
+            }
         }
         List<Tag> tileEntityTags = getList("TileEntities");
-        for (Tag tileEntityTag: tileEntityTags) {
-            tileEntities.add(new TileEntity((CompoundTag) tileEntityTag));
+        if (tileEntityTags.isEmpty()) {
+            tileEntities = null;
+        } else {
+            tileEntities = new ArrayList<TileEntity>(tileEntityTags.size());
+            for (Tag tileEntityTag: tileEntityTags) {
+                tileEntities.add(new TileEntity((CompoundTag) tileEntityTag));
+            }
         }
         width = getShort("Width");
         length = getShort("Length");
@@ -133,28 +143,12 @@ public final class Schematic extends AbstractNBTItem implements WPObject, Bo2Obj
 
     @Override
     public List<Entity> getEntities() {
-        if (! entities.isEmpty()) {
-            List<Entity> clones = new ArrayList<Entity>(entities.size());
-            for (Entity entity: entities) {
-                clones.add((Entity) entity.clone());
-            }
-            return clones;
-        } else {
-            return entities;
-        }
+        return entities;
     }
 
     @Override
     public List<TileEntity> getTileEntities() {
-        if (! tileEntities.isEmpty()) {
-            List<TileEntity> clones = new ArrayList<TileEntity>(tileEntities.size());
-            for (TileEntity tileEntity: tileEntities) {
-                clones.add((TileEntity) tileEntity.clone());
-            }
-            return clones;
-        } else {
-            return tileEntities;
-        }
+        return tileEntities;
     }
     
     @Override
@@ -181,7 +175,7 @@ public final class Schematic extends AbstractNBTItem implements WPObject, Bo2Obj
 
     @Override
     public Map<String, Serializable> getAttributes() {
-        return (attributes != null) ? new HashMap<String, Serializable>(attributes) : null;
+        return attributes;
     }
 
     @Override
@@ -196,9 +190,49 @@ public final class Schematic extends AbstractNBTItem implements WPObject, Bo2Obj
 
     @Override
     public void setAttributes(Map<String, Serializable> attributes) {
-        this.attributes = (attributes != null) ? new HashMap<String, Serializable>(attributes) : null;
+        this.attributes = attributes;
     }
     
+    @Override
+    public void setAttribute(String key, Serializable value) {
+        if (value != null) {
+            if (attributes == null) {
+                attributes = new HashMap<String, Serializable>();
+            }
+            attributes.put(key, value);
+        } else if (attributes != null) {
+            attributes.remove(key);
+            if (attributes.isEmpty()) {
+                attributes = null;
+            }
+        }
+    }
+
+    @Override
+    public Schematic clone() {
+        Schematic clone = (Schematic) super.clone();
+        clone.dimensions = (Point3i) dimensions.clone();
+        if (origin != null) {
+            clone.origin = (Point3i) origin.clone();
+        }
+        if (entities != null) {
+            clone.entities = new ArrayList<Entity>(entities.size());
+            for (Entity entity: entities) {
+                clone.entities.add((Entity) entity.clone());
+            }
+        }
+        if (tileEntities != null) {
+            clone.tileEntities = new ArrayList<TileEntity>(tileEntities.size());
+            for (TileEntity tileEntity: tileEntities) {
+                clone.tileEntities.add((TileEntity) tileEntity.clone());
+            }
+        }
+        if (attributes != null) {
+            clone.attributes = new HashMap<String, Serializable>(attributes);
+        }
+        return clone;
+    }
+
     public static Schematic load(File file) throws IOException {
         String name = file.getName();
         int p = name.lastIndexOf('.');
@@ -226,7 +260,6 @@ public final class Schematic extends AbstractNBTItem implements WPObject, Bo2Obj
         } finally {
             in.close();
         }
-        
     }
     
     private int blockOffset(int x, int y, int z) {
@@ -244,6 +277,12 @@ public final class Schematic extends AbstractNBTItem implements WPObject, Bo2Obj
             attributes.put(WPObject.ATTRIBUTE_OFFSET, new Point3i(-origin.x, -origin.y, -origin.z));
             origin = null;
         }
+        if (version == 0) {
+            if (! attributes.containsKey(ATTRIBUTE_LEAF_DECAY_MODE)) {
+                attributes.put(ATTRIBUTE_LEAF_DECAY_MODE, LEAF_DECAY_ON);
+            }
+            version = 1;
+        }
     }
     
     private String name;
@@ -252,14 +291,15 @@ public final class Schematic extends AbstractNBTItem implements WPObject, Bo2Obj
     private final short width, length, height;
     private final int weOffsetX, weOffsetY, weOffsetZ;
     private final int weOriginX, weOriginY, weOriginZ;
-    private final List<Entity> entities = new ArrayList<Entity>();
-    private final List<TileEntity> tileEntities = new ArrayList<TileEntity>();
-    private final Point3i dimensions;
+    private List<Entity> entities;
+    private List<TileEntity> tileEntities;
+    private Point3i dimensions;
     @Deprecated
     private Point3i origin;
     @Deprecated
     private final boolean solidOrigin = false;
     private Map<String, Serializable> attributes;
+    private int version = 1;
     
     private static final long serialVersionUID = 1L;
 }

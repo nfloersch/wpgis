@@ -16,7 +16,8 @@ import org.jnbt.Tag;
 import static org.pepsoft.minecraft.Constants.*;
 
 /**
- *
+ * An "Anvil" chunk.
+ * 
  * @author pepijn
  */
 public final class ChunkImpl2 extends AbstractNBTItem implements Chunk {

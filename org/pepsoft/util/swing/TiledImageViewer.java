@@ -61,6 +61,7 @@ public class TiledImageViewer extends JComponent implements TileListener, MouseL
         }
         this.tileProvider = tileProvider;
         if (tileProvider != null) {
+            tileProvider.setZoom(zoom);
             tileProvider.addTileListener(this);
             tileCache = new HashMap<Point, Reference<BufferedImage>>();
             dirtyTileCache = new HashMap<Point, Reference<BufferedImage>>();
@@ -69,7 +70,6 @@ public class TiledImageViewer extends JComponent implements TileListener, MouseL
                 logger.fine("Starting " + Runtime.getRuntime().availableProcessors() + " tile rendering threads");
             }
             tileRenderers = Executors.newFixedThreadPool(threads);
-            zoom = tileProvider.getZoom();
         }
         repaint();
     }
@@ -83,7 +83,7 @@ public class TiledImageViewer extends JComponent implements TileListener, MouseL
     }
     
     public int getZoom() {
-        return tileProvider.getZoom();
+        return zoom;
     }
 
     public void setZoom(int zoom) {
@@ -106,33 +106,42 @@ public class TiledImageViewer extends JComponent implements TileListener, MouseL
             }
             if (previousZoom > zoom) {
                 int factor = previousZoom / zoom;
-                markerX *= factor;
-                markerY *= factor;
+                if (paintMarker) {
+                    markerX *= factor;
+                    markerY *= factor;
+                }
             } else {
                 int factor = zoom / previousZoom;
-                markerX /= factor;
-                markerY /= factor;
+                if (paintMarker) {
+                    markerX /= factor;
+                    markerY /= factor;
+                }
             }
             repaint();
         }
     }
     
     public Point getMarkerCoords() {
-        return new Point(markerX, markerY);
+        return paintMarker ? new Point(markerX * zoom, markerY * zoom) : null;
     }
     
     public void setMarkerCoords(Point markerCoords) {
-        if ((markerCoords.x / zoom != markerX) || (markerCoords.y / zoom != markerY)) {
+        if (markerCoords != null) {
             markerX = markerCoords.x / zoom;
             markerY = markerCoords.y / zoom;
-            repaint();
+            paintMarker = true;
+        } else {
+            paintMarker = false;
         }
+        repaint();
     }
 
     public void moveToMarker() {
-        viewX = -getWidth() / 2 + markerX;
-        viewY = -getHeight() / 2 + markerY;
-        repaint();
+        if (paintMarker) {
+            viewX = -getWidth() / 2 + markerX;
+            viewY = -getHeight() / 2 + markerY;
+            repaint();
+        }
     }
 
     public void moveToOrigin() {
@@ -210,13 +219,18 @@ public class TiledImageViewer extends JComponent implements TileListener, MouseL
         // Trim visible tiles map (which exists to prevent the visible tiles
         // from being garbage collected
         
-        g.setColor(Color.RED);
-        g.drawLine(markerX - viewX - 5, markerY - viewY,     markerX - viewX + 5, markerY - viewY);
-        g.drawLine(markerX - viewX,     markerY - viewY - 5, markerX - viewX,     markerY - viewY + 5);
+        if (paintMarker) {
+            g.setColor(Color.RED);
+            g.drawLine(markerX - viewX - 5, markerY - viewY,     markerX - viewX + 5, markerY - viewY);
+            g.drawLine(markerX - viewX,     markerY - viewY - 5, markerX - viewX,     markerY - viewY + 5);
+        }
         
-        g.setColor(Color.WHITE);
         int middleX = getWidth() / 2;
         int middleY = getHeight() / 2;
+        g.setColor(Color.BLACK);
+        g.drawLine(middleX - 4, middleY + 1, middleX + 6, middleY + 1);
+        g.drawLine(middleX + 1, middleY - 4, middleX + 1, middleY + 6);
+        g.setColor(Color.WHITE);
         g.drawLine(middleX - 5, middleY, middleX + 5, middleY);
         g.drawLine(middleX, middleY - 5, middleX, middleY + 5);
     }
@@ -383,10 +397,10 @@ public class TiledImageViewer extends JComponent implements TileListener, MouseL
     private TileProvider tileProvider;
 //    private Map<Point, BufferedImage> visibleTiles;
     private Map<Point, Reference<BufferedImage>> tileCache, dirtyTileCache;
-    private int viewX, viewY, previousX, previousY, markerX, markerY, zoom;
+    private int viewX, viewY, previousX, previousY, markerX, markerY, zoom = 1;
     private ExecutorService tileRenderers;
     private Dimension previousSize = new Dimension(0, 0);
-    private boolean dragging;
+    private boolean dragging, paintMarker;
     
     private static final Reference<BufferedImage> RENDERING = new SoftReference<BufferedImage>(null);
     private static final BufferedImage NO_TILE = new BufferedImage(1, 1, BufferedImage.TYPE_INT_RGB);

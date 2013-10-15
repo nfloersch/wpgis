@@ -25,7 +25,7 @@ public class Erode extends RadiusOperation {
         Dimension dimension = getDimension();
         dimension.setEventsInhibited(true);
         try {
-            int radius = getRadius();
+            int radius = getEffectiveRadius();
             for (int i = 0; i < ROUNDS; i++) {
                 for (int x = centerX - radius; x <= centerX + radius; x++) {
                     for (int y = centerY - radius; y <= centerY + radius; y++) {

@@ -154,6 +154,7 @@ public enum Terrain {
     },
     WATER    ("Water",     BLK_WATER,     BLK_WATER,      "flowing water", BIOME_RIVER),
     LAVA     ("Lava",      BLK_LAVA,      BLK_LAVA,       "flowing lava", BIOME_PLAINS),
+    @Deprecated
     SNOW     ("Snow on Rock",                             "a thin layer of snow on a mix of stone and cobblestone", BIOME_ICE_PLAINS) {
         @Override
         public Material getMaterial(long seed, int x, int y, int z, int height) {
@@ -382,7 +383,7 @@ public enum Terrain {
 
         @Override public String getName() {return helper.getName();}
 
-        @Override public BufferedImage getIcon() {return helper.getIcon();}
+        @Override public BufferedImage getIcon(ColourScheme colourScheme) {return helper.getIcon(colourScheme);}
 
         @Override public boolean isCustom() {return true;}
 
@@ -401,7 +402,7 @@ public enum Terrain {
 
         @Override public String getName() {return helper.getName();}
 
-        @Override public BufferedImage getIcon() {return helper.getIcon();}
+        @Override public BufferedImage getIcon(ColourScheme colourScheme) {return helper.getIcon(colourScheme);}
 
         @Override public boolean isCustom() {return true;}
 
@@ -420,7 +421,7 @@ public enum Terrain {
 
         @Override public String getName() {return helper.getName();}
 
-        @Override public BufferedImage getIcon() {return helper.getIcon();}
+        @Override public BufferedImage getIcon(ColourScheme colourScheme) {return helper.getIcon(colourScheme);}
 
         @Override public boolean isCustom() {return true;}
 
@@ -439,7 +440,7 @@ public enum Terrain {
 
         @Override public String getName() {return helper.getName();}
 
-        @Override public BufferedImage getIcon() {return helper.getIcon();}
+        @Override public BufferedImage getIcon(ColourScheme colourScheme) {return helper.getIcon(colourScheme);}
 
         @Override public boolean isCustom() {return true;}
 
@@ -458,7 +459,7 @@ public enum Terrain {
 
         @Override public String getName() {return helper.getName();}
 
-        @Override public BufferedImage getIcon() {return helper.getIcon();}
+        @Override public BufferedImage getIcon(ColourScheme colourScheme) {return helper.getIcon(colourScheme);}
 
         @Override public boolean isCustom() {return true;}
 
@@ -480,7 +481,7 @@ public enum Terrain {
 
         @Override public String getName() {return helper.getName();}
 
-        @Override public BufferedImage getIcon() {return helper.getIcon();}
+        @Override public BufferedImage getIcon(ColourScheme colourScheme) {return helper.getIcon(colourScheme);}
 
         @Override public boolean isCustom() {return true;}
 
@@ -499,7 +500,7 @@ public enum Terrain {
 
         @Override public String getName() {return helper.getName();}
 
-        @Override public BufferedImage getIcon() {return helper.getIcon();}
+        @Override public BufferedImage getIcon(ColourScheme colourScheme) {return helper.getIcon(colourScheme);}
 
         @Override public boolean isCustom() {return true;}
 
@@ -518,7 +519,7 @@ public enum Terrain {
 
         @Override public String getName() {return helper.getName();}
 
-        @Override public BufferedImage getIcon() {return helper.getIcon();}
+        @Override public BufferedImage getIcon(ColourScheme colourScheme) {return helper.getIcon(colourScheme);}
 
         @Override public boolean isCustom() {return true;}
 
@@ -537,7 +538,7 @@ public enum Terrain {
 
         @Override public String getName() {return helper.getName();}
 
-        @Override public BufferedImage getIcon() {return helper.getIcon();}
+        @Override public BufferedImage getIcon(ColourScheme colourScheme) {return helper.getIcon(colourScheme);}
 
         @Override public boolean isCustom() {return true;}
 
@@ -556,7 +557,7 @@ public enum Terrain {
 
         @Override public String getName() {return helper.getName();}
 
-        @Override public BufferedImage getIcon() {return helper.getIcon();}
+        @Override public BufferedImage getIcon(ColourScheme colourScheme) {return helper.getIcon(colourScheme);}
 
         @Override public boolean isCustom() {return true;}
 
@@ -575,7 +576,7 @@ public enum Terrain {
 
         @Override public String getName() {return helper.getName();}
 
-        @Override public BufferedImage getIcon() {return helper.getIcon();}
+        @Override public BufferedImage getIcon(ColourScheme colourScheme) {return helper.getIcon(colourScheme);}
 
         @Override public boolean isCustom() {return true;}
 
@@ -594,7 +595,7 @@ public enum Terrain {
 
         @Override public String getName() {return helper.getName();}
 
-        @Override public BufferedImage getIcon() {return helper.getIcon();}
+        @Override public BufferedImage getIcon(ColourScheme colourScheme) {return helper.getIcon(colourScheme);}
 
         @Override public boolean isCustom() {return true;}
 
@@ -613,7 +614,7 @@ public enum Terrain {
 
         @Override public String getName() {return helper.getName();}
 
-        @Override public BufferedImage getIcon() {return helper.getIcon();}
+        @Override public BufferedImage getIcon(ColourScheme colourScheme) {return helper.getIcon(colourScheme);}
 
         @Override public boolean isCustom() {return true;}
 
@@ -632,7 +633,7 @@ public enum Terrain {
 
         @Override public String getName() {return helper.getName();}
 
-        @Override public BufferedImage getIcon() {return helper.getIcon();}
+        @Override public BufferedImage getIcon(ColourScheme colourScheme) {return helper.getIcon(colourScheme);}
 
         @Override public boolean isCustom() {return true;}
 
@@ -651,7 +652,7 @@ public enum Terrain {
 
         @Override public String getName() {return helper.getName();}
 
-        @Override public BufferedImage getIcon() {return helper.getIcon();}
+        @Override public BufferedImage getIcon(ColourScheme colourScheme) {return helper.getIcon(colourScheme);}
 
         @Override public boolean isCustom() {return true;}
 
@@ -670,7 +671,7 @@ public enum Terrain {
 
         @Override public String getName() {return helper.getName();}
 
-        @Override public BufferedImage getIcon() {return helper.getIcon();}
+        @Override public BufferedImage getIcon(ColourScheme colourScheme) {return helper.getIcon(colourScheme);}
 
         @Override public boolean isCustom() {return true;}
 
@@ -689,7 +690,7 @@ public enum Terrain {
 
         @Override public String getName() {return helper.getName();}
 
-        @Override public BufferedImage getIcon() {return helper.getIcon();}
+        @Override public BufferedImage getIcon(ColourScheme colourScheme) {return helper.getIcon(colourScheme);}
 
         @Override public boolean isCustom() {return true;}
 
@@ -708,7 +709,7 @@ public enum Terrain {
 
         @Override public String getName() {return helper.getName();}
 
-        @Override public BufferedImage getIcon() {return helper.getIcon();}
+        @Override public BufferedImage getIcon(ColourScheme colourScheme) {return helper.getIcon(colourScheme);}
 
         @Override public boolean isCustom() {return true;}
 
@@ -727,7 +728,7 @@ public enum Terrain {
 
         @Override public String getName() {return helper.getName();}
 
-        @Override public BufferedImage getIcon() {return helper.getIcon();}
+        @Override public BufferedImage getIcon(ColourScheme colourScheme) {return helper.getIcon(colourScheme);}
 
         @Override public boolean isCustom() {return true;}
 
@@ -746,7 +747,7 @@ public enum Terrain {
 
         @Override public String getName() {return helper.getName();}
 
-        @Override public BufferedImage getIcon() {return helper.getIcon();}
+        @Override public BufferedImage getIcon(ColourScheme colourScheme) {return helper.getIcon(colourScheme);}
 
         @Override public boolean isCustom() {return true;}
 
@@ -765,7 +766,7 @@ public enum Terrain {
 
         @Override public String getName() {return helper.getName();}
 
-        @Override public BufferedImage getIcon() {return helper.getIcon();}
+        @Override public BufferedImage getIcon(ColourScheme colourScheme) {return helper.getIcon(colourScheme);}
 
         @Override public boolean isCustom() {return true;}
 
@@ -784,7 +785,7 @@ public enum Terrain {
 
         @Override public String getName() {return helper.getName();}
 
-        @Override public BufferedImage getIcon() {return helper.getIcon();}
+        @Override public BufferedImage getIcon(ColourScheme colourScheme) {return helper.getIcon(colourScheme);}
 
         @Override public boolean isCustom() {return true;}
 
@@ -803,7 +804,7 @@ public enum Terrain {
 
         @Override public String getName() {return helper.getName();}
 
-        @Override public BufferedImage getIcon() {return helper.getIcon();}
+        @Override public BufferedImage getIcon(ColourScheme colourScheme) {return helper.getIcon(colourScheme);}
 
         @Override public boolean isCustom() {return true;}
 
@@ -822,7 +823,7 @@ public enum Terrain {
 
         @Override public String getName() {return helper.getName();}
 
-        @Override public BufferedImage getIcon() {return helper.getIcon();}
+        @Override public BufferedImage getIcon(ColourScheme colourScheme) {return helper.getIcon(colourScheme);}
 
         @Override public boolean isCustom() {return true;}
 
@@ -897,7 +898,7 @@ public enum Terrain {
         return description;
     }
 
-    public BufferedImage getIcon() {
+    public BufferedImage getIcon(ColourScheme colourScheme) {
         return icon;
     }
 
@@ -933,7 +934,7 @@ public enum Terrain {
         return VALUES[index + 25];
     }
     
-    public static Terrain[] getConfiguredValue() {
+    public static Terrain[] getConfiguredValues() {
         ArrayList<Terrain> values = new ArrayList<Terrain>(VALUES.length);
         for (Terrain terrain: VALUES) {
             if ((! terrain.isCustom()) || terrain.isConfigured()) {

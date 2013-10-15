@@ -85,6 +85,14 @@ public abstract class Layer implements Serializable, Comparable<Layer> {
         return mnemonic;
     }
 
+    public int getPriority() {
+        return priority;
+    }
+
+    public String getId() {
+        return id;
+    }
+
     @Override
     public boolean equals(Object obj) {
         return (obj instanceof Layer)
@@ -123,6 +131,11 @@ public abstract class Layer implements Serializable, Comparable<Layer> {
             try {
                 myRenderer = (LayerRenderer) pluginClassLoader.loadClass(clazz.getPackage().getName() + ".renderers." + clazz.getSimpleName() + "Renderer").newInstance();
             } catch (ClassNotFoundException e) {
+                // This most likely means the class does not exist
+                myRenderer = null;
+            } catch (InstantiationException e) {
+                // This most likely means that the class has no default
+                // constructor
                 myRenderer = null;
             }
             renderer = myRenderer;
@@ -153,8 +166,8 @@ public abstract class Layer implements Serializable, Comparable<Layer> {
     }
 
     private String name, description;
-    private final DataSize dataSize;
-    private final int priority;
+    public final DataSize dataSize;
+    public final int priority;
     private String id;
     private transient LayerRenderer renderer;
     private transient LayerExporter<? extends Layer> exporter;

@@ -19,7 +19,8 @@ import org.pepsoft.worldpainter.heightMaps.SumHeightMap;
 @Deprecated
 public class NoiseTileFactory extends HeightMapTileFactory {
     private NoiseTileFactory() {
-        super(null, 0, 0, false, false, false);
+        super(0, null, 0, false, null);
+        throw new UnsupportedOperationException("Only exists for deserialising old worlds");
     }
 
     private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
@@ -37,11 +38,13 @@ public class NoiseTileFactory extends HeightMapTileFactory {
             scale = 1.0;
         }
         if (getHeightMap() == null) {
-            setHeightMap(new SumHeightMap(new ConstantHeightMap(baseHeight), new NoiseHeightMap(range, scale)));
-    }
+            setHeightMap(new SumHeightMap(new ConstantHeightMap(baseHeight), new NoiseHeightMap(range, scale, 1)));
+        }
+        perlinNoise = null;
     }
 
     private int baseHeight;
+    @Deprecated
     private PerlinNoise perlinNoise;
     @Deprecated
     private boolean beaches;

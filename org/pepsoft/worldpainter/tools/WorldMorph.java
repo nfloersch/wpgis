@@ -29,7 +29,7 @@ public class WorldMorph {
         SwingUtilities.invokeLater(new Runnable() {
             @Override
             public void run() {
-                final WorldPainter view = new WorldPainter(createNewWorld().getDimension(0), new DynMapColourScheme("default"), null);
+                final WorldPainter view = new WorldPainter(createNewWorld().getDimension(0), new DynMapColourScheme("default"), null, null);
                 JFrame frame = new JFrame("WorldMorph");
                 frame.getContentPane().add(view, BorderLayout.CENTER);
                 frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -48,13 +48,13 @@ public class WorldMorph {
     }
 
     private static World2 createNewWorld() {
-        TileFactory tileFactory = TileFactoryFactory.createNoiseTileFactory(Terrain.GRASS, Constants.DEFAULT_MAX_HEIGHT_1, 16, 24, false, true, 20, 1.0);
         long seed = System.currentTimeMillis();
-        World2 world = new World2(seed, seed, tileFactory, World2.DEFAULT_MAX_HEIGHT);
+        TileFactory tileFactory = TileFactoryFactory.createNoiseTileFactory(seed, Terrain.GRASS, Constants.DEFAULT_MAX_HEIGHT_1, 16, 24, false, true, 20, 1.0);
+        World2 world = new World2(seed, tileFactory, World2.DEFAULT_MAX_HEIGHT);
         Dimension dim0 = world.getDimension(0);
         for (int x = -2; x <= 2; x++) {
             for (int y = -2; y <= 2; y++) {
-                dim0.addTile(tileFactory.createTile(seed, x, y));
+                dim0.addTile(tileFactory.createTile(x, y));
             }
         }
         return world;

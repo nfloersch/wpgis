@@ -8,6 +8,7 @@ package org.pepsoft.worldpainter;
 import java.awt.Point;
 import java.io.IOException;
 import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.io.PrintStream;
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -29,12 +30,15 @@ import org.pepsoft.util.MathUtils;
 import org.pepsoft.util.undo.BufferKey;
 import org.pepsoft.util.undo.UndoListener;
 import org.pepsoft.util.undo.UndoManager;
+import static org.pepsoft.worldpainter.Constants.TILE_SIZE;
 import org.pepsoft.worldpainter.gardenofeden.Seed;
 import org.pepsoft.worldpainter.layers.Layer;
 import org.pepsoft.worldpainter.layers.Layer.DataSize;
 
-import static org.pepsoft.worldpainter.Constants.TILE_SIZE;
 import static org.pepsoft.worldpainter.Constants.TILE_SIZE_MASK;
+import org.pepsoft.worldpainter.layers.FloodWithLava;
+import static org.pepsoft.worldpainter.layers.Layer.DataSize.BYTE;
+import static org.pepsoft.worldpainter.layers.Layer.DataSize.NIBBLE;
 
 /**
  *
@@ -42,20 +46,28 @@ import static org.pepsoft.worldpainter.Constants.TILE_SIZE_MASK;
  */
 public class Tile extends InstanceKeeper implements Serializable, UndoListener {
     public Tile(int x, int y, int maxHeight) {
+        this(x, y, maxHeight, true);
+    }
+
+    protected Tile(int x, int y, int maxHeight, boolean init) {
         this.x = x;
         this.y = y;
         this.maxHeight = maxHeight;
         if (maxHeight > 256) {
             tall = true;
-            tallHeightMap = new int[TILE_SIZE * TILE_SIZE];
-            tallWaterLevel = new short[TILE_SIZE * TILE_SIZE];
-        } else {
+            if (init) {
+                tallHeightMap = new int[TILE_SIZE * TILE_SIZE];
+                tallWaterLevel = new short[TILE_SIZE * TILE_SIZE];
+            }
+        } else if (init) {
             heightMap = new short[TILE_SIZE * TILE_SIZE];
             waterLevel = new byte[TILE_SIZE * TILE_SIZE];
         }
-        init();
+        if (init) {
+            init();
+        }
     }
-
+    
     public int getX() {
         return x;
     }
@@ -209,6 +221,13 @@ public class Tile extends InstanceKeeper implements Serializable, UndoListener {
         heightMapChanged();
     }
     
+    public synchronized float getSlope(int x, int y) {
+        return Math.max(Math.max(Math.abs(getHeight(x + 1, y) - getHeight(x - 1, y)) / 2,
+            Math.abs(getHeight(x + 1, y + 1) - getHeight(x - 1, y - 1)) / SQRT_OF_EIGHT),
+            Math.max(Math.abs(getHeight(x, y + 1) - getHeight(x, y - 1)) / 2,
+            Math.abs(getHeight(x - 1, y + 1) - getHeight(x + 1, y - 1)) / SQRT_OF_EIGHT));
+    }
+
     public synchronized Terrain getTerrain(int x, int y) {
         ensureReadable(TileBuffer.TERRAIN);
         return TERRAIN_VALUES[terrain[x + y * TILE_SIZE] & 0xFF];
@@ -254,6 +273,53 @@ public class Tile extends InstanceKeeper implements Serializable, UndoListener {
         return cachedLayers;
     }
 
+    public synchronized boolean hasLayer(Layer layer) {
+        DataSize dataSize = layer.getDataSize();
+        if ((dataSize == DataSize.BIT) || (dataSize == DataSize.BIT_PER_CHUNK)) {
+            ensureReadable(TileBuffer.BIT_LAYER_DATA);
+            return bitLayerData.containsKey(layer);
+        } else {
+            ensureReadable(TileBuffer.LAYER_DATA);
+            return layerData.containsKey(layer);
+        }
+    }
+    
+    public List<Layer> getActiveLayers(int x, int y) {
+        ensureReadable(TileBuffer.BIT_LAYER_DATA);
+        ensureReadable(TileBuffer.LAYER_DATA);
+        List<Layer> activeLayers = new ArrayList<Layer>(bitLayerData.size() + layerData.size());
+        for (Map.Entry<Layer, BitSet> entry: bitLayerData.entrySet()) {
+            Layer layer = entry.getKey();
+            DataSize dataSize = layer.getDataSize();
+            if (((dataSize == DataSize.BIT) && getBitPerBlockLayerValue(entry.getValue(), x, y))
+                || ((dataSize == DataSize.BIT_PER_CHUNK) && getBitPerChunkLayerValue(entry.getValue(), x, y))) {
+                activeLayers.add(layer);
+            }
+        }
+        for (Map.Entry<Layer, byte[]> entry: layerData.entrySet()) {
+            Layer layer = entry.getKey();
+            DataSize dataSize = layer.getDataSize();
+            if (dataSize == DataSize.NIBBLE) {
+                int byteOffset = x + y * TILE_SIZE;
+                byte _byte = entry.getValue()[byteOffset / 2];
+                if ((byteOffset % 2 == 0) ? ((_byte & 0x0F) != 0) : (((_byte & 0xF0) >> 4) != 0)) {
+                    activeLayers.add(layer);
+                }
+            } else if ((entry.getValue()[x + y * TILE_SIZE] & 0xFF) != 0) {
+                activeLayers.add(layer);
+            }
+        }
+        return activeLayers;
+    }
+
+    /**
+     * Get a list of all layers in use in the tile, as well as the set of
+     * additional layers provided, the total sorted by layer priority.
+     * 
+     * @param additionalLayers The additional layers to include in the list.
+     * @return The list of all layers provided or in use on the tile, sorted by
+     *     layer priority.
+     */
     public List<Layer> getLayers(Set<Layer> additionalLayers) {
         SortedSet<Layer> layers = new TreeSet<Layer>(additionalLayers);
         layers.addAll(getLayers());
@@ -277,6 +343,19 @@ public class Tile extends InstanceKeeper implements Serializable, UndoListener {
         }
     }
 
+    /**
+     * Count the number of blocks where the specified bit layer is set in a
+     * square around a particular location
+     * 
+     * @param layer The bit layer to count.
+     * @param x The X coordinate (local to the tile) of the location around
+     *     which to count the layer.
+     * @param y The Y coordinate (local to the tile) of the location around
+     *     which to count the layer.
+     * @param r The radius of the square.
+     * @return The number of blocks in the specified square where the specified
+     *     bit layer is set.
+     */
     public synchronized int getBitLayerCount(Layer layer, int x, int y, int r) {
         if ((layer.getDataSize() != Layer.DataSize.BIT) && (layer.getDataSize() != Layer.DataSize.BIT_PER_CHUNK)) {
             throw new IllegalArgumentException("Layer is not bit sized");
@@ -307,26 +386,87 @@ public class Tile extends InstanceKeeper implements Serializable, UndoListener {
         }
     }
 
+    /**
+     * Count the number of blocks that are flooded in a square around a
+     * particular location
+     * 
+     * @param x The X coordinate (local to the tile) of the location around
+     *     which to count flooded blocks.
+     * @param y The Y coordinate (local to the tile) of the location around
+     *     which to count flooded blocks.
+     * @param r The radius of the square.
+     * @param lava Whether to check for lava (when <code>true</code>) or water
+     *     (when <code>false</code>).
+     * @return The number of blocks in the specified square that are flooded.
+     */
+    public synchronized int getFloodedCount(final int x, final int y, final int r, final boolean lava) {
+        if (((x - r) < 0) || ((x + r) >= TILE_SIZE) || ((y - r) < 0) || ((y + r) >= TILE_SIZE)) {
+            throw new IllegalArgumentException("Requested area not contained entirely on tile");
+        }
+        if (tall) {
+            ensureReadable(TileBuffer.TALL_HEIGHTMAP);
+            ensureReadable(TileBuffer.TALL_WATERLEVEL);
+            ensureReadable(TileBuffer.BIT_LAYER_DATA);
+            final BitSet floodWithLava = bitLayerData.get(FloodWithLava.INSTANCE);
+            int count = 0;
+            for (int dx = -r; dx <= r; dx++) {
+                for (int dy = -r; dy <= r; dy++) {
+                    final int xx = x + dx, yy = y + dy;
+                    if (((tallWaterLevel[xx + yy * TILE_SIZE]) > ((int) (tallHeightMap[xx + yy * TILE_SIZE] / 256f + 0.5f)))
+                            && (lava ? ((floodWithLava != null) && getBitPerBlockLayerValue(floodWithLava, xx, yy))
+                                : ((floodWithLava == null) || (! getBitPerBlockLayerValue(floodWithLava, xx, yy))))) {
+                        count++;
+                    }
+                }
+            }
+            return count;
+        } else {
+            ensureReadable(TileBuffer.HEIGHTMAP);
+            ensureReadable(TileBuffer.WATERLEVEL);
+            ensureReadable(TileBuffer.BIT_LAYER_DATA);
+            final BitSet floodWithLava = bitLayerData.get(FloodWithLava.INSTANCE);
+            int count = 0;
+            for (int dx = -r; dx <= r; dx++) {
+                for (int dy = -r; dy <= r; dy++) {
+                    final int xx = x + dx, yy = y + dy;
+                    if (((waterLevel[xx + yy * TILE_SIZE] & 0xFF) > ((int) ((heightMap[xx + yy * TILE_SIZE] & 0xFFFF) / 256f + 0.5f)))
+                            && (lava ? ((floodWithLava != null) && getBitPerBlockLayerValue(floodWithLava, xx, yy))
+                                : ((floodWithLava == null) || (! getBitPerBlockLayerValue(floodWithLava, xx, yy))))) {
+                        count++;
+                    }
+                }
+            }
+            return count;
+        }
+    }
+    
     public synchronized float getDistanceToEdge(final Layer layer, final int x, final int y, final float maxDistance) {
         if ((layer.getDataSize() != Layer.DataSize.BIT) && (layer.getDataSize() != Layer.DataSize.BIT_PER_CHUNK)) {
             throw new IllegalArgumentException("Layer is not bit sized");
         }
-        int r = (int) (maxDistance + 0.999f);
+        int r = (int) Math.ceil(maxDistance);
         if (((x - r) < 0) || ((x + r) >= TILE_SIZE) || ((y - r) < 0) || ((y + r) >= TILE_SIZE)) {
             throw new IllegalArgumentException("Requested area not contained entirely on tile");
         }
         ensureReadable(TileBuffer.BIT_LAYER_DATA);
         BitSet bitSet = bitLayerData.get(layer);
         if (bitSet == null) {
-            return maxDistance;
+            return 0;
         } else {
+            float distance = maxDistance;
             if (layer.getDataSize() == DataSize.BIT) {
+                if (! getBitPerBlockLayerValue(bitSet, x, y)) {
+                    return 0;
+                }
                 for (int i = 1; i <= r; i++) {
-                    if ((! getBitPerBlockLayerValue(bitSet, x - i, y))
-                            || (! getBitPerBlockLayerValue(bitSet, x + i, y))
-                            || (! getBitPerBlockLayerValue(bitSet, x, y - i))
-                            || (! getBitPerBlockLayerValue(bitSet, x, y + i))) {
-                        return Math.min(i, maxDistance);
+                    if (((! getBitPerBlockLayerValue(bitSet, x - i, y))
+                                || (! getBitPerBlockLayerValue(bitSet, x + i, y))
+                                || (! getBitPerBlockLayerValue(bitSet, x, y - i))
+                                || (! getBitPerBlockLayerValue(bitSet, x, y + i)))
+                            && (i < distance)) {
+                        // If we get here there's no possible way a shorter
+                        // distance could be found later, so return immediately
+                        return i;
                     }
                     for (int d = 1; d <= i; d++) {
                         if ((! getBitPerBlockLayerValue(bitSet, x - i, y - d))
@@ -337,17 +477,29 @@ public class Tile extends InstanceKeeper implements Serializable, UndoListener {
                                     || (! getBitPerBlockLayerValue(bitSet, x - d, y - i))
                                     || (! getBitPerBlockLayerValue(bitSet, x + i, y - d))
                                     || (! getBitPerBlockLayerValue(bitSet, x + d, y + i))))) {
-                            return Math.min(MathUtils.getDistance(i, d), maxDistance);
+                            float tDistance = MathUtils.getDistance(i, d);
+                            if (tDistance < distance) {
+                                distance = tDistance;
+                            }
+                            // We won't find a shorter distance this round, so
+                            // skip to the next round
+                            break;
                         }
                     }
                 }
             } else {
+                if (! getBitPerChunkLayerValue(bitSet, x, y)) {
+                    return 0;
+                }
                 for (int i = 1; i <= r; i++) {
-                    if ((! getBitPerChunkLayerValue(bitSet, x - i, y))
-                            || (! getBitPerChunkLayerValue(bitSet, x + i, y))
-                            || (! getBitPerChunkLayerValue(bitSet, x, y - i))
-                            || (! getBitPerChunkLayerValue(bitSet, x, y + i))) {
-                        return Math.min(i, maxDistance);
+                    if (((! getBitPerChunkLayerValue(bitSet, x - i, y))
+                                || (! getBitPerChunkLayerValue(bitSet, x + i, y))
+                                || (! getBitPerChunkLayerValue(bitSet, x, y - i))
+                                || (! getBitPerChunkLayerValue(bitSet, x, y + i)))
+                            && (i < distance)) {
+                        // If we get here there's no possible way a shorter
+                        // distance could be found later, so return immediately
+                        return i;
                     }
                     for (int d = 1; d <= i; d++) {
                         if ((! getBitPerChunkLayerValue(bitSet, x - i, y - d))
@@ -358,12 +510,18 @@ public class Tile extends InstanceKeeper implements Serializable, UndoListener {
                                     || (! getBitPerChunkLayerValue(bitSet, x - d, y - i))
                                     || (! getBitPerChunkLayerValue(bitSet, x + i, y - d))
                                     || (! getBitPerChunkLayerValue(bitSet, x + d, y + i))))) {
-                            return Math.min(MathUtils.getDistance(i, d), maxDistance);
+                            float tDistance = MathUtils.getDistance(i, d);
+                            if (tDistance < distance) {
+                                distance = tDistance;
+                            }
+                            // We won't find a shorter distance this round, so
+                            // skip to the next round
+                            break;
                         }
                     }
                 }
             }
-            return maxDistance;
+            return distance;
         }
     }
 
@@ -491,6 +649,7 @@ public class Tile extends InstanceKeeper implements Serializable, UndoListener {
                 ensureWriteable(TileBuffer.BIT_LAYER_DATA);
                 bitLayerData.remove(layer);
                 layerDataChanged(layer);
+                cachedLayers = null;
             }
         } else {
             ensureReadable(TileBuffer.LAYER_DATA);
@@ -498,6 +657,7 @@ public class Tile extends InstanceKeeper implements Serializable, UndoListener {
                 ensureWriteable(TileBuffer.LAYER_DATA);
                 layerData.remove(layer);
                 layerDataChanged(layer);
+                cachedLayers = null;
             }
         }
     }
@@ -1028,6 +1188,13 @@ public class Tile extends InstanceKeeper implements Serializable, UndoListener {
         in.defaultReadObject();
         init();
     }
+    
+    private void writeObject(ObjectOutputStream out) throws IOException {
+        // Make sure all buffers are current, otherwise we may save out of date
+        // data to disk
+        ensureAllReadable();
+        out.defaultWriteObject();
+    }
 
     private void init() {
         listeners = new ArrayList<Listener>();
@@ -1085,6 +1252,8 @@ public class Tile extends InstanceKeeper implements Serializable, UndoListener {
     
     private static final Terrain[] TERRAIN_VALUES = Terrain.values();
 
+    private static final float SQRT_OF_EIGHT = (float) Math.sqrt(8.0);
+    
     private static final Logger logger = Logger.getLogger(Tile.class.getName());
     
     private static final long serialVersionUID = 2011040101L;

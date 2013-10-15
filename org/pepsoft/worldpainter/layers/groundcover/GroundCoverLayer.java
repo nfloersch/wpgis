@@ -6,19 +6,23 @@ package org.pepsoft.worldpainter.layers.groundcover;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
+import org.pepsoft.minecraft.Constants;
 
 import org.pepsoft.minecraft.Material;
+import org.pepsoft.worldpainter.MixedMaterial;
+import org.pepsoft.worldpainter.NoiseSettings;
 import org.pepsoft.worldpainter.exporting.LayerExporter;
 import org.pepsoft.worldpainter.layers.CustomLayer;
+import org.pepsoft.worldpainter.layers.Layer;
 
 /**
  *
  * @author pepijn
  */
 public class GroundCoverLayer extends CustomLayer {
-    public GroundCoverLayer(String name, Material material, int colour) {
+    public GroundCoverLayer(String name, MixedMaterial material, int colour) {
         super(name, "a 1 block layer of " + name + " on top of the terrain", DataSize.BIT, 30, colour);
-        this.material = material;
+        mixedMaterial = material;
         exporter = new GroundCoverLayerExporter(this);
     }
 
@@ -28,12 +32,12 @@ public class GroundCoverLayer extends CustomLayer {
         setDescription("a " + thickness + " block layer of " + name + " on top of the terrain");
     }
 
-    public Material getMaterial() {
-        return material;
+    public MixedMaterial getMaterial() {
+        return mixedMaterial;
     }
 
-    public void setMaterial(Material material) {
-        this.material = material;
+    public void setMaterial(MixedMaterial material) {
+        mixedMaterial = material;
     }
 
     public int getThickness() {
@@ -45,35 +49,52 @@ public class GroundCoverLayer extends CustomLayer {
         setDescription("a " + thickness + " block layer of " + getName() + " on top of the terrain");
     }
 
-//    public boolean isTaperedEdge() {
-//        return taperedEdge;
-//    }
-//
-//    public void setTaperedEdge(final boolean taperedEdge) {
-//        this.taperedEdge = taperedEdge;
-//    }
-//
-//    public boolean isVariedEdge() {
-//        return variedEdge;
-//    }
-//
-//    public void setVariedEdge(final boolean variedEdge) {
-//        this.variedEdge = variedEdge;
-//    }
-//
-//    public int getEdgeWidth() {
-//        return edgeWidth;
-//    }
-//
-//    public void setEdgeWidth(final int edgeWidth) {
-//        this.edgeWidth = edgeWidth;
-//    }
+    public int getEdgeWidth() {
+        return edgeWidth;
+    }
+
+    public void setEdgeWidth(final int edgeWidth) {
+        this.edgeWidth = edgeWidth;
+    }
+
+    public EdgeShape getEdgeShape() {
+        return edgeShape;
+    }
+
+    public void setEdgeShape(EdgeShape edgeShape) {
+        if (edgeShape == null) {
+            throw new NullPointerException();
+        }
+        this.edgeShape = edgeShape;
+    }
+
+    public NoiseSettings getNoiseSettings() {
+        return noiseSettings;
+    }
+
+    public void setNoiseSettings(NoiseSettings noiseSettings) {
+        this.noiseSettings = noiseSettings;
+    }
 
     @Override
     public LayerExporter<GroundCoverLayer> getExporter() {
         return exporter;
     }
 
+    // Comparable
+    @Override
+    public int compareTo(Layer layer) {
+        if (priority < layer.priority) {
+            return -1;
+        } else if (priority > layer.priority) {
+            return 1;
+        } else if (layer instanceof GroundCoverLayer) {
+            return Math.abs(((GroundCoverLayer) layer).thickness) - Math.abs(thickness);
+        } else {
+            return getId().compareTo(layer.getId());
+        }
+    }
+    
     private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
         in.defaultReadObject();
         exporter = new GroundCoverLayerExporter(this);
@@ -86,15 +107,40 @@ public class GroundCoverLayer extends CustomLayer {
         if (thickness == 0) {
             thickness = 1;
         }
+        if (mixedMaterial == null) {
+            String name;
+            if (material.getData() != 0) {
+                name = Constants.BLOCK_TYPE_NAMES[material.getBlockType()] + " (" + material.getData() + ")";
+            } else {
+                name = Constants.BLOCK_TYPE_NAMES[material.getBlockType()];
+            }
+            mixedMaterial = MixedMaterial.create(material);
+            material = null;
+        }
+        if (edgeShape == null) {
+            edgeWidth = 1;
+            if (thickness == 1) {
+                edgeShape = EdgeShape.SHEER;
+            } else {
+                edgeShape = EdgeShape.ROUNDED;
+            }
+        }
     }
     
+    @Deprecated
     private Material material;
     @Deprecated
     private int colour;
-    private int thickness = 5;
-//    private boolean taperedEdge = true, variedEdge;
-//    private int edgeWidth = 1;
+    private int thickness = 1;
+    @Deprecated
+    private final boolean taperedEdge = false, variedEdge = false;
+    private int edgeWidth = 1;
+    private MixedMaterial mixedMaterial;
+    private EdgeShape edgeShape = EdgeShape.SHEER;
+    private NoiseSettings noiseSettings;
     private transient GroundCoverLayerExporter exporter;
 
     private static final long serialVersionUID = 1L;
+    
+    public enum EdgeShape {SHEER, LINEAR, SMOOTH, ROUNDED}
 }

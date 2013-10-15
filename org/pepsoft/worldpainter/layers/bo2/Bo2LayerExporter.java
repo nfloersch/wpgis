@@ -39,7 +39,8 @@ public class Bo2LayerExporter extends WPObjectExporter<Bo2Layer> implements Seco
     @Override
     public List<Fixup> render(final Dimension dimension, Rectangle area, Rectangle exportedArea, MinecraftWorld minecraftWorld) {
         Bo2ObjectProvider objectProvider = layer.getObjectProvider();
-        int maxHeight = dimension.getMaxHeight() - 1;
+        int maxHeight = dimension.getMaxHeight();
+        int maxZ = maxHeight - 1;
         List<Fixup> fixups = new ArrayList<Fixup>();
         for (int chunkX = area.x; chunkX < area.x + area.width; chunkX += 16) {
             for (int chunkY = area.y; chunkY < area.y + area.height; chunkY += 16) {
@@ -54,7 +55,7 @@ public class Bo2LayerExporter extends WPObjectExporter<Bo2Layer> implements Seco
                 for (int x = chunkX; x < chunkX + 16; x++) {
 objectLoop:         for (int y = chunkY; y < chunkY + 16; y++) {
                         int height = dimension.getIntHeightAt(x, y);
-                        if ((height == -1) || (height >= maxHeight)) {
+                        if ((height == -1) || (height >= maxZ)) {
                             // height == -1 means no tile present
                             continue;
                         }
@@ -87,7 +88,7 @@ objectLoop:         for (int y = chunkY; y < chunkY + 16; y++) {
                                 }
                             }
                             int z = (placement == Placement.ON_LAND) ? height + 1 : dimension.getWaterLevelAt(x, y) + 1;
-                            if (! isRoom(minecraftWorld, dimension, object, x, y, z, placement)) {
+                            if ((! isSane(object, x, y, z, maxHeight)) || (! isRoom(minecraftWorld, dimension, object, x, y, z, placement))) {
                                 continue;
                             }
                             if (! fitsInExportedArea(exportedArea, object, x, y)) {

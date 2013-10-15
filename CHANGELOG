@@ -1,3 +1,116 @@
+-- Version 1.6.4, released 25-9-2013
+
+ * Bug fix: make importing existing Minecraft maps work again. Sorry about that!
+ * Bug fix: make tile selection on the Export screen work for Nether and End
+
+-- Version 1.6.3, released 22-9-2013
+
+ * The Custom Ground Cover layer type has been expanded with more settings, making it more powerful:
+   - Instead of a simple block ID and data value the material can now be a complex custom material with a mix of block ID's
+   - The thickness setting can now be negative, which will cause the layer to dig into the ground, instead of being placed on top of it
+   - The edges of the layer can now be shaped in different ways. There is an edge shape and an edge width setting. The shapes are as follows:
+     + Sheer - the layer has a constant height right up to the edge; the edges are completely sheer. The edge width is ignored for this shape
+     + Linear - the edge forms a diagonal but straight line down to the ground. For an exact 45 degree angle, set the edge width to one less than the layer thickness
+     + Smooth - the edge forms a sinuous, smooth shape which meets the ground and the top horizontally with a smooth transition in between
+     + Rounded - the edge forms a quarter circle, meeting the top horizontally and the ground vertically with a smooth transition in between
+   - Of course these shapes will only become apparent at higher thicknesses and edge widths! Minecraft's blocky nature means that for thin layers and edges the difference will be negligible
+   - A random variation can now be added to the thickness, with the same settings as used in the Caves/Tunnels layer. The randomness is applied to the flat sections as well as the edges
+   - All these new settings can be combined to do things like add glaciers (with or without deep snow on top), rivers including a riverbed, holes in the ground (by using Air as the material), etc., etc.
+   - All existing ground cover layers will by default get an edge width of one, and an edge shape of "sheer" (if the thickness is one) or "rounded" (if the thickness is more than one). For one block thick layers there will be no change in behaviour, but layers with a higher thickness will have different looking edges, so you should inspect those
+ * A new brush type has been added: Dome. This has the shape of a half sphere. If you start with a flat surface, and raise the ground until the center is raised (or lowered) exactly the same amount as the brush radius, the resulting shape will be an exact half sphere. (This was already added in the previous release, but was omitted from the release notes)
+
+-- Version 1.6.2, released 20-9-2013
+
+ * The accuracy of the brush has been improved for small brush sizes and when zoomed in, making it easier to work on small details. As long as the brush is not rotated, or rotated at a 90 degree angle, the brush now indicates *exactly* which blocks will be affected even when zoomed in and with small brush sizes. For round brushes it is only the blocks which lie completely inside the circle
+   - In a related change, the brush may now have a radius of zero, which affects only the block the mouse cursor is on, for even more detailed work
+   - The spawn point marker is also drawn more accurately across the actual block where you will spawn
+ * The Caves/Tunnels layer behaviour has changed slightly with respect to the absolute minimum and maximum heights for floor and ceiling. The noise, if any, is now applied *after* the minimum and maximum, so that the level sections of the cave still have random variation applied, instead of being perfectly flat
+ * It is now possible to create separate palettes for custom brushes, by placing them in subdirectories inside the custom brush directory (which you can open from the Tools menu). The name of each subdirectory will be used as the name of the palette. In the near future this will be expanded with the possibility of collapsing palettes, and creating palettes for custom layers
+ * After exporting a world some statistics about its total area, size on disk, export speed, etc. are displayed
+ * Bug fix: fixed a small irregularity in Smooth Snow, making it *slightly* smoother
+ 
+-- Version 1.6.1, released 15-9-2013
+
+ * Added some new options for the Caves/Tunnels layer:
+   - "Remove water or lava" option - off by default (including existing layers) - when off, water (or lava) will not be removed, and floor, wall and roof materials will not be placed in water. When on, water will be removed, and floor, wall and roof materials will be placed underwater. Note: this only applies to water or lava from WorldPainter's Flood tool, not to water from the Resources layer or some custom layer. Turn this on and use Glass for all materials to create underwater habitats, for example
+   - "Flood the caves/tunnels" option - off by default (including existing layers) - when turned on, the caves or tunnels created by that layer will be flooded. You can specify the level to which it should be flooded, and whether it should be flooded with water or lava
+ * Added some keyboard and mouse controls for the brush rotation:
+   - Pressing Alt while rotating the mouse wheel will rotate the brush fifteen degrees counterclockwise (when scrolling up) or clockwise (when scrolling down)
+   - Alt+0 (on the main keyboard or numeric keypad) will reset the rotation to zero degrees
+   - Alt+- and Alt++ (on the main keyboard or numeric keypad) will rotate the brush fifteen degrees counterclockwise or clockwise, respectively
+   - Alt+3 (on the main keyboard or numeric keypad) will rotate the brush 30 degrees clockwise
+   - Alt+4 (on the main keyboard or numeric keypad) will rotate the brush 45 degrees clockwise
+   - Alt+9 (on the main keyboard or numeric keypad) will rotate the brush 90 degrees clockwise
+ * Added some keyboard controls for finer control of the brush size:
+   - Pressing Shift while rotating the mouse wheel will change the brush size by one pixel at a time
+   - Shift+- and Shift++ (on the main keyboard or numeric keypad) will change the brush size by one pixel at a time
+ * Bug fix: restored ability to remove Read Only layer with Global Operations tool
+
+-- Version 1.6.0, released 10-9-2013
+
+ * Brush rotation! Brushes can now be rotated from -180 to 180 degrees clockwise at 15 degree intervals using a new slider on the Brush Settings panel
+ * Caves/Tunnels layer! A new custom layer type has been added which allows you to create underground caves and tunnels with specific elevations, shapes and floor/wall/ceiling materials. See http://www.worldpainter.net/trac/wiki/CavesAndTunnels for details
+ * You can now change the spawn point from the tile selection screen on the Export screen, saving you from having to exit all the way out of the Export screen to change the spawn point
+ * The way borders and bedrock walls are generated has changed for irregularly shaped worlds (including circular worlds). They used to form a rectangular shape around all the tiles, potentially being a huge distance away and greatly increasing the surface area and disk space requirements of the map. Now they are only generated around the tiles which are actually present, more closely following the shape of the world
+ * When you use the Ocean Minecraft seed, the world type is now set to Large Biomes by default, to make an even larger ocean around your map
+ * Bug fix: fixed an error that occurred when exporting a world with custom objects that dig into the ground placed at low altitudes
+ * Bug fix: fixed an error that occurred when adding tiles to some existing worlds. Unfortunately for those worlds new tiles will be flat, as the information about what the landscape should like like was lost
+ * Bug fix: the 3D view shows underground Grass, Mycelium and Tilled Earth blocks as Dirt, as they will be exported, and as it used to do previously
+
+--- Version 1.5.5, released 23-8-2013
+
+ * Bug fix: fix a bug introduced in version 1.5.4 which prevented some worlds from being loaded
+ * Bug fix: fix a bug which prevented very old worlds from being loaded
+
+--- Version 1.5.4, released 23-8-2013
+
+ * Bug fix: fix a bug that prevented version 1.5.3 from loading worlds created in 1.5.2 or earlier and containing custom object layers
+ * Bug fix: fix a bug that prevented editing the properties of existing custom object layers
+
+--- Version 1.5.3, released 22-8-2013
+
+ * The leaf decay behaviour for custom object layers has changed. The default value of the leaf decay setting is now "as exported", so by default the old behaviour is back where leaves will decay or not according to how the object creator created them. To make it easier to change that there is now a leaf decay settings section on the main layer settings panel, in addition to the one on the individual object settings panel. It shows whether or not the currently loaded objects have decaying leaves or not (or a mix), and allows you to override the default for all objects at once with one button click
+ * Bug fix: hopefully implemented a workaround for an error some people get when enabling solo mode for some layers
+ * Bug fix: fixed an error that occurred when creating or opening a world while having a layer soloed
+ * Bug fix: fixed an error that occurred when creating or opening a world while having the Nether or End dimension active
+ * Bug fix: fixed an error that occurred when soloing a layer on a dimension with contains lava
+
+--- Version 1.5.2, released 12-8-2013
+
+ * Bug fix: the long standing bug that left patches of water after canceling a Flood operation has *finally* been fixed!
+ * Bug fix: a bug that prevented height maps that contained at least one pixel with value 0 from being imported at all, introduced in version 1.5.1, has been fixed
+
+--- Version 1.5.1, released 11-8-2013
+
+ * A few Frost related changes have been made to imported Minecraft maps and height maps:
+   - Smooth snow is now turned off by default for imported height maps (it already was for Minecraft maps), but both are now imported in such a way that turning on smooth snow will not result in a half block thick layer of snow (it will be regular one layer thick). *Note* however that it still won't be smooth snow! Smooth snow is not compatible with imported worlds
+   - The merge process had been tweaked so that it leaves *existing* smooth snow alone (as long as you haven't removed the Frost layer of course). Note that this may give strange effects if you changed the slope of the land
+   - You can now remove snow and ice from an existing map by importing it, removing the Frost layer and merging it (making sure that the chunks where you want to remove snow and ice are not marked read-only)
+ * Add support for Minecraft 1.6.2 jar file
+ * Bug fix: fixed (hopefully) a nasty bug related to combined layers which would cause floods of NullPointerExceptions in unpredictable circumstances
+ * Bug fix: the minimum and maximum Chasms layer settings in the Dimension Properties now work (and are saved)
+ * Bug fix: a problem with the stored water level in world files has been fixed, which among other things makes the Sponge tool work correctly again for restoring the default water level by right-clicking
+ * Bug fix: actually use the default top layer depth and bottomless world settings from the Preferences screen for newly created worlds
+
+--- Version 1.5.0, released 21-7-2013
+
+ * A new custom layer type has been added: "combined" layers. These allow you to combine a terrain type and/or a biome and/or one or more layers (both standard and custom) into one layer, making it easier to apply a number of layers at once in the same location.
+   You have the option of hiding the layers that you add to the combined layer so they don't clutter up the layers panel. When you paint the layer your chosen terrain and/or biome (if any) are applied immediately; any layers you configured will be applied when the world is exported.
+   You can also "apply" the layer (from the popup menu on the layer button), which will replace the combined layer with its constituent layers and make the changes permanent.
+   You can use custom terrain types and biome IDs in combined layers, by defining the terrain type or biome ID first. They will be included in the selection menus when you add a new combined layer
+ * Support for custom biome IDs has been added. To use it, "custom biomes" must be enabled (on the New World screen or from the Edit menu). Show the Biomes panel by clicking on the Biomes button, and then click on the + button to add a custom biome ID
+ * A second column of "solo" checkboxes has been added in front of the layer buttons. Checking these will show only that layer, allowing you to quickly declutter the view
+ * The brush options have been expanded with two new filters: slope and water/land. The slope filter allows you to apply an operation only to terrain above or below a certain slope, specified in degrees from horizontal. This is a good way to change the terrain type of cliffs and mountain sides to stone, for instance. The water and land choices in the "only on" and "except on" selection menus behave as you would expect
+ * A new custom object setting has been added: leaf decay mode. This allows you to override the leaf decay behaviour of placed custom objects. By default (including existing custom object layers) it is set to "decay", meaning that all leaf blocks from the object will decay if there is no more wood nearby. You can also set it to "not decay" (should be obvious), or to "as exported", which is the old behaviour of placing the leaf blocks exactly as they are stored in the bo2 file or schematic. As with the other custom object settings you can change the setting for a number of objects at once by selecting them all in the list and clicking the Edit button next to the list
+ * It is now possible to pan the view using the space bar in addition to the middle mouse button
+ * The default behaviour of the Frost layer has changed to put snow and ice under trees (leaf or wood blocks), which it would not previously do. The setting can be changed on the Other Layers page of the Dimension Properties or Export screens. For existing worlds the old behaviour remains the default. Note that snow will always penetrate a single leaf or wood block, so there will still be snow around the edges and under thin canopies even with this setting turned off
+ * Tilled Earth can now be used as a custom terrain type without crashing Minecraft, because WorldPainter will change all but the topmost Tilled Earth block to Dirt (like it already does for Grass and Mycelium blocks)
+ * The Flood and Lava tools now don't change the fluid level when you click them (left or right) on a different fluid type. This makes it easier to change lava into water or vice versa without the risk of flooding the entire world
+ * Allow changing the relative frequencies of multiple objects at once from the custom object screen
+ * Bug fix: changing the scale of individual materials for custom terrain types set to "blobs" now works correctly
+ * Bug fix: fix the names of some blocks newly added in Minecraft 1.6
+ * Bug fix: correctly export metadata from tile entities in schematics. This makes it possible to place tile entities (chests, furnaces, mob spawners, etc.) with contents and configuration intact using schematics and a custom objects layer
+
 --- Version 1.4.0, released 9-6-2013
 
  * Custom layers (of all types: objects, ground cover and underground pockets) can now be saved to and loaded from files on disk, allowing you to reuse them from world to world. Export from the layer's context menu (right-click on the layer button) and import from the File -> Import menu, or the + button on the layers panel. The files have a *.layer extension and can be sent to and used by anyone with WorldPainter version 1.4.0 or higher. Note that for custom object layers the object data is stored inside the layer file, so you don't need to keep or send the original object files separately

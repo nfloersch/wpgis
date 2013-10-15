@@ -33,7 +33,7 @@ public class RaiseMountain extends RadiusOperation {
         dimension.setEventsInhibited(true);
         int maxZ = dimension.getMaxHeight() - 1;
         try {
-            int radius = getRadius();
+            int radius = getEffectiveRadius();
             long seed = dimension.getSeed();
             for (int x = centerX - radius; x <= centerX + radius; x++) {
                 for (int y = centerY - radius; y <= centerY + radius; y++) {
@@ -54,7 +54,7 @@ public class RaiseMountain extends RadiusOperation {
     
     @Override
     protected final void brushChanged() {
-        final int radius = getRadius();
+        final int radius = getEffectiveRadius();
         final Brush brush = getBrush();
         if (brush == null) {
             return;

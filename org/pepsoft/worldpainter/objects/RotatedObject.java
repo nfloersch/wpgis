@@ -33,7 +33,7 @@ public class RotatedObject extends AbstractObject {
         this.object = object;
         this.steps = steps;
         Point3i origDim = object.getDimensions();
-        Map<String, Serializable> attributes = (object.getAttributes() != null) ? object.getAttributes() : new HashMap<String, Serializable>();
+        Map<String, Serializable> attributes = (object.getAttributes() != null) ? new HashMap<String, Serializable>(object.getAttributes()) : new HashMap<String, Serializable>();
         Point3i offset = attributes.containsKey(WPObject.ATTRIBUTE_OFFSET) ? (Point3i) attributes.get(WPObject.ATTRIBUTE_OFFSET) : new Point3i();
         switch (steps) {
             case 0:
@@ -105,7 +105,38 @@ public class RotatedObject extends AbstractObject {
     
     @Override
     public List<Entity> getEntities() {
-        return object.getEntities();
+        List<Entity> objectEntities = object.getEntities();
+        if (objectEntities != null) {
+            List<Entity> entities = new ArrayList<Entity>(objectEntities.size());
+            for (Entity objectEntity: objectEntities) {
+                Entity entity = (Entity) objectEntity.clone();
+                if (steps != 0) {
+                    double[] objectPos = objectEntity.getPos();
+                    double[] pos = entity.getPos();
+                    switch (steps) {
+                        case 1:
+                            pos[0] = dimensions.x - objectPos[2];
+                            pos[2] = objectPos[0];
+                            break;
+                        case 2:
+                            pos[0] = dimensions.x - objectPos[0];
+                            pos[2] = dimensions.y - objectPos[2];
+                            break;
+                        case 3:
+                            pos[0] = objectPos[2];
+                            pos[2] = dimensions.y - objectPos[0];
+                            break;
+                        default:
+                            throw new InternalError();
+                    }
+                    entity.setPos(pos);
+                }
+                entities.add(entity);
+            }
+            return entities;
+        } else {
+            return null;
+        }
     }
 
     @Override
@@ -160,6 +191,11 @@ public class RotatedObject extends AbstractObject {
 
     @Override
     public void setAttributes(Map<String, Serializable> attributes) {
+        throw new UnsupportedOperationException("Not supported");
+    }
+
+    @Override
+    public void setAttribute(String key, Serializable value) {
         throw new UnsupportedOperationException("Not supported");
     }
 

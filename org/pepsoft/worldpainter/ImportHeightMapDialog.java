@@ -13,16 +13,19 @@ package org.pepsoft.worldpainter;
 import java.awt.Graphics2D;
 import java.awt.Point;
 import java.awt.RenderingHints;
+import java.awt.color.ColorSpace;
 import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferByte;
+import java.awt.image.WritableRaster;
 import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Random;
 import java.util.Set;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.imageio.ImageIO;
@@ -44,24 +47,26 @@ import org.pepsoft.util.swing.ProgressDialog;
 import org.pepsoft.util.swing.ProgressTask;
 import org.pepsoft.worldpainter.heightMaps.HeightMapUtils;
 
-import static org.pepsoft.minecraft.Constants.DEFAULT_MAX_HEIGHT_2;
-import static org.pepsoft.worldpainter.Constants.TILE_SIZE;
-import static org.pepsoft.worldpainter.Constants.TILE_SIZE_BITS;
+import static org.pepsoft.minecraft.Constants.*;
+import static org.pepsoft.worldpainter.Constants.*;
+import org.pepsoft.worldpainter.layers.Frost;
+import org.pepsoft.worldpainter.layers.exporters.FrostExporter.FrostSettings;
+import org.pepsoft.worldpainter.themes.SimpleTheme;
 
 /**
  *
  * @author pepijn
  */
 public class ImportHeightMapDialog extends javax.swing.JDialog implements DocumentListener {
-    /** Creates new form ImportHeightMapDialog */
-    public ImportHeightMapDialog(java.awt.Frame parent) {
+    public ImportHeightMapDialog(java.awt.Frame parent, ColourScheme colourScheme) {
         super(parent, true);
         
-        tileFactory = TileFactoryFactory.createNoiseTileFactory(Terrain.GRASS, DEFAULT_MAX_HEIGHT_2, 58, 62, false, true, 20, 1.0);
+        long seed = new Random().nextLong();
+        tileFactory = TileFactoryFactory.createNoiseTileFactory(seed, Terrain.GRASS, DEFAULT_MAX_HEIGHT_2, 58, 62, false, true, 20, 1.0);
         
         initComponents();
         
-        heightMapTileFactoryEditor1.setTileFactory(tileFactory);
+        heightMapTileFactoryEditor1.setTheme((SimpleTheme) tileFactory.getTheme());
         spinnerOffsetX.setEditor(new NumberEditor(spinnerOffsetX, "0"));
         spinnerOffsetY.setEditor(new NumberEditor(spinnerOffsetY, "0"));
         pack();
@@ -92,7 +97,7 @@ public class ImportHeightMapDialog extends javax.swing.JDialog implements Docume
     }
 
     public World2 getImportedWorld() {
-        logger.info("Importing world from height map " + selectedFile.getAbsolutePath() + " (size: " + image.getWidth() + "x" + image.getHeight() + ")");
+        logger.log(Level.INFO, "Importing world from height map {0} (size: {1}x{2})", new Object[]{selectedFile.getAbsolutePath(), image.getWidth(), image.getHeight()});
         final int scale = (Integer) spinnerScale.getValue();
         final boolean invert = checkBoxInvert.isSelected();
         final int maxHeight = Integer.parseInt((String) comboBoxHeight.getSelectedItem());
@@ -132,8 +137,7 @@ public class ImportHeightMapDialog extends javax.swing.JDialog implements Docume
                 image = null; // The image is no longer necessary, so allow it to be garbage collected to make more space available for the import
                 boolean oneOnOne = (worldLowLevel == imageLowLevel) && (worldHighLevel == imageHighLevel);
                 float levelScale = (float) (worldHighLevel - worldLowLevel) / (imageHighLevel - imageLowLevel);
-                long seed = new Random().nextLong();
-                World2 world = new World2(seed, seed, tileFactory, maxHeight);
+                World2 world = new World2(tileFactory.getSeed(), tileFactory, maxHeight);
                 String name = selectedFile.getName();
                 int p = name.lastIndexOf('.');
                 if (p != -1) {
@@ -147,6 +151,12 @@ public class ImportHeightMapDialog extends javax.swing.JDialog implements Docume
                 }
                 world.setCustomBiomes(true);
                 Dimension dimension = world.getDimension(0);
+                
+                // Turn off smooth snow
+                FrostSettings frostSettings = new FrostSettings();
+                frostSettings.setMode(FrostSettings.MODE_FLAT);
+                dimension.setLayerSettings(Frost.INSTANCE, frostSettings);
+                
                 int tileX1 = offsetX >> TILE_SIZE_BITS;
                 int tileY1 = offsetY >> TILE_SIZE_BITS;
                 int tileX2 = (offsetX + widthInBlocks - 1) >> TILE_SIZE_BITS;
@@ -187,14 +197,14 @@ public class ImportHeightMapDialog extends javax.swing.JDialog implements Docume
                                     level = imageLowLevel;
                                     void_ = useVoidBelow;
                                 }
-                                tile.setHeight(x, y, oneOnOne
-                                    ? level
-                                    : (int) ((level - imageLowLevel) * levelScale + worldLowLevel));
+                                tile.setHeight(x, y, Math.max(0.0f, oneOnOne
+                                    ? level - 0.4375f
+                                    : (int) ((level - imageLowLevel) * levelScale + worldLowLevel) - 0.4375f));
                                 tile.setWaterLevel(x, y, worldMiddleLevel);
                                 if (void_) {
                                     tile.setBitLayerValue(org.pepsoft.worldpainter.layers.Void.INSTANCE, x, y, true);
                                 }
-                                tileFactory.applyTheme(seed, tile, x, y);
+                                tileFactory.applyTheme(tile, x, y);
                             }
                         }
                         dimension.addTile(tile);
@@ -239,7 +249,7 @@ public class ImportHeightMapDialog extends javax.swing.JDialog implements Docume
             selectedFile = file;
             loadImage();
         }
-        boolean fileSelected = file.isFile();
+        boolean fileSelected = (selectedFile != null) && selectedFile.isFile();
         buttonOk.setEnabled(fileSelected);
     }
 
@@ -247,20 +257,48 @@ public class ImportHeightMapDialog extends javax.swing.JDialog implements Docume
         try {
             image = null; // Set image to null first to make more memory available for loading the new image
             image = ImageIO.read(selectedFile);
-            labelImageDimensions.setText("Image size: " + image.getWidth() + " x " + image.getHeight());
-            updateWorldDimensions();
+            if (image.getColorModel().getColorSpace().getType() != ColorSpace.TYPE_GRAY) {
+                labelImageDimensions.setText(String.format("Not a grey scale image!"));
+                selectedFile = null;
+            } else if (image.isAlphaPremultiplied()) {
+                labelImageDimensions.setText(String.format("Image has premultiplied alpha, which is not supported!"));
+                selectedFile = null;
+            } else {
+                // Grey scale image, not premultiplied
+                int width = image.getWidth(), height = image.getHeight();
+//                int bitDepth = image.getColorModel().getPixelSize();
+                WritableRaster raster = image.getRaster();
+                int lowValue = Integer.MAX_VALUE, highValue = Integer.MIN_VALUE;
+outer:          for (int x = 0; x < width; x++) {
+                    for (int y = 0; y < height; y++) {
+                        int value = raster.getSample(x, y, 0);
+                        if (value < lowValue) {
+                            lowValue = value;
+                        }
+                        if (value > highValue) {
+                            highValue = value;
+                        }
+                        if ((lowValue == 0) && (highValue == 255)) {
+                            // TODO: support 16-bit
+                            // No point in looking any further!
+                            break outer;
+                        }
+                    }
+                }
+                // TODO: add bit depth:
+                labelImageDimensions.setText(String.format("Image size: %d x %d, lowest value: %d, highest value: %d", width, height, lowValue, highValue));
+                updateWorldDimensions();
+            }
         } catch (IOException e) {
-            throw new RuntimeException("I/O error loading image " + selectedFile, e);
+            logger.log(Level.SEVERE, "I/O error loading image " + selectedFile, e);
+            labelImageDimensions.setText(String.format("I/O error loading image (message: " + e.getMessage() + ")!"));
+            selectedFile = null;
         }
     }
 
     private void updateWorldDimensions() {
-        int scale = (Integer) spinnerScale.getValue(), offsetX = (Integer) spinnerOffsetX.getValue(), offsetY = (Integer) spinnerOffsetY.getValue();
-        int tileX1 = offsetX >> TILE_SIZE_BITS;
-        int tileY1 = offsetY >> TILE_SIZE_BITS;
-        int tileX2 = (offsetX + (image.getWidth() * scale / 100) - 1) >> TILE_SIZE_BITS;
-        int tileY2 = (offsetY + (image.getHeight() * scale / 100) - 1) >> TILE_SIZE_BITS;
-        labelWorldDimensions.setText("World size: " + ((tileX2 - tileX1 + 1) * 128) + " x " + ((tileY2 - tileY1 + 1) * 128) + " blocks (in multiples of 128)");
+        int scale = (Integer) spinnerScale.getValue();
+        labelWorldDimensions.setText("Scaled size: " + (image.getWidth() * scale / 100) + " x " + (image.getHeight() * scale / 100) + " blocks");
     }
     
     private void updateWorldWaterLevel() {
@@ -326,7 +364,7 @@ public class ImportHeightMapDialog extends javax.swing.JDialog implements Docume
         jLabel12 = new javax.swing.JLabel();
         spinnerOffsetY = new javax.swing.JSpinner();
         jPanel3 = new javax.swing.JPanel();
-        heightMapTileFactoryEditor1 = new org.pepsoft.worldpainter.terrainRanges.HeightMapTileFactoryEditor();
+        heightMapTileFactoryEditor1 = new org.pepsoft.worldpainter.themes.SimpleThemeEditor();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
         setTitle("Import Height Map");
@@ -340,7 +378,7 @@ public class ImportHeightMapDialog extends javax.swing.JDialog implements Docume
             }
         });
 
-        labelImageDimensions.setText("Image size: ? x ?");
+        labelImageDimensions.setText("Image size: ? x ?, bit depth: ?, lowest value: ?, highest value: ?");
 
         buttonCancel.setText("Cancel");
         buttonCancel.addActionListener(new java.awt.event.ActionListener() {
@@ -374,7 +412,7 @@ public class ImportHeightMapDialog extends javax.swing.JDialog implements Docume
             }
         });
 
-        labelWorldDimensions.setText("World size: ? x ? blocks (in multiples of 128)");
+        labelWorldDimensions.setText("Scaled size: ? x ? blocks");
 
         comboBoxHeight.setModel(new javax.swing.DefaultComboBoxModel(new String[] { "32", "64", "128", "256", "512", "1024", "2048" }));
         comboBoxHeight.setSelectedIndex(3);
@@ -559,7 +597,7 @@ public class ImportHeightMapDialog extends javax.swing.JDialog implements Docume
                         .addComponent(checkBoxVoid)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                         .addComponent(spinnerVoidBelow, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)))
-                .addContainerGap(39, Short.MAX_VALUE))
+                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
         );
         jPanel2Layout.setVerticalGroup(
             jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -598,14 +636,14 @@ public class ImportHeightMapDialog extends javax.swing.JDialog implements Docume
             jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(jPanel3Layout.createSequentialGroup()
                 .addContainerGap()
-                .addComponent(heightMapTileFactoryEditor1, javax.swing.GroupLayout.DEFAULT_SIZE, 529, Short.MAX_VALUE)
+                .addComponent(heightMapTileFactoryEditor1, javax.swing.GroupLayout.DEFAULT_SIZE, 408, Short.MAX_VALUE)
                 .addContainerGap())
         );
         jPanel3Layout.setVerticalGroup(
             jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(jPanel3Layout.createSequentialGroup()
                 .addContainerGap()
-                .addComponent(heightMapTileFactoryEditor1, javax.swing.GroupLayout.DEFAULT_SIZE, 268, Short.MAX_VALUE)
+                .addComponent(heightMapTileFactoryEditor1, javax.swing.GroupLayout.DEFAULT_SIZE, 223, Short.MAX_VALUE)
                 .addContainerGap())
         );
 
@@ -712,7 +750,7 @@ public class ImportHeightMapDialog extends javax.swing.JDialog implements Docume
         float baseHeight = tileFactory.getBaseHeight();
         float transposeAmount = (waterLevel - 4) - baseHeight;
         tileFactory.setHeightMap(HeightMapUtils.transposeHeightMap(tileFactory.getHeightMap(), transposeAmount));
-        heightMapTileFactoryEditor1.setTileFactory(tileFactory);
+        heightMapTileFactoryEditor1.setTheme((SimpleTheme) tileFactory.getTheme());
     }//GEN-LAST:event_spinnerWorldMiddleStateChanged
 
     private void spinnerWorldHighStateChanged(javax.swing.event.ChangeEvent evt) {//GEN-FIRST:event_spinnerWorldHighStateChanged
@@ -812,7 +850,12 @@ public class ImportHeightMapDialog extends javax.swing.JDialog implements Docume
             float baseHeight = tileFactory.getBaseHeight();
             float transposeAmount = Math.max(waterLevel - 4, 0) - baseHeight;
             tileFactory.setHeightMap(HeightMapUtils.transposeHeightMap(tileFactory.getHeightMap(), transposeAmount));
-            heightMapTileFactoryEditor1.setTileFactory(tileFactory);
+            heightMapTileFactoryEditor1.setTheme((SimpleTheme) tileFactory.getTheme());
+            if (maxHeight == DEFAULT_MAX_HEIGHT_1) {
+                labelWarning.setText("Only Minecraft 1.1!");
+            } else {
+                labelWarning.setText("Only Minecraft 1.1, with mods!");
+            }
             labelWarning.setVisible(maxHeight != DEFAULT_MAX_HEIGHT_2);
             
             previousMaxHeight = maxHeight;
@@ -852,7 +895,7 @@ public class ImportHeightMapDialog extends javax.swing.JDialog implements Docume
     private javax.swing.JCheckBox checkBoxVoid;
     private javax.swing.JComboBox comboBoxHeight;
     private javax.swing.JTextField fieldFilename;
-    private org.pepsoft.worldpainter.terrainRanges.HeightMapTileFactoryEditor heightMapTileFactoryEditor1;
+    private org.pepsoft.worldpainter.themes.SimpleThemeEditor heightMapTileFactoryEditor1;
     private javax.swing.JLabel jLabel1;
     private javax.swing.JLabel jLabel10;
     private javax.swing.JLabel jLabel11;
@@ -887,7 +930,7 @@ public class ImportHeightMapDialog extends javax.swing.JDialog implements Docume
     private File selectedFile;
     private volatile BufferedImage image;
     private boolean cancelled = true;
-    private HeightMapTileFactory tileFactory;
+    private final HeightMapTileFactory tileFactory;
     private int previousMaxHeight = DEFAULT_MAX_HEIGHT_2;
     
     private static final Logger logger = Logger.getLogger(ImportHeightMapDialog.class.getName());

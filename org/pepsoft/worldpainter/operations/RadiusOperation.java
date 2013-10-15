@@ -47,12 +47,12 @@ public abstract class RadiusOperation extends MouseOrTabletOperation implements 
         brushChanged();
     }
 
-    public final int getRadius() {
-        return radius;
+    public final int getEffectiveRadius() {
+        return (brush instanceof RotatedBrush) ? ((RotatedBrush) brush).getEffectiveRadius() : radius;
     }
 
     public final void setRadius(int radius) {
-        if (radius < 1) {
+        if (radius < 0) {
             throw new IllegalArgumentException();
         }
         this.radius = radius;

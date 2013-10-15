@@ -4,7 +4,6 @@
  */
 package org.pepsoft.worldpainter.tools;
 
-import java.net.URL;
 import java.awt.AlphaComposite;
 import java.awt.Color;
 import java.awt.Composite;
@@ -69,18 +68,21 @@ public class WPTileSelectionViewer extends TiledImageViewer {
             g2.drawRect(rect.x, rect.y, rect.width - 1, rect.height - 1);
         }
         
-        if (getTileProvider() != null) {
-            int zoom = getTileProvider().getZoom();
-            if (SCALE_BAR != null) {
-                g2.drawImage(SCALE_BAR, 10, getHeight() - 10 - SCALE_BAR.getHeight(), this);
-                g2.setColor(Color.WHITE);
-                g2.drawString(zoom + "00 m", 15 + SCALE_BAR.getWidth(), getHeight() - 10);
-            }
-            
-            int middleX = getWidth() / 2;
-            int middleY = getHeight() / 2;
-            g2.drawString(((getViewX() + middleX) * zoom) + ", " + ((getViewY() + middleY) * zoom), 10, 20);
-        }
+        int zoom = getZoom();
+        g2.drawImage(SCALE_BAR, 10, getHeight() - 10 - SCALE_BAR.getHeight(), this);
+        g2.setColor(Color.BLACK);
+        String str = zoom + "00 m";
+        g2.drawString(str, 15 + SCALE_BAR.getWidth() + 1, getHeight() - 9);
+        g2.setColor(Color.WHITE);
+        g2.drawString(str, 15 + SCALE_BAR.getWidth(), getHeight() - 10);
+
+        int middleX = getWidth() / 2;
+        int middleY = getHeight() / 2;
+        g2.setColor(Color.BLACK);
+        str = ((getViewX() + middleX) * zoom) + ", " + ((getViewY() + middleY) * zoom);
+        g2.drawString(str, 11, 21);
+        g2.setColor(Color.WHITE);
+        g2.drawString(str, 10, 20);
     }
 
     public Point getHighlightedTileLocation() {
@@ -159,14 +161,19 @@ public class WPTileSelectionViewer extends TiledImageViewer {
             repaint(getTileRectangleCoordinates(this.selectedRectangleCorner1, selectedRectangleCorner2));
         }
     }
+
+    public Point getCurrentLocation() {
+        final int zoom = getZoom();
+        return new Point((getViewX() + getWidth() / 2) * zoom, (getViewY() + getHeight() / 2) * zoom);
+    }
     
     private Rectangle getTileCoordinates(Point tileLocation) {
-        int zoom = getTileProvider().getZoom();
+        int zoom = getZoom();
         return new Rectangle(tileLocation.x * TILE_SIZE / zoom - getViewX(), tileLocation.y * TILE_SIZE / zoom - getViewY(), TILE_SIZE / zoom, TILE_SIZE / zoom);
     }
     
     private Rectangle getTileRectangleCoordinates(Point tileCorner1, Point tileCorner2) {
-        int zoom = getTileProvider().getZoom();
+        int zoom = getZoom();
         Rectangle corner1Coords = new Rectangle(tileCorner1.x * TILE_SIZE / zoom - getViewX(), tileCorner1.y * TILE_SIZE / zoom - getViewY(), TILE_SIZE / zoom, TILE_SIZE / zoom);
         Rectangle corner2Coords = new Rectangle(tileCorner2.x * TILE_SIZE / zoom - getViewX(), tileCorner2.y * TILE_SIZE / zoom - getViewY(), TILE_SIZE / zoom, TILE_SIZE / zoom);
         int left = Math.min(corner1Coords.x, corner2Coords.x);
@@ -184,10 +191,9 @@ public class WPTileSelectionViewer extends TiledImageViewer {
     
     static {
         try {
-            URL url = ClassLoader.getSystemResource("org/pepsoft/worldpainter/scale_bar.png");
-            SCALE_BAR = (url != null) ? ImageIO.read(url) : null;
+            SCALE_BAR = ImageIO.read(WPTileSelectionViewer.class.getResourceAsStream("/org/pepsoft/worldpainter/scale_bar.png"));
         } catch (IOException e) {
-            throw new RuntimeException("I/O error loading image", e);
+            throw new RuntimeException("I/O error loading scale bar from classpath", e);
         }
     }
 

@@ -33,13 +33,14 @@ import javax.swing.JSpinner.DefaultEditor;
 import org.pepsoft.util.ProgressReceiver;
 import org.pepsoft.worldpainter.layers.Layer;
 import org.pepsoft.worldpainter.layers.exporters.ExporterSettings;
-import org.pepsoft.worldpainter.terrainRanges.TerrainListCellRenderer;
+import org.pepsoft.worldpainter.themes.TerrainListCellRenderer;
 import static org.pepsoft.worldpainter.Terrain.*;
 import static org.pepsoft.worldpainter.Constants.*;
 import static org.pepsoft.minecraft.Constants.*;
 import org.pepsoft.util.MathUtils;
 import org.pepsoft.worldpainter.Dimension.Border;
 import org.pepsoft.worldpainter.layers.Biome;
+import org.pepsoft.worldpainter.themes.SimpleTheme;
 
 /**
  *
@@ -60,9 +61,9 @@ public class NewWorldDialog extends javax.swing.JDialog implements WindowListene
         
         initComponents();
 
-        Object[] materials = new Object[] {GRASS, BARE_GRASS, DIRT, CLAY, SAND, DESERT, SANDSTONE, STONE, RESOURCES, ROCK, COBBLESTONE, OBSIDIAN, BEDROCK, SNOW, DEEP_SNOW, NETHERRACK, SOUL_SAND, NETHERLIKE, END_STONE};
+        Object[] materials = new Object[] {GRASS, BARE_GRASS, DIRT, CLAY, SAND, DESERT, SANDSTONE, STONE, RESOURCES, ROCK, COBBLESTONE, OBSIDIAN, BEDROCK, DEEP_SNOW, NETHERRACK, SOUL_SAND, NETHERLIKE, END_STONE};
         comboBoxSurfaceMaterial.setModel(new DefaultComboBoxModel(materials));
-        comboBoxSurfaceMaterial.setRenderer(new TerrainListCellRenderer());
+        comboBoxSurfaceMaterial.setRenderer(new TerrainListCellRenderer(app.getColourScheme()));
 
         comboBoxMaxHeight.setSelectedItem(Integer.toString(defaultMaxHeight));
         
@@ -245,11 +246,19 @@ public class NewWorldDialog extends javax.swing.JDialog implements WindowListene
         String name = fieldName.getText().trim();
         Dimension dimension = getSelectedDimension(progressReceiver);
         World2 world = new World2(dimension.getMaxHeight());
+        boolean minecraft11Only = dimension.getMaxHeight() != DEFAULT_MAX_HEIGHT_2;
+        if ((! minecraft11Only) && (dimension.getMinecraftSeed() == World2.DEFAULT_OCEAN_SEED)) {
+            world.setGenerator(Generator.LARGE_BIOMES);
+        }
         world.setName(name);
         world.addDimension(dimension);
-        world.setBiomeAlgorithm(checkBoxAutomaticBiomes.isSelected() ? World2.BIOME_ALGORITHM_AUTO_BIOMES : World2.BIOME_ALGORITHM_NONE);
-        world.setCustomBiomes(checkBoxCustomBiomes.isSelected());
-        world.setExtendedBlockIds(checkBoxExtendedBlockIds.isSelected());
+        if (! minecraft11Only) {
+            world.setBiomeAlgorithm(checkBoxAutomaticBiomes.isSelected() ? World2.BIOME_ALGORITHM_AUTO_BIOMES : World2.BIOME_ALGORITHM_NONE);
+            world.setCustomBiomes(checkBoxCustomBiomes.isSelected());
+            world.setExtendedBlockIds(checkBoxExtendedBlockIds.isSelected());
+        } else {
+            world.setBiomeAlgorithm(World2.BIOME_ALGORITHM_NONE);
+        }
         if (tiles != null) {
             int lowestX = Integer.MAX_VALUE, highestX = Integer.MIN_VALUE;
             int lowestY = Integer.MAX_VALUE, highestY = Integer.MIN_VALUE;
@@ -278,7 +287,9 @@ public class NewWorldDialog extends javax.swing.JDialog implements WindowListene
                     mostCenteredTileDistance = distance;
                 }
             }
-            world.setSpawnPoint(new Point(mostCenteredTileCoords.x * TILE_SIZE + TILE_SIZE / 2, mostCenteredTileCoords.y * TILE_SIZE + TILE_SIZE / 2));
+            if (mostCenteredTileCoords != null) {
+                world.setSpawnPoint(new Point(mostCenteredTileCoords.x * TILE_SIZE + TILE_SIZE / 2, mostCenteredTileCoords.y * TILE_SIZE + TILE_SIZE / 2));
+            }
         }
         world.setDirty(false);
         return world;
@@ -296,17 +307,17 @@ public class NewWorldDialog extends javax.swing.JDialog implements WindowListene
         }
         int waterHeight = (Integer) spinnerWaterLevel.getValue();
 
-        TileFactory tileFactory = createTileFactory();
+        TileFactory tileFactory = createTileFactory(worldpainterSeed);
         
         int maxHeight = Integer.parseInt((String) comboBoxMaxHeight.getSelectedItem());
-        Dimension dimension = new Dimension(minecraftSeed, worldpainterSeed, tileFactory, dim, maxHeight);
+        Dimension dimension = new Dimension(minecraftSeed, tileFactory, dim, maxHeight);
         dimension.setEventsInhibited(true);
         try {
             if (tiles != null) {
                 logger.info("Creating new dimension with " + tiles.size() + " preselected tiles");
                 int totalTiles = tiles.size(), tileCount = 0;
                 for (Point tileCoords: tiles) {
-                    Tile tile = tileFactory.createTile(worldpainterSeed, tileCoords.x, tileCoords.y);
+                    Tile tile = tileFactory.createTile(tileCoords.x, tileCoords.y);
                     dimension.addTile(tile);
                     tileCount++;
                     if (progressReceiver != null) {
@@ -328,7 +339,7 @@ public class NewWorldDialog extends javax.swing.JDialog implements WindowListene
                             // is always at a tile intersection so the circle
                             // can never "bulge" into a tile without any of the
                             // the tile's corners being inside the circle
-                            Tile tile = tileFactory.createTile(worldpainterSeed, x, y);
+                            Tile tile = tileFactory.createTile(x, y);
                             dimension.addTile(tile);
                             if (org.pepsoft.worldpainter.util.MathUtils.getLargestDistanceFromOrigin(x, y) >= radius) {
                                 // The tile is not completely inside the circle,
@@ -364,7 +375,7 @@ public class NewWorldDialog extends javax.swing.JDialog implements WindowListene
                 int startY = -height / 2;
                 for (int x = startX; x < startX + width; x++) {
                     for (int y = startY; y < startY + height; y++) {
-                        Tile tile = tileFactory.createTile(worldpainterSeed, x, y);
+                        Tile tile = tileFactory.createTile(x, y);
                         dimension.addTile(tile);
                         tileCount++;
                         if (progressReceiver != null) {
@@ -397,6 +408,9 @@ public class NewWorldDialog extends javax.swing.JDialog implements WindowListene
                 dimension.setBedrockWall(defaults.isBedrockWall());
                 dimension.setSubsurfaceMaterial(defaults.getSubsurfaceMaterial());
                 dimension.setPopulate(defaults.isPopulate());
+                dimension.setTopLayerMinDepth(defaults.getTopLayerMinDepth());
+                dimension.setTopLayerVariation(defaults.getTopLayerVariation());
+                dimension.setBottomless(defaults.isBottomless());
                 for (Map.Entry<Layer, ExporterSettings> entry: defaults.getAllLayerSettings().entrySet()) {
                     dimension.setLayerSettings(entry.getKey(), entry.getValue().clone());
                 }
@@ -440,9 +454,11 @@ public class NewWorldDialog extends javax.swing.JDialog implements WindowListene
     
     private void setControlStates() {
         boolean surfaceDimension = dim == DIM_NORMAL;
-        boolean customBiomesPossible = surfaceDimension && (Integer.parseInt((String) comboBoxMaxHeight.getSelectedItem()) == DEFAULT_MAX_HEIGHT_2);
+        boolean minecraft11Only = Integer.parseInt((String) comboBoxMaxHeight.getSelectedItem()) != DEFAULT_MAX_HEIGHT_2;
+        boolean customBiomesPossible = surfaceDimension && (! minecraft11Only);
         checkBoxCustomBiomes.setEnabled(customBiomesPossible);
         checkBoxAutomaticBiomes.setEnabled(customBiomesPossible);
+        checkBoxExtendedBlockIds.setEnabled(! minecraft11Only);
         boolean hilly = radioButtonHilly.isSelected();
         spinnerRange.setEnabled(hilly);
         spinnerScale.setEnabled(hilly);
@@ -450,12 +466,11 @@ public class NewWorldDialog extends javax.swing.JDialog implements WindowListene
         radioButtonOceanSeed.setEnabled(surfaceDimension);
         radioButtonLandSeed.setEnabled(surfaceDimension);
         radioButtonCustomSeed.setEnabled(surfaceDimension);
-        buttonRandomSeed.setEnabled(surfaceDimension);
+        buttonRandomSeed.setEnabled(surfaceDimension && radioButtonCustomSeed.isSelected());
         fieldSeed.setEnabled(surfaceDimension && radioButtonCustomSeed.isSelected());
     }
 
     private void updatePreview() {
-        final TileFactory tileFactory = createTileFactory();
         long tmpSeed;
         if (radioButtonCustomSeed.isSelected()) {
             try {
@@ -466,7 +481,7 @@ public class NewWorldDialog extends javax.swing.JDialog implements WindowListene
         } else {
             tmpSeed = worldpainterSeed;
         }
-        final long seed = tmpSeed;
+        final TileFactory tileFactory = createTileFactory(tmpSeed);
         TileProvider tileProvider = new TileProvider() {
             @Override
             public Tile getTile(int x, int y) {
@@ -474,7 +489,7 @@ public class NewWorldDialog extends javax.swing.JDialog implements WindowListene
                 synchronized (cache) {
                     Tile tile = cache.get(coords);
                     if (tile == null) {
-                        tile = tileFactory.createTile(seed, x, y);
+                        tile = tileFactory.createTile(x, y);
                         cache.put(coords, tile);
                     }
                     return tile;
@@ -484,10 +499,10 @@ public class NewWorldDialog extends javax.swing.JDialog implements WindowListene
             private final Map<Point, Tile> cache = new HashMap<Point, Tile>();
         };
         Configuration config = Configuration.getInstance();
-        tiledImageViewer1.setTileProvider(new WPTileProvider(tileProvider, app.getColourScheme(config.getColourschemeIndex()), null, Collections.singleton((Layer) Biome.INSTANCE), config.isDefaultContoursEnabled(), config.getDefaultLightOrigin()));
+        tiledImageViewer1.setTileProvider(new WPTileProvider(tileProvider, app.getColourScheme(config.getColourschemeIndex()), null, app.getCustomBiomeManager(), Collections.singleton((Layer) Biome.INSTANCE), config.isDefaultContoursEnabled(), config.getDefaultLightOrigin()));
     }
     
-    private TileFactory createTileFactory() {
+    private TileFactory createTileFactory(long seed) {
         Terrain terrain = (Terrain) comboBoxSurfaceMaterial.getSelectedItem();
         int baseHeight = (Integer) spinnerTerrainLevel.getValue();
         int waterHeight = (Integer) spinnerWaterLevel.getValue();
@@ -500,24 +515,30 @@ public class NewWorldDialog extends javax.swing.JDialog implements WindowListene
         int maxHeight = Integer.parseInt((String) comboBoxMaxHeight.getSelectedItem());
 //        HeightMapTileFactory tileFactory = new ExperimentalTileFactory(maxHeight);
         if (radioButtonHilly.isSelected()) {
-            tileFactory = TileFactoryFactory.createNoiseTileFactory(terrain, maxHeight, baseHeight, waterHeight, floodWithLava, beaches, range, scale);
+            tileFactory = TileFactoryFactory.createNoiseTileFactory(seed, terrain, maxHeight, baseHeight, waterHeight, floodWithLava, beaches, range, scale);
         } else {
-            tileFactory = TileFactoryFactory.createFlatTileFactory(terrain, maxHeight, baseHeight, waterHeight, floodWithLava, beaches);
+            tileFactory = TileFactoryFactory.createFlatTileFactory(seed, terrain, maxHeight, baseHeight, waterHeight, floodWithLava, beaches);
         }
         Configuration config = Configuration.getInstance();
         Dimension defaults = config.getDefaultTerrainAndLayerSettings();
-        if ((dim == DIM_NORMAL) && (defaults.getTileFactory() instanceof HeightMapTileFactory) && (((HeightMapTileFactory) defaults.getTileFactory()).getTerrainRanges() != null)) {
+        if ((dim == DIM_NORMAL)
+                && (defaults.getTileFactory() instanceof HeightMapTileFactory)
+                && (((HeightMapTileFactory) defaults.getTileFactory()).getTheme() instanceof SimpleTheme)
+                && (((SimpleTheme) ((HeightMapTileFactory) defaults.getTileFactory()).getTheme()).getTerrainRanges() != null)) {
             HeightMapTileFactory defaultTileFactory = (HeightMapTileFactory) defaults.getTileFactory();
-            SortedMap<Integer, Terrain> terrainRanges = new TreeMap<Integer, Terrain>(defaultTileFactory.getTerrainRanges());
+            SimpleTheme defaultTheme = (SimpleTheme) defaultTileFactory.getTheme();
+            SortedMap<Integer, Terrain> terrainRanges = new TreeMap<Integer, Terrain>(defaultTheme.getTerrainRanges());
             int surfaceLevel = terrainRanges.headMap(waterHeight + 3).lastKey();
             terrainRanges.put(surfaceLevel, terrain);
-            tileFactory.setTerrainRanges(terrainRanges);
-            tileFactory.setRandomise(defaultTileFactory.isRandomise());
+            SimpleTheme theme = (SimpleTheme) tileFactory.getTheme();
+            theme.setTerrainRanges(terrainRanges);
+            theme.setRandomise(defaultTheme.isRandomise());
         } else if (dim != DIM_NORMAL) {
             // Override the default terrain map:
             SortedMap<Integer, Terrain> terrainMap = new TreeMap<Integer, Terrain>();
             terrainMap.put(-1, terrain);
-            tileFactory.setTerrainRanges(terrainMap);
+            SimpleTheme theme = (SimpleTheme) tileFactory.getTheme();
+            theme.setTerrainRanges(terrainMap);
         }
         
         return tileFactory;
@@ -1077,6 +1098,7 @@ public class NewWorldDialog extends javax.swing.JDialog implements WindowListene
             if (exp != 8) {
                 checkBoxCustomBiomes.setSelected(false);
                 checkBoxAutomaticBiomes.setSelected(false);
+                checkBoxExtendedBlockIds.setSelected(false);
             }
             
             int range = (Integer) spinnerRange.getValue();
@@ -1172,26 +1194,23 @@ public class NewWorldDialog extends javax.swing.JDialog implements WindowListene
     private void radioButtonOceanSeedActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_radioButtonOceanSeedActionPerformed
         if (radioButtonOceanSeed.isSelected()) {
             fieldSeed.setText(Long.toString(World2.DEFAULT_OCEAN_SEED));
-            fieldSeed.setEnabled(false);
-            buttonRandomSeed.setEnabled(false);
             updatePreview();
+            setControlStates();
         }
     }//GEN-LAST:event_radioButtonOceanSeedActionPerformed
 
     private void radioButtonLandSeedActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_radioButtonLandSeedActionPerformed
         if (radioButtonLandSeed.isSelected()) {
             fieldSeed.setText(Long.toString(World2.DEFAULT_LAND_SEED));
-            fieldSeed.setEnabled(false);
-            buttonRandomSeed.setEnabled(false);
             updatePreview();
+            setControlStates();
         }
     }//GEN-LAST:event_radioButtonLandSeedActionPerformed
 
     private void radioButtonCustomSeedActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_radioButtonCustomSeedActionPerformed
         if (radioButtonCustomSeed.isSelected()) {
-            fieldSeed.setEnabled(true);
-            buttonRandomSeed.setEnabled(true);
             updatePreview();
+            setControlStates();
         }
     }//GEN-LAST:event_radioButtonCustomSeedActionPerformed
 

@@ -44,6 +44,7 @@ import static org.pepsoft.minecraft.Constants.SUPPORTED_VERSION_2;
 import static org.pepsoft.worldpainter.Constants.DIM_END;
 import static org.pepsoft.worldpainter.Constants.DIM_NETHER;
 import static org.pepsoft.worldpainter.Constants.DIM_NORMAL;
+import org.pepsoft.worldpainter.biomeschemes.CustomBiomeManager;
 
 /**
  *
@@ -51,7 +52,7 @@ import static org.pepsoft.worldpainter.Constants.DIM_NORMAL;
  */
 public class ExportWorldDialog extends javax.swing.JDialog {
     /** Creates new form ExportWorldDialog */
-    public ExportWorldDialog(java.awt.Frame parent, World2 world, BiomeScheme biomeScheme, ColourScheme colourScheme, Collection<Layer> hiddenLayers, boolean contourLines, TileRenderer.LightOrigin lightOrigin) {
+    public ExportWorldDialog(java.awt.Frame parent, World2 world, BiomeScheme biomeScheme, ColourScheme colourScheme, CustomBiomeManager customBiomeManager, Collection<Layer> hiddenLayers, boolean contourLines, TileRenderer.LightOrigin lightOrigin, WorldPainter view) {
         super(parent, true);
         this.world = world;
         selectedTiles = world.getTilesToExport();
@@ -62,6 +63,8 @@ public class ExportWorldDialog extends javax.swing.JDialog {
         this.hiddenLayers = hiddenLayers;
         this.contourLines = contourLines;
         this.lightOrigin = lightOrigin;
+        this.customBiomeManager = customBiomeManager;
+        this.view = view;
         initComponents();
 
         Configuration config = Configuration.getInstance();
@@ -87,16 +90,19 @@ public class ExportWorldDialog extends javax.swing.JDialog {
         }
         fieldName.setText(world.getName());
 
+        surfacePropertiesEditor.setColourScheme(colourScheme);
         surfacePropertiesEditor.setExportMode();
         surfacePropertiesEditor.setDimension(world.getDimension(0));
         surfacePropertiesEditor.setBiomeScheme(biomeScheme);
         if (world.getDimension(DIM_NETHER) != null) {
+            netherPropertiesEditor.setColourScheme(colourScheme);
             netherPropertiesEditor.setExportMode();
             netherPropertiesEditor.setDimension(world.getDimension(DIM_NETHER));
         } else {
             jTabbedPane1.setEnabledAt(1, false);
         }
         if (world.getDimension(DIM_END) != null) {
+            endPropertiesEditor.setColourScheme(colourScheme);
             endPropertiesEditor.setExportMode();
             endPropertiesEditor.setDimension(world.getDimension(DIM_END));
         } else {
@@ -319,7 +325,12 @@ public class ExportWorldDialog extends javax.swing.JDialog {
         }
 
         ExportProgressDialog dialog = new ExportProgressDialog(this, world, baseDir, name);
-        dialog.setVisible(true);
+        view.setInhibitUpdates(true);
+        try {
+            dialog.setVisible(true);
+        } finally {
+            view.setInhibitUpdates(false);
+        }
         close();
     }
 
@@ -358,7 +369,7 @@ public class ExportWorldDialog extends javax.swing.JDialog {
     
     private void selectTiles() {
         if (radioButtonExportSelection.isSelected()) {
-            ExportTileSelectionDialog dialog = new ExportTileSelectionDialog(this, world, selectedDimension, selectedTiles, colourScheme, biomeScheme, hiddenLayers, contourLines, lightOrigin);
+            ExportTileSelectionDialog dialog = new ExportTileSelectionDialog(this, world, selectedDimension, selectedTiles, colourScheme, biomeScheme, customBiomeManager, hiddenLayers, contourLines, lightOrigin);
             dialog.setVisible(true);
             selectedDimension = dialog.getSelectedDimension();
             selectedTiles = dialog.getSelectedTiles();
@@ -444,7 +455,7 @@ public class ExportWorldDialog extends javax.swing.JDialog {
         checkBoxGoodies.setText("Include chest of goodies");
         checkBoxGoodies.setToolTipText("Include a chest with tools and resources near spawn for you as the level designer");
 
-        comboBoxMinecraftVersion.setModel(new javax.swing.DefaultComboBoxModel(new String[] { "Minecraft 1.5 (and 1.2 - 1.4; \"Anvil\")", "Minecraft 1.1 (and earlier; \"McRegion\")" }));
+        comboBoxMinecraftVersion.setModel(new javax.swing.DefaultComboBoxModel(new String[] { "Minecraft 1.6 (and 1.2 - 1.5; \"Anvil\")", "Minecraft 1.1 (and earlier; \"McRegion\")" }));
         comboBoxMinecraftVersion.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 comboBoxMinecraftVersionActionPerformed(evt);
@@ -706,6 +717,8 @@ public class ExportWorldDialog extends javax.swing.JDialog {
     private final Collection<Layer> hiddenLayers;
     private final boolean contourLines;
     private final TileRenderer.LightOrigin lightOrigin;
+    private final CustomBiomeManager customBiomeManager;
+    private final WorldPainter view;
     private int selectedDimension;
     private Set<Point> selectedTiles;
     private boolean disableWarning;

@@ -16,12 +16,15 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 import static org.pepsoft.minecraft.Constants.*;
+import org.pepsoft.minecraft.Material;
 import org.pepsoft.worldpainter.BiomeScheme;
 import org.pepsoft.worldpainter.ColourScheme;
 import static org.pepsoft.worldpainter.Constants.*;
 import org.pepsoft.worldpainter.Dimension;
+import org.pepsoft.worldpainter.Terrain;
 import org.pepsoft.worldpainter.Tile;
 import org.pepsoft.worldpainter.TileRenderer;
+import org.pepsoft.worldpainter.biomeschemes.CustomBiomeManager;
 import org.pepsoft.worldpainter.layers.*;
 
 /**
@@ -30,12 +33,12 @@ import org.pepsoft.worldpainter.layers.*;
  */
 // TODO: adapt for new dynamic maximum level height
 public class Tile3DRenderer {
-    public Tile3DRenderer(Dimension dimension, ColourScheme colourScheme, BiomeScheme biomeScheme, int rotation) {
+    public Tile3DRenderer(Dimension dimension, ColourScheme colourScheme, BiomeScheme biomeScheme, CustomBiomeManager customBiomeManager, int rotation) {
         this.dimension = dimension;
         maxHeight = dimension.getMaxHeight();
         this.colourScheme = colourScheme;
         this.rotation = rotation;
-        tileRenderer = new TileRenderer(dimension, colourScheme, biomeScheme, true);
+        tileRenderer = new TileRenderer(dimension, colourScheme, biomeScheme, customBiomeManager, true);
         tileRenderer.addHiddenLayers(DEFAULT_HIDDEN_LAYERS);
         tileRenderer.setContourLines(false);
     }
@@ -45,20 +48,21 @@ public class Tile3DRenderer {
         tileRenderer.setTile(tile);
         tileRenderer.renderTile(tileImgBuffer, 0, 0);
 //        Terrain subSurfaceMaterial = dimension.getSubsurfaceMaterial();
-        long seed = dimension.getSeed();
-        int tileOffsetX = tile.getX() * TILE_SIZE, tileOffsetY = tile.getY() * TILE_SIZE;
+        final long seed = dimension.getSeed();
+        final int tileOffsetX = tile.getX() * TILE_SIZE, tileOffsetY = tile.getY() * TILE_SIZE;
         int currentColour = -1;
-        int imgWidth = TILE_SIZE * 2;
-        int imgHeight = TILE_SIZE + maxHeight - 1;
-        BufferedImage img = GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice().getDefaultConfiguration().createCompatibleImage(imgWidth, imgHeight, Transparency.TRANSLUCENT);
-        Graphics2D g2 = img.createGraphics();
+        final int imgWidth = TILE_SIZE * 2;
+        final int imgHeight = TILE_SIZE + maxHeight - 1;
+        final int maxZ = maxHeight - 1;
+        final BufferedImage img = GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice().getDefaultConfiguration().createCompatibleImage(imgWidth, imgHeight, Transparency.TRANSLUCENT);
+        final Graphics2D g2 = img.createGraphics();
         try {
             g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
             g2.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
             for (int x = 0; x < TILE_SIZE; x++) {
                 for (int y = 0; y < TILE_SIZE; y++) {
                     // Coordinates of the block in the world
-                    int xInTile, yInTile;
+                    final int xInTile, yInTile;
                     switch (rotation) {
                         case 0:
                             xInTile = x;
@@ -82,19 +86,19 @@ public class Tile3DRenderer {
                     if (tile.getBitLayerValue(org.pepsoft.worldpainter.layers.Void.INSTANCE, xInTile, yInTile)) {
                         continue;
                     }
-                    int blockX = tileOffsetX + xInTile, blockY = tileOffsetY + yInTile;
-                    int terrainHeight = tile.getIntHeight(xInTile, yInTile);
-                    int fluidLevel = tile.getWaterLevel(xInTile, yInTile);
-                    boolean floodWithLava;
+                    final int blockX = tileOffsetX + xInTile, blockY = tileOffsetY + yInTile;
+                    final int terrainHeight = tile.getIntHeight(xInTile, yInTile);
+                    final int fluidLevel = tile.getWaterLevel(xInTile, yInTile);
+                    final boolean floodWithLava;
                     if (fluidLevel > terrainHeight) {
                         floodWithLava = tile.getBitLayerValue(FloodWithLava.INSTANCE, xInTile, yInTile);
                     } else {
                         floodWithLava = false;
                     }
                     // Image coordinates
-                    float imgX = TILE_SIZE + x - y - 0.5f, imgY = (x + y) / 2f + maxHeight - 0.5f;
+                    final float imgX = TILE_SIZE + x - y - 0.5f, imgY = (x + y) / 2f + maxHeight - 0.5f;
     //                                System.out.println(blockX + ", " + blockY + " -> " + blockXTranslated + ", " + blockYTranslated + " -> " + imgX + ", " + imgY);
-                    int subsurfaceHeight = Math.max(terrainHeight - dimension.getTopLayerDepth(blockX, blockY, terrainHeight), 0);
+                    final int subsurfaceHeight = Math.max(terrainHeight - dimension.getTopLayerDepth(blockX, blockY, terrainHeight), 0);
                     int colour = colourScheme.getColour(BLK_STONE);
                     if (colour != currentColour) {
                         g2.setColor(new Color(colour));
@@ -114,8 +118,20 @@ public class Tile3DRenderer {
 //                    }
                     // Do this per block because they might have different
                     // colours
+                    final Terrain terrain = tile.getTerrain(xInTile, yInTile);
+                    Material nextMaterial = terrain.getMaterial(seed, blockX, blockY, subsurfaceHeight + 1, terrainHeight);
                     for (int z = subsurfaceHeight + 1; z <= terrainHeight - 1; z++) {
-                        colour = colourScheme.getColour(tile.getTerrain(xInTile, yInTile).getMaterial(seed, blockX, blockY, z, terrainHeight));
+                        Material material = nextMaterial;
+                        if (z < maxZ) {
+                            nextMaterial = terrain.getMaterial(seed, blockX, blockY, z + 1, terrainHeight);
+                            if (! VERY_INSUBSTANTIAL_BLOCKS.contains(nextMaterial.getBlockType())) {
+                                // Block above is solid
+                                if ((material == Material.GRASS) || (material == Material.MYCELIUM) || (material == Material.TILLED_DIRT)) {
+                                    material = Material.DIRT;
+                                }
+                            }
+                        }
+                        colour = colourScheme.getColour(material);
                         if (colour != currentColour) {
     //                                        g2.setColor(new Color(ColourUtils.multiply(colour, brightenAmount)));
                             g2.setColor(new Color(colour));
@@ -124,8 +140,10 @@ public class Tile3DRenderer {
                         g2.draw(new Line2D.Float(imgX, imgY - z, imgX + 1, imgY - z));
                     }
                     colour = tileImgBuffer.getRGB(xInTile, yInTile);
-                    g2.setColor(new Color(colour));
-                    currentColour = colour;
+                    if (colour != currentColour) {
+                        g2.setColor(new Color(colour));
+                        currentColour = colour;
+                    }
                     g2.draw(new Line2D.Float(imgX, imgY - terrainHeight, imgX + 1, imgY - terrainHeight));
                     if (fluidLevel > terrainHeight) {
                         colour = colourScheme.getColour(floodWithLava ? BLK_LAVA : BLK_WATER);

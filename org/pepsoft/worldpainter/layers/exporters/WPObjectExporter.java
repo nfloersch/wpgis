@@ -25,6 +25,7 @@ import org.pepsoft.worldpainter.objects.WPObject;
 import static org.pepsoft.minecraft.Constants.*;
 import org.pepsoft.minecraft.Material;
 import org.pepsoft.util.Box;
+import org.pepsoft.util.MathUtils;
 import org.pepsoft.worldpainter.exporting.Fixup;
 import org.pepsoft.worldpainter.exporting.LightingCalculator;
 import org.pepsoft.worldpainter.layers.Frost;
@@ -46,7 +47,8 @@ public abstract class WPObjectExporter<L extends Layer> extends AbstractLayerExp
     protected static void renderObject(MinecraftWorld world, Dimension dimension, WPObject object, int x, int y, int z, Placement placement) {
         final Point3i dim = object.getDimensions();
         final Point3i offset = object.getAttribute(ATTRIBUTE_OFFSET, new Point3i());
-        final int undergroundMode = object.getAttribute(ATTRIBUTE_UNDERGROUND_MODE, VALUE_ALL);
+        final int undergroundMode = object.getAttribute(ATTRIBUTE_UNDERGROUND_MODE, COLLISION_MODE_ALL);
+        final int leafDecayMode = object.getAttribute(ATTRIBUTE_LEAF_DECAY_MODE, LEAF_DECAY_NO_CHANGE);
         final boolean bottomless = dimension.isBottomless();
         if ((z + offset.z + dim.z - 1) >= world.getMaxHeight()) {
             // Object doesn't fit in the world vertically
@@ -67,28 +69,28 @@ public abstract class WPObjectExporter<L extends Layer> extends AbstractLayerExp
                             int existingBlockType = world.getBlockTypeAt(xx, yy, zz);
                             if (zz <= terrainHeight) {
                                 switch (undergroundMode) {
-                                    case VALUE_ALL:
+                                    case COLLISION_MODE_ALL:
                                         // Replace every block
-                                        world.setMaterialAt(xx, yy, zz, object.getMaterial(dx, dy, dz));
+                                        placeBlock(world, xx, yy, zz, object.getMaterial(dx, dy, dz), leafDecayMode);
                                         break;
-                                    case VALUE_SOLID:
+                                    case COLLISION_MODE_SOLID:
                                         // Only replace if object block is solid
                                         Material objectMaterial = object.getMaterial(dx, dy, dz);
                                         if (! VERY_INSUBSTANTIAL_BLOCKS.contains(objectMaterial.getBlockType())) {
-                                            world.setMaterialAt(xx, yy, zz, objectMaterial);
+                                            placeBlock(world, xx, yy, zz, objectMaterial, leafDecayMode);
                                         }
                                         break;
-                                    case VALUE_NONE:
+                                    case COLLISION_MODE_NONE:
                                         // Only replace less solid blocks
                                         if (VERY_INSUBSTANTIAL_BLOCKS.contains(existingBlockType)) {
-                                            world.setMaterialAt(xx, yy, zz, object.getMaterial(dx, dy, dz));
+                                            placeBlock(world, xx, yy, zz, object.getMaterial(dx, dy, dz), leafDecayMode);
                                         }
                                         break;
                                 }
                             } else {
                                 // Above ground only replace less solid blocks
                                 if (VERY_INSUBSTANTIAL_BLOCKS.contains(existingBlockType)) {
-                                    world.setMaterialAt(xx, yy, zz, object.getMaterial(dx, dy, dz));
+                                    placeBlock(world, xx, yy, zz, object.getMaterial(dx, dy, dz), leafDecayMode);
                                 }
                             }
                         }
@@ -100,27 +102,76 @@ public abstract class WPObjectExporter<L extends Layer> extends AbstractLayerExp
         if (entities != null) {
             for (Entity entity: entities) {
                 double[] pos = entity.getPos();
-                world.addEntity((int) (x + pos[0] + 0.5), (int) (y + pos[2] + 0.5), (int) (z + pos[1] + 0.5), entity);
+                double entityX = x + pos[0] + offset.x,
+                        entityY = y + pos[2] + offset.y,
+                        entityZ = z + pos[1] + offset.z;
+                if (logger.isLoggable(Level.FINE)) {
+                    logger.fine("Adding entity " + entity.getId() + " @ " + entityX + "," + entityY + "," + entityZ);
+                }
+                world.addEntity(entityX, entityY, entityZ, entity);
             }
         }
         List<TileEntity> tileEntities = object.getTileEntities();
         if (tileEntities != null) {
             for (TileEntity tileEntity: tileEntities) {
+                int tileEntityX = x + tileEntity.getX() + offset.x,
+                        tileEntityY = y + tileEntity.getZ() + offset.y,
+                        tileEntityZ = z + tileEntity.getY() + offset.z;
+                if (logger.isLoggable(Level.FINE)) {
+                    logger.fine("Adding tile entity " + tileEntity.getId() + " @ " + tileEntityX + "," + tileEntityY + "," + tileEntityZ + " (block type: " + BLOCK_TYPE_NAMES[world.getBlockTypeAt(tileEntityX, tileEntityY, tileEntityZ)] + ")");
+                }
                 world.addTileEntity(x + tileEntity.getX(), y + tileEntity.getZ(), z + tileEntity.getY(), tileEntity);
             }
         }
     }
     
+    /**
+     * Check whether the coordinates of the extents of the object make sense.
+     */
+    protected static boolean isSane(WPObject object, int x, int y, int z, int maxHeight) {
+        final Point3i dimensions = object.getDimensions();
+        final Point3i offset = object.getAttribute(ATTRIBUTE_OFFSET, new Point3i());
+        if ((((long) x + offset.x) < Integer.MIN_VALUE) || (((long) x + offset.x) > Integer.MAX_VALUE)) {
+            // The object extends beyond the limits of a 32 bit signed integer in the X dimension
+            return false;
+        }
+        if ((((long) x + dimensions.x - 1 + offset.x) < Integer.MIN_VALUE) || (((long) x + dimensions.x - 1 + offset.x) > Integer.MAX_VALUE)) {
+            // The object extends beyond the limits of a 32 bit signed integer in the X dimension
+            return false;
+        }
+        if ((((long) y + offset.y) < Integer.MIN_VALUE) || (((long) y + offset.y) > Integer.MAX_VALUE)) {
+            // The object extends beyond the limits of a 32 bit signed integer in the Y dimension
+            return false;
+        }
+        if ((((long) y + dimensions.y - 1 + offset.y) < Integer.MIN_VALUE) || (((long) y + dimensions.y - 1 + offset.y) > Integer.MAX_VALUE)) {
+            // The object extends beyond the limits of a 32 bit signed integer in the Y dimension
+            return false;
+        }
+        if (((long) z + offset.z) >= maxHeight) {
+            // The object is entirely above maxHeight
+            return false;
+        }
+        if (((long) z + dimensions.z - 1 + offset.z) < 0) {
+            // The object is entirely below bedrock
+            return false;
+        }
+        return true;
+    }
+    
     protected static boolean isRoom(final MinecraftWorld world, final Dimension dimension, final WPObject object, final int x, final int y, final int z, final Placement placement) {
         final Point3i dimensions = object.getDimensions();
         final Point3i offset = object.getAttribute(ATTRIBUTE_OFFSET, new Point3i());
-        final int collisionMode = object.getAttribute(ATTRIBUTE_COLLISION_MODE, VALUE_SOLID);
+        final int collisionMode = object.getAttribute(ATTRIBUTE_COLLISION_MODE, COLLISION_MODE_SOLID);
         final boolean allowConnectingBlocks = false;
         // Check if the object fits vertically
-        if ((z + dimensions.z - 1 + offset.z) >= world.getMaxHeight()) {
+        if (((long) z + dimensions.z - 1 + offset.z) >= world.getMaxHeight()) {
             return false;
         }
-        if ((placement == Placement.ON_LAND) && (collisionMode != VALUE_NONE)) {
+        if (((long) z + dimensions.z - 1 + offset.z) < 0) {
+            // The object is entirely beneath the bedrock
+            return true;
+        }
+        if ((placement == Placement.ON_LAND) && (collisionMode != COLLISION_MODE_NONE)) {
             // Check block by block whether there is room
             for (int dx = 0; dx < dimensions.x; dx++) {
                 for (int dy = 0; dy < dimensions.y; dy++) {
@@ -132,7 +183,7 @@ public abstract class WPObjectExporter<L extends Layer> extends AbstractLayerExp
                             final int objectBlock = object.getMaterial(dx, dy, dz).getBlockType();
                             if (! VERY_INSUBSTANTIAL_BLOCKS.contains(objectBlock)) {
                                 final int worldZ = z + dz + offset.z;
-                                if ((collisionMode == VALUE_ALL)
+                                if ((collisionMode == COLLISION_MODE_ALL)
                                         ? (! AIR_AND_FLUIDS.contains(world.getBlockTypeAt(worldX, worldY, worldZ)))
                                         : (! VERY_INSUBSTANTIAL_BLOCKS.contains(world.getBlockTypeAt(worldX, worldY, worldZ)))) {
                                     // The block is above ground, it is present in the
@@ -172,10 +223,10 @@ public abstract class WPObjectExporter<L extends Layer> extends AbstractLayerExp
                                     logger.finer("No room for object " + object.getName() + " @ " + x + "," + y + "," + z + " with placement " + placement + " due to collision with floor");
                                 }
                                 return false;
-                            } else if ((worldZ > terrainHeight) && (collisionMode != VALUE_NONE)) {
+                            } else if ((worldZ > terrainHeight) && (collisionMode != COLLISION_MODE_NONE)) {
                                 final int objectBlock = object.getMaterial(dx, dy, dz).getBlockType();
                                 if (! VERY_INSUBSTANTIAL_BLOCKS.contains(objectBlock)) {
-                                    if ((collisionMode == VALUE_ALL)
+                                    if ((collisionMode == COLLISION_MODE_ALL)
                                             ? (! AIR_AND_FLUIDS.contains(world.getBlockTypeAt(worldX, worldY, worldZ)))
                                             : (! VERY_INSUBSTANTIAL_BLOCKS.contains(world.getBlockTypeAt(worldX, worldY, worldZ)))) {
                                         // The block is present in the custom object, is
@@ -258,6 +309,18 @@ public abstract class WPObjectExporter<L extends Layer> extends AbstractLayerExp
                 z + offset.z, z + offset.z + dimensions.z - 1);
     }
 
+    private static void placeBlock(MinecraftWorld world, int x, int y, int z, Material material, int leafDecayMode) {
+        if ((material.getBlockType() == BLK_LEAVES) && (leafDecayMode != LEAF_DECAY_NO_CHANGE)) {
+            if (leafDecayMode == LEAF_DECAY_ON) {
+                world.setMaterialAt(x, y, z, Material.get(BLK_LEAVES, material.getData() & 0xb)); // Reset bit 2
+            } else {
+                world.setMaterialAt(x, y, z, Material.get(BLK_LEAVES, material.getData() | 0x4)); // Set bit 2
+            }
+        } else {
+            world.setMaterialAt(x, y, z, material);
+        }
+    }
+    
     private static final Set<Integer> AIR_AND_FLUIDS = new HashSet<Integer>(Arrays.asList(BLK_AIR, BLK_WATER, BLK_STATIONARY_WATER, BLK_LAVA, BLK_STATIONARY_LAVA));
     private static final Logger logger = Logger.getLogger(WPObjectExporter.class.getName());
 
@@ -295,18 +358,18 @@ public abstract class WPObjectExporter<L extends Layer> extends AbstractLayerExp
         }
 
         private void recalculateLight(final MinecraftWorld world, final Box lightBox) {
-            // Quick and dirty; only recalculate secondary light, and only
-            // inside the bounds of the object. Known downsides: light emitting
-            // blocks in the object will have no effect, and the object will not
-            // cut off light to its surroundings
-            // TODO: this is not good enough! The preexisting primary light
-            // overrides everything and makes it too bright. It has to be reset
-            // first
             LightingCalculator lightingCalculator = new LightingCalculator(world);
             // Transpose coordinates from WP to MC coordinate system. Also
             // expand the box to light around it and try to account for uneven
             // terrain underneath the object
-            lightingCalculator.setDirtyArea(new Box(lightBox.getX1() - 1, lightBox.getX2() + 1, Math.max(lightBox.getZ1() - 5, 0), Math.min(lightBox.getZ2() + 1, world.getMaxHeight() - 1), lightBox.getY1() - 1, lightBox.getY2() + 1));
+            Box dirtyArea = new Box(lightBox.getX1() - 1, lightBox.getX2() + 1, MathUtils.clamp(0, lightBox.getZ1() - 5, world.getMaxHeight() - 1), MathUtils.clamp(0, lightBox.getZ2() + 1, world.getMaxHeight() - 1), lightBox.getY1() - 1, lightBox.getY2() + 1);
+            if (dirtyArea.getVolume() == 0) {
+                if (logger.isLoggable(Level.FINER)) {
+                    logger.finer("Dirty area for lighting calculation is empty; skipping lighting calculation");
+                }
+                return;
+            }
+            lightingCalculator.setDirtyArea(dirtyArea);
             if (logger.isLoggable(Level.FINER)) {
                 logger.finer("Recalculating light in " + lightingCalculator.getDirtyArea());
             }
