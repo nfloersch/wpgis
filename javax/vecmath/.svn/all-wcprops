@@ -1,0 +1,299 @@
+K 25
+svn:wc:ra_dav:version-url
+V 53
+/svn/vecmath~svn/!svn/ver/127/trunk/src/javax/vecmath
+END
+Quat4f.java
+K 25
+svn:wc:ra_dav:version-url
+V 65
+/svn/vecmath~svn/!svn/ver/127/trunk/src/javax/vecmath/Quat4f.java
+END
+Quat4d.java
+K 25
+svn:wc:ra_dav:version-url
+V 65
+/svn/vecmath~svn/!svn/ver/127/trunk/src/javax/vecmath/Quat4d.java
+END
+Point2i.java
+K 25
+svn:wc:ra_dav:version-url
+V 66
+/svn/vecmath~svn/!svn/ver/127/trunk/src/javax/vecmath/Point2i.java
+END
+Point3i.java
+K 25
+svn:wc:ra_dav:version-url
+V 66
+/svn/vecmath~svn/!svn/ver/127/trunk/src/javax/vecmath/Point3i.java
+END
+Point4i.java
+K 25
+svn:wc:ra_dav:version-url
+V 66
+/svn/vecmath~svn/!svn/ver/127/trunk/src/javax/vecmath/Point4i.java
+END
+AxisAngle4f.java
+K 25
+svn:wc:ra_dav:version-url
+V 70
+/svn/vecmath~svn/!svn/ver/127/trunk/src/javax/vecmath/AxisAngle4f.java
+END
+AxisAngle4d.java
+K 25
+svn:wc:ra_dav:version-url
+V 70
+/svn/vecmath~svn/!svn/ver/127/trunk/src/javax/vecmath/AxisAngle4d.java
+END
+Tuple2i.java
+K 25
+svn:wc:ra_dav:version-url
+V 66
+/svn/vecmath~svn/!svn/ver/127/trunk/src/javax/vecmath/Tuple2i.java
+END
+VecMathUtil.java
+K 25
+svn:wc:ra_dav:version-url
+V 70
+/svn/vecmath~svn/!svn/ver/127/trunk/src/javax/vecmath/VecMathUtil.java
+END
+Tuple3i.java
+K 25
+svn:wc:ra_dav:version-url
+V 66
+/svn/vecmath~svn/!svn/ver/127/trunk/src/javax/vecmath/Tuple3i.java
+END
+package.html
+K 25
+svn:wc:ra_dav:version-url
+V 65
+/svn/vecmath~svn/!svn/ver/57/trunk/src/javax/vecmath/package.html
+END
+Tuple4i.java
+K 25
+svn:wc:ra_dav:version-url
+V 66
+/svn/vecmath~svn/!svn/ver/127/trunk/src/javax/vecmath/Tuple4i.java
+END
+VecMathI18N.java
+K 25
+svn:wc:ra_dav:version-url
+V 70
+/svn/vecmath~svn/!svn/ver/127/trunk/src/javax/vecmath/VecMathI18N.java
+END
+SingularMatrixException.java
+K 25
+svn:wc:ra_dav:version-url
+V 82
+/svn/vecmath~svn/!svn/ver/127/trunk/src/javax/vecmath/SingularMatrixException.java
+END
+Vector2f.java
+K 25
+svn:wc:ra_dav:version-url
+V 67
+/svn/vecmath~svn/!svn/ver/127/trunk/src/javax/vecmath/Vector2f.java
+END
+Vector3f.java
+K 25
+svn:wc:ra_dav:version-url
+V 67
+/svn/vecmath~svn/!svn/ver/127/trunk/src/javax/vecmath/Vector3f.java
+END
+Vector2d.java
+K 25
+svn:wc:ra_dav:version-url
+V 67
+/svn/vecmath~svn/!svn/ver/127/trunk/src/javax/vecmath/Vector2d.java
+END
+Vector4f.java
+K 25
+svn:wc:ra_dav:version-url
+V 67
+/svn/vecmath~svn/!svn/ver/127/trunk/src/javax/vecmath/Vector4f.java
+END
+Vector3d.java
+K 25
+svn:wc:ra_dav:version-url
+V 67
+/svn/vecmath~svn/!svn/ver/127/trunk/src/javax/vecmath/Vector3d.java
+END
+Matrix3f.java
+K 25
+svn:wc:ra_dav:version-url
+V 67
+/svn/vecmath~svn/!svn/ver/127/trunk/src/javax/vecmath/Matrix3f.java
+END
+Vector4d.java
+K 25
+svn:wc:ra_dav:version-url
+V 67
+/svn/vecmath~svn/!svn/ver/127/trunk/src/javax/vecmath/Vector4d.java
+END
+Matrix4f.java
+K 25
+svn:wc:ra_dav:version-url
+V 67
+/svn/vecmath~svn/!svn/ver/127/trunk/src/javax/vecmath/Matrix4f.java
+END
+Matrix3d.java
+K 25
+svn:wc:ra_dav:version-url
+V 67
+/svn/vecmath~svn/!svn/ver/127/trunk/src/javax/vecmath/Matrix3d.java
+END
+Matrix4d.java
+K 25
+svn:wc:ra_dav:version-url
+V 67
+/svn/vecmath~svn/!svn/ver/127/trunk/src/javax/vecmath/Matrix4d.java
+END
+GVector.java
+K 25
+svn:wc:ra_dav:version-url
+V 66
+/svn/vecmath~svn/!svn/ver/127/trunk/src/javax/vecmath/GVector.java
+END
+GMatrix.java
+K 25
+svn:wc:ra_dav:version-url
+V 66
+/svn/vecmath~svn/!svn/ver/127/trunk/src/javax/vecmath/GMatrix.java
+END
+Point2f.java
+K 25
+svn:wc:ra_dav:version-url
+V 66
+/svn/vecmath~svn/!svn/ver/127/trunk/src/javax/vecmath/Point2f.java
+END
+Point3f.java
+K 25
+svn:wc:ra_dav:version-url
+V 66
+/svn/vecmath~svn/!svn/ver/127/trunk/src/javax/vecmath/Point3f.java
+END
+Point2d.java
+K 25
+svn:wc:ra_dav:version-url
+V 66
+/svn/vecmath~svn/!svn/ver/127/trunk/src/javax/vecmath/Point2d.java
+END
+Point4f.java
+K 25
+svn:wc:ra_dav:version-url
+V 66
+/svn/vecmath~svn/!svn/ver/127/trunk/src/javax/vecmath/Point4f.java
+END
+TexCoord2f.java
+K 25
+svn:wc:ra_dav:version-url
+V 69
+/svn/vecmath~svn/!svn/ver/127/trunk/src/javax/vecmath/TexCoord2f.java
+END
+ExceptionStrings.properties
+K 25
+svn:wc:ra_dav:version-url
+V 79
+/svn/vecmath~svn/!svn/ver/5/trunk/src/javax/vecmath/ExceptionStrings.properties
+END
+Point3d.java
+K 25
+svn:wc:ra_dav:version-url
+V 66
+/svn/vecmath~svn/!svn/ver/127/trunk/src/javax/vecmath/Point3d.java
+END
+TexCoord3f.java
+K 25
+svn:wc:ra_dav:version-url
+V 69
+/svn/vecmath~svn/!svn/ver/127/trunk/src/javax/vecmath/TexCoord3f.java
+END
+MismatchedSizeException.java
+K 25
+svn:wc:ra_dav:version-url
+V 82
+/svn/vecmath~svn/!svn/ver/127/trunk/src/javax/vecmath/MismatchedSizeException.java
+END
+Point4d.java
+K 25
+svn:wc:ra_dav:version-url
+V 66
+/svn/vecmath~svn/!svn/ver/127/trunk/src/javax/vecmath/Point4d.java
+END
+TexCoord4f.java
+K 25
+svn:wc:ra_dav:version-url
+V 69
+/svn/vecmath~svn/!svn/ver/127/trunk/src/javax/vecmath/TexCoord4f.java
+END
+Tuple2f.java
+K 25
+svn:wc:ra_dav:version-url
+V 66
+/svn/vecmath~svn/!svn/ver/127/trunk/src/javax/vecmath/Tuple2f.java
+END
+Tuple3f.java
+K 25
+svn:wc:ra_dav:version-url
+V 66
+/svn/vecmath~svn/!svn/ver/127/trunk/src/javax/vecmath/Tuple3f.java
+END
+Tuple2d.java
+K 25
+svn:wc:ra_dav:version-url
+V 66
+/svn/vecmath~svn/!svn/ver/127/trunk/src/javax/vecmath/Tuple2d.java
+END
+Tuple4f.java
+K 25
+svn:wc:ra_dav:version-url
+V 66
+/svn/vecmath~svn/!svn/ver/127/trunk/src/javax/vecmath/Tuple4f.java
+END
+Tuple3d.java
+K 25
+svn:wc:ra_dav:version-url
+V 66
+/svn/vecmath~svn/!svn/ver/127/trunk/src/javax/vecmath/Tuple3d.java
+END
+Tuple4d.java
+K 25
+svn:wc:ra_dav:version-url
+V 66
+/svn/vecmath~svn/!svn/ver/127/trunk/src/javax/vecmath/Tuple4d.java
+END
+Tuple3b.java
+K 25
+svn:wc:ra_dav:version-url
+V 66
+/svn/vecmath~svn/!svn/ver/127/trunk/src/javax/vecmath/Tuple3b.java
+END
+Color3f.java
+K 25
+svn:wc:ra_dav:version-url
+V 66
+/svn/vecmath~svn/!svn/ver/127/trunk/src/javax/vecmath/Color3f.java
+END
+Tuple4b.java
+K 25
+svn:wc:ra_dav:version-url
+V 66
+/svn/vecmath~svn/!svn/ver/127/trunk/src/javax/vecmath/Tuple4b.java
+END
+Color4f.java
+K 25
+svn:wc:ra_dav:version-url
+V 66
+/svn/vecmath~svn/!svn/ver/127/trunk/src/javax/vecmath/Color4f.java
+END
+Color3b.java
+K 25
+svn:wc:ra_dav:version-url
+V 66
+/svn/vecmath~svn/!svn/ver/127/trunk/src/javax/vecmath/Color3b.java
+END
+Color4b.java
+K 25
+svn:wc:ra_dav:version-url
+V 66
+/svn/vecmath~svn/!svn/ver/127/trunk/src/javax/vecmath/Color4b.java
+END

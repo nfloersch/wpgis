@@ -1,0 +1,265 @@
+/*
+ * To change this template, choose Tools | Templates
+ * and open the template in the editor.
+ */
+package org.pepsoft.worldpainter.layers.bo2;
+
+import java.io.BufferedInputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.ObjectInputStream;
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.zip.GZIPInputStream;
+import javax.vecmath.Point3i;
+import org.jnbt.CompoundTag;
+import org.jnbt.NBTInputStream;
+import org.jnbt.Tag;
+import org.pepsoft.minecraft.AbstractNBTItem;
+import static org.pepsoft.minecraft.Constants.*;
+import org.pepsoft.minecraft.Entity;
+import org.pepsoft.minecraft.Material;
+import org.pepsoft.minecraft.TileEntity;
+import org.pepsoft.worldpainter.objects.WPObject;
+
+/**
+ *
+ * @author pepijn
+ */
+public final class Schematic extends AbstractNBTItem implements WPObject, Bo2ObjectProvider {
+    public Schematic(String name, CompoundTag tag, Map<String, Serializable> attributes) {
+        super(tag);
+        this.name = name;
+        materials = getString("Materials");
+        if (! materials.equalsIgnoreCase("Alpha")) {
+            throw new IllegalArgumentException("Unsupported materials type " + materials);
+        }
+        blocks = getByteArray("Blocks");
+        data = getByteArray("Data");
+        List<Tag> entityTags = getList("Entities");
+        for (Tag entityTag: entityTags) {
+            entities.add(new Entity((CompoundTag) entityTag));
+        }
+        List<Tag> tileEntityTags = getList("TileEntities");
+        for (Tag tileEntityTag: tileEntityTags) {
+            tileEntities.add(new TileEntity((CompoundTag) tileEntityTag));
+        }
+        width = getShort("Width");
+        length = getShort("Length");
+        height = getShort("Height");
+        Point3i offset = null;
+        if (containsTag("WEOffsetX")) {
+            weOffsetX = getInt("WEOffsetX");
+            weOffsetY = getInt("WEOffsetY");
+            weOffsetZ = getInt("WEOffsetZ");
+//            System.out.println("Schematic has offset tag: " + weOffsetX + ", " + weOffsetY + ", " + weOffsetZ);
+            if ((weOffsetX > -width) && (weOffsetX <= 0) && (weOffsetZ> -length) && (weOffsetZ <= 0) && (weOffsetY > -height) && (weOffsetY <= 0)) {
+                // Schematic offset points inside the object; use it as the default
+//                System.out.println("That's inside");
+                offset = new Point3i(weOffsetX, weOffsetZ, weOffsetY);
+            }
+        } else {
+            weOffsetX = weOffsetY = weOffsetZ = 0;
+        }
+        if (offset == null) {
+            int offsetZ = Integer.MIN_VALUE, lowestX = 0, highestX = 0, lowestY = 0, highestY = 0;
+            for (int z = 0; (z < height) && (offsetZ == Integer.MIN_VALUE); z++) {
+                for (int x = 0; x < width; x++) {
+                    for (int y = 0; y < length; y++) {
+                        if (getMask(x, y, z)) {
+                            if (offsetZ == Integer.MIN_VALUE) {
+                                offsetZ = z;
+                                lowestX = highestX = x;
+                                lowestY = highestY = y;
+                            } else {
+                                if (x < lowestX) {
+                                    lowestX = x;
+                                } else if (x > highestX) {
+                                    highestX = x;
+                                }
+                                if (y < lowestY) {
+                                    lowestY = y;
+                                } else if (y > highestY) {
+                                    highestY = y;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            if (offsetZ > Integer.MIN_VALUE) {
+                offset = new Point3i(-(lowestX + highestX) / 2, -(lowestY + highestY) / 2, -offsetZ);
+            }
+        }
+        if ((offset != null) && ((offset.x != 0) || (offset.y != 0) || (offset.z != 0))) {
+            if (attributes == null) {
+                attributes = new HashMap<String, Serializable>();
+            }
+            attributes.put(ATTRIBUTE_OFFSET, offset);
+        }
+        if (containsTag("WEOriginX")) {
+            weOriginX = getInt("WEOriginX");
+            weOriginY = getInt("WEOriginY");
+            weOriginZ = getInt("WEOriginZ");
+        } else {
+            weOriginX = weOriginY = weOriginZ = 0;
+        }
+        dimensions = new Point3i(width, length, height);
+        this.attributes = attributes;
+    }
+
+    // WPObject
+    
+    @Override
+    public Point3i getDimensions() {
+        return dimensions;
+    }
+
+    @Override
+    public Material getMaterial(int x, int y, int z) {
+        return Material.get(blocks[blockOffset(x, y, z)] & 0xFF, data[blockOffset(x, y, z)] & 0xF);
+    }
+
+    @Override
+    public boolean getMask(int x, int y, int z) {
+        return blocks[blockOffset(x, y, z)] != BLK_AIR;
+    }
+
+    @Override
+    public List<Entity> getEntities() {
+        if (! entities.isEmpty()) {
+            List<Entity> clones = new ArrayList<Entity>(entities.size());
+            for (Entity entity: entities) {
+                clones.add((Entity) entity.clone());
+            }
+            return clones;
+        } else {
+            return entities;
+        }
+    }
+
+    @Override
+    public List<TileEntity> getTileEntities() {
+        if (! tileEntities.isEmpty()) {
+            List<TileEntity> clones = new ArrayList<TileEntity>(tileEntities.size());
+            for (TileEntity tileEntity: tileEntities) {
+                clones.add((TileEntity) tileEntity.clone());
+            }
+            return clones;
+        } else {
+            return tileEntities;
+        }
+    }
+    
+    @Override
+    public String getName() {
+        return name;
+    }
+
+    @Override
+    public void setName(String name) {
+        this.name = name;
+    }
+    
+    // Bo2ObjectProvider
+    
+    @Override
+    public WPObject getObject() {
+        return this;
+    }
+    
+    @Override
+    public List<WPObject> getAllObjects() {
+        return Collections.singletonList((WPObject) this);
+    }
+
+    @Override
+    public Map<String, Serializable> getAttributes() {
+        return (attributes != null) ? new HashMap<String, Serializable>(attributes) : null;
+    }
+
+    @Override
+    @SuppressWarnings("unchecked") // Responsibility of caller
+    public <T extends Serializable> T getAttribute(String key, T _default) {
+        if ((attributes != null) && attributes.containsKey(key)) {
+            return (T) attributes.get(key);
+        } else {
+            return _default;
+        }
+    }
+
+    @Override
+    public void setAttributes(Map<String, Serializable> attributes) {
+        this.attributes = (attributes != null) ? new HashMap<String, Serializable>(attributes) : null;
+    }
+    
+    public static Schematic load(File file) throws IOException {
+        String name = file.getName();
+        int p = name.lastIndexOf('.');
+        if (p != -1) {
+            name = name.substring(0, p);
+        }
+        return load(name, file);
+    }
+    
+    public static Schematic load(String name, File file) throws IOException {
+        InputStream in = new BufferedInputStream(new FileInputStream(file));
+        try {
+            byte[] magicNumber = new byte[2];
+            in.mark(2);
+            in.read(magicNumber);
+            in.reset();
+            if ((magicNumber[0] == (byte) 0x1f) && (magicNumber[1] == (byte) 0x8b)) {
+                in = new GZIPInputStream(in);
+            }
+            NBTInputStream nbtIn = new NBTInputStream(in);
+            CompoundTag tag = (CompoundTag) nbtIn.readTag();
+            Map<String, Serializable> attributes = new HashMap<String, Serializable>();
+            attributes.put(WPObject.ATTRIBUTE_FILE, file);
+            return new Schematic(name, tag, attributes);
+        } finally {
+            in.close();
+        }
+        
+    }
+    
+    private int blockOffset(int x, int y, int z) {
+        return x + width * y + width * length * z;
+    }
+    
+    private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
+        in.defaultReadObject();
+        
+        // Legacy
+        if (origin != null) {
+            if (attributes == null) {
+                attributes = new HashMap<String, Serializable>();
+            }
+            attributes.put(WPObject.ATTRIBUTE_OFFSET, new Point3i(-origin.x, -origin.y, -origin.z));
+            origin = null;
+        }
+    }
+    
+    private String name;
+    private final String materials;
+    private final byte[] data, blocks;
+    private final short width, length, height;
+    private final int weOffsetX, weOffsetY, weOffsetZ;
+    private final int weOriginX, weOriginY, weOriginZ;
+    private final List<Entity> entities = new ArrayList<Entity>();
+    private final List<TileEntity> tileEntities = new ArrayList<TileEntity>();
+    private final Point3i dimensions;
+    @Deprecated
+    private Point3i origin;
+    @Deprecated
+    private final boolean solidOrigin = false;
+    private Map<String, Serializable> attributes;
+    
+    private static final long serialVersionUID = 1L;
+}
