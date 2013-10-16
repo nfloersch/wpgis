@@ -660,9 +660,9 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
         return activeOperation;
     }
 
-//    public BrushShape getBrushShape() {
-//        return brushShape;
-//    }
+    //    public BrushShape getBrushShape() {
+    //        return brushShape;
+    //    }
 
     public Brush getBrush() {
         return brush;

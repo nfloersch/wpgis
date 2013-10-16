@@ -3,17 +3,15 @@ package org.pepsoft.worldpainter;
 //Original algorithm by J. Dunlap http://www.codeproject.com/KB/GDI-plus/queuelinearfloodfill.aspx
 //Java port by Owen Kaluza
 // Adapted for WorldPainter by Pepijn Schmitz on 28-3-2011
+import java.awt.Point;
 import java.awt.Window;
 import java.util.BitSet;
+import java.util.Hashtable;
 import java.util.Queue;
-import java.util.LinkedList;
-import org.pepsoft.util.ProgressReceiver;
-import org.pepsoft.util.ProgressReceiver.OperationCancelled;
-import org.pepsoft.util.swing.ProgressDialog;
-import org.pepsoft.util.swing.ProgressTask;
 import org.pepsoft.worldpainter.layers.FloodWithLava;
 import static org.pepsoft.worldpainter.Constants.*;
 import javax.swing.JOptionPane;
+import javax.vecmath.Point3d;
 
 public class QueueRiverFloodFiller {
     // Dimension to flood
@@ -34,7 +32,12 @@ public class QueueRiverFloodFiller {
     //Queue of floodfill ranges
     protected Queue<FloodFillRange> ranges;
 
-    public QueueRiverFloodFiller(Dimension dimension, int waterLevel, boolean floodWithLava, boolean undo) {
+    private Hashtable boundaries = new Hashtable();
+    private Point3d currentPoint = new Point3d(); // Like a cursor on current map location
+    private WorldPainter appView = null;
+    
+    // Constructor
+    public QueueRiverFloodFiller(Dimension dimension, int waterLevel, boolean floodWithLava, boolean undo, WorldPainter view) {
         this.dimension = dimension;
         this.waterLevel = waterLevel;
         this.floodWithLava = floodWithLava;
@@ -43,71 +46,174 @@ public class QueueRiverFloodFiller {
         height = dimension.getHeight() * TILE_SIZE;
         offsetX = dimension.getLowestX() * TILE_SIZE;
         offsetY = dimension.getLowestY() * TILE_SIZE;
+        appView = view;
         JOptionPane.showMessageDialog(null, "River Flood Fill Instantiated");
     }
 
+    // Shorthand
     public Dimension getDimension() {
         return dimension;
     }
 
+    // Maybe remove... old Flood Fill init stuff.
     protected void prepare() {
         //Called before starting flood-fill
-        blocksChecked = new BitSet(width * height);
-        ranges = new LinkedList<FloodFillRange>();
+        //blocksChecked = new BitSet(width * height);
+        //ranges = new LinkedList<FloodFillRange>();
     }
 
-    // Fills the specified point on the bitmap with the currently selected fill color.
-    // int x, int y: The starting coords for the fill
+    // Return a string value for a given coordinate double, translated to the
+    // world coordinate system.
+    private String coordShow(Point3d coords) {
+        Point Point2d = appView.imageToWorldCoordinates((int)coords.x, (int)coords.y);
+        String Xval = "X->[" + String.valueOf(Point2d.x) + "]";
+        String Yval = "Y->[" + String.valueOf(Point2d.y) + "]";
+        String Zval = "Z->[" + String.valueOf(coords.z) + "]";
+        return Xval + ", " + Yval + ", " + Zval;
+    }
+    
+    // The PRIMARY external method call. This method kicks off other action.
     public boolean floodFill(int x, int y, Window parent) {
-        JOptionPane.showMessageDialog(null, "River Flood Fill Started");
-        //Setup
-        prepare();
-
-        long start = System.currentTimeMillis();
-
-        //***Do first call to floodfill.
-        linearFill(x, y);
-
-        //***Call floodfill routine while floodfill ranges still exist on the queue
-        FloodFillRange range;
-        while (ranges.size() > 0) {
-            //**Get Next Range Off the Queue
-            range = ranges.remove();
-            processRange(range);
-
-            long lap = System.currentTimeMillis();
-            if ((lap - start) > 2000) {
-                // We're taking more than two seconds. Do the rest in the
-                // background and show a progress dialog so the user can cancel
-                // the operation
-                if (ProgressDialog.executeTask(parent, new ProgressTask<Dimension>() {
-                    @Override
-                    public String getName() {
-                        return undo ? "Draining" : "Flooding";
-                    }
-
-                    @Override
-                    public Dimension execute(ProgressReceiver progressReceiver) throws OperationCancelled {
-                        //***Call floodfill routine while floodfill ranges still exist on the queue
-                        FloodFillRange range;
-                        while (ranges.size() > 0) {
-                            //**Get Next Range Off the Queue
-                            range = ranges.remove();
-                            processRange(range);
-                            progressReceiver.checkForCancellation();
-                        }
-                        return dimension;
-                    }
-                }) == null) {
-                    // Operation cancelled
-                    return false;
-                }
-                return true;
-            }
-        }
-
+        currentPoint.x = x;
+        currentPoint.y = y;
+        currentPoint.z = dimension.getIntHeightAt(offsetX + (int)currentPoint.x, offsetY + (int)currentPoint.y);
+        edgeSearch();
         return true;
     }
+    
+    
+    
+    
+    
+    
+    
+    // Detect edges of entire river and stuff into hashtable with key 1 being X 
+    // coordinate, and then under each X a hashtable of values keyed by Y 
+    // coordinate. Maybe value can be Z ?
+    
+    void edgeSearch() {
+        // an Edge is block that has a higher Z value than the current point
+        // OR is an existing water block.
+        MoveCurrentPointToNorthernMostEdge();
+        FindAdjacentEdgeCCW(currentPoint,boundaries);
+        DetectIslands(boundaries); // If boundaries does not enclose start location, there is probably an island.
+        // Or maybe just scan every location inside boundaries to find if Z value is higher than water level?
+    }
+    
+    private void FindAdjacentEdgeCCW(Point3d currentPoint, Hashtable boundaries) {
+        JOptionPane.showMessageDialog(null, "FindAdjacentEdgeCCW() called");
+        
+        JOptionPane.showMessageDialog(null, "FindAdjacentEdgeCCW() done");
+        //throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    }
+
+    // Drives the currentPoint coordinates to the northern-most (y-most) 'edge'
+    // we can find.
+    private void MoveCurrentPointToNorthernMostEdge() {
+        boolean NorthEdgeFound = false;
+        JOptionPane.showMessageDialog(null, "MoveCurrentPointToNorthernMostEdge() called");
+        while (!NorthEdgeFound) {
+            Point3d nextPointUp = new Point3d();
+            nextPointUp.x = currentPoint.x;
+            nextPointUp.y = currentPoint.y - 1; // for some reason Y coords are upside down...
+            nextPointUp.z = dimension.getIntHeightAt(offsetX + (int)nextPointUp.x, offsetY + (int)nextPointUp.y);
+            
+            if (!(nextPointUp.z <= currentPoint.z)){
+                Integer waterLevelAtNextPoint = dimension.getWaterLevelAt((int)nextPointUp.x, (int)nextPointUp.y);
+                //JOptionPane.showMessageDialog(null, "Water Level At Point = [" + waterLevelAtNextPoint.toString() + "]");
+                NorthEdgeFound = true;
+            }
+            else {
+                currentPoint.y = nextPointUp.y;
+            }
+        }
+        // This is first entry in boundaries so no need to check for existing keys.
+        putCoordsToBoundaries(currentPoint);
+        
+        JOptionPane.showMessageDialog(null, "Northernmost Edge = " + coordShow(currentPoint));
+        JOptionPane.showMessageDialog(null, "MoveCurrentPointToNorthernMostEdge() done");
+    }
+
+    private boolean putCoordsToBoundaries(Point3d coords) {
+        if (!(boundaries.containsKey((int)coords.x))) {
+            boundaries.put((int)coords.x, new Hashtable());
+        }
+        Hashtable YZBounds = (Hashtable)boundaries.get((int)coords.x);
+        // Will not store duplicate Y/Z values... ok?
+        if (!(YZBounds.containsKey((int)coords.y))) {
+            YZBounds.put((int)coords.y, (int)coords.z);
+        }
+            
+        return true;
+    }
+    
+    private void DetectIslands(Hashtable boundaries) {
+        JOptionPane.showMessageDialog(null, "DetectIslands() called");
+        JOptionPane.showMessageDialog(null, "DetectIslands() done");
+    }
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    // Fills the specified point on the bitmap with the currently selected fill color.
+    // int x, int y: The starting coords for the fill
+//    public boolean floodFill(int x, int y, Window parent) {
+//        JOptionPane.showMessageDialog(null, "River Flood Fill Started");
+//        //Setup
+//        prepare();
+//
+//        long start = System.currentTimeMillis();
+//
+//        //***Do first call to floodfill.
+//        linearFill(x, y);
+//
+//        //***Call floodfill routine while floodfill ranges still exist on the queue
+//        FloodFillRange range;
+//        while (ranges.size() > 0) {
+//            //**Get Next Range Off the Queue
+//            range = ranges.remove();
+//            processRange(range);
+//
+//            long lap = System.currentTimeMillis();
+//            if ((lap - start) > 2000) {
+//                // We're taking more than two seconds. Do the rest in the
+//                // background and show a progress dialog so the user can cancel
+//                // the operation
+//                if (ProgressDialog.executeTask(parent, new ProgressTask<Dimension>() {
+//                    @Override
+//                    public String getName() {
+//                        return undo ? "Draining" : "Flooding";
+//                    }
+//
+//                    @Override
+//                    public Dimension execute(ProgressReceiver progressReceiver) throws OperationCancelled {
+//                        //***Call floodfill routine while floodfill ranges still exist on the queue
+//                        FloodFillRange range;
+//                        while (ranges.size() > 0) {
+//                            //**Get Next Range Off the Queue
+//                            range = ranges.remove();
+//                            processRange(range);
+//                            progressReceiver.checkForCancellation();
+//                        }
+//                        return dimension;
+//                    }
+//                }) == null) {
+//                    // Operation cancelled
+//                    return false;
+//                }
+//                return true;
+//            }
+//        }
+//
+//        return true;
+//    }
 
     private void processRange(FloodFillRange range) {
         //**Check Above and Below Each block in the Floodfill Range
@@ -214,6 +320,8 @@ public class QueueRiverFloodFiller {
             }
         }
     }
+
+
 
     // Represents a linear range to be filled and branched from.
     protected class FloodFillRange {

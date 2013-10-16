@@ -16,9 +16,12 @@ import org.pepsoft.worldpainter.WorldPainter;
  * @author pepijn
  */
 public class FloodRiver extends MouseOrTabletOperation implements AutoBiomeOperation {
+    private WorldPainter appView = null;
+    
     public FloodRiver(WorldPainter view, boolean floodWithLava) {
         super(floodWithLava ? "Lava" : "Flood", "Flood a River with " + (floodWithLava ? "lava" : "water"), view, "operation.floodRiver." + (floodWithLava ? "lava" : "water"));
         this.floodWithLava = floodWithLava;
+        appView = view;
     }
     
     // AutoBiomeOperation
@@ -54,9 +57,9 @@ public class FloodRiver extends MouseOrTabletOperation implements AutoBiomeOpera
         dimension.setEventsInhibited(true);
         dimension.setAutoUpdateBiomes(autoBiomesEnabled);
         try {
-            QueueRiverFloodFiller flooder = new QueueRiverFloodFiller(dimension, undo ? height : (height + 1), floodWithLava, undo);
+            QueueRiverFloodFiller flooder = new QueueRiverFloodFiller(dimension, undo ? height : (height + 1), floodWithLava, undo, appView);
             Point imageCoords = worldToImageCoordinates(x, y);
-            if (! flooder.floodFill(imageCoords.x, imageCoords.y, SwingUtilities.getWindowAncestor(getView()))) {
+            if (! flooder.floodFill(imageCoords.x, imageCoords.y, SwingUtilities.getWindowAncestor(getView()) )  ) {
                 // Cancelled by user
                 if (dimension.isDirty()) {
                     dimension.clearRedo();
