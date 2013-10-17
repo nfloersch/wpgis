@@ -33,6 +33,7 @@ public class QueueRiverFloodFiller {
     protected Queue<FloodFillRange> ranges;
 
     private Hashtable boundaries = new Hashtable();
+    private Hashtable visited = new Hashtable();
     private Point3d currentPoint = new Point3d(); // Like a cursor on current map location
     private WorldPainter appView = null;
     
@@ -95,18 +96,119 @@ public class QueueRiverFloodFiller {
         // an Edge is block that has a higher Z value than the current point
         // OR is an existing water block.
         MoveCurrentPointToNorthernMostEdge();
-        FindAdjacentEdgeCCW(currentPoint,boundaries);
+        FindAdjacentEdgeCCW(new Point3d(currentPoint));
         DetectIslands(boundaries); // If boundaries does not enclose start location, there is probably an island.
         // Or maybe just scan every location inside boundaries to find if Z value is higher than water level?
     }
     
-    private void FindAdjacentEdgeCCW(Point3d currentPoint, Hashtable boundaries) {
+    private void FindAdjacentEdgeCCW(Point3d startPoint) {
         JOptionPane.showMessageDialog(null, "FindAdjacentEdgeCCW() called");
+        // Although water cannot flow diagnoally and thus could not reach a block at
+        // the 1:30, 4:30, 7:30, or 10:30 positions around a central block IF
+        // there was also a block at the 12 & 3, 3 & 6, 6 & 9, or 9 & 12 positions
+        // (Respectively), we do need to also consider the 1:30, 4:30, 7:30, and 10:30
+        // positions as 'continuance' of edges found at 12, 3, 6, and 9 (respectively).
+        // So we need to search all 8 block positions around each block, but the
+        // corners are treated differently from the sides.
+        Point3d lastFoundBoundaryBlock = null;
+        do {
+            // a 3x3 array of where boundaries are found based on currentPoint.
+            boolean[][] BoundsForCurLoc = { {false,false,false},
+                                            {false,false,false},
+                                            {false,false,false}};
+            
+            FindAndAddNewBoundBlocksCCW(lastFoundBoundaryBlock, BoundsForCurLoc);
+            FindAndTakeNextHop(lastFoundBoundaryBlock, BoundsForCurLoc);
+            
+       }while(currentPoint != startPoint);
         
         JOptionPane.showMessageDialog(null, "FindAdjacentEdgeCCW() done");
         //throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
     }
 
+    private void FindAndAddNewBoundBlocksCCW(Point3d lastFoundBoundaryBlock, boolean[][] outBnds ) {
+        int curX = (int)currentPoint.x;
+        int curY = (int)currentPoint.y;
+        int curZ = (int)currentPoint.z;
+        int curW = dimension.getWaterLevelAt(curX, curY);
+        // Remember Y - 1 is actually referring to the north of current Y.
+        // But X - 1 is still referring to west of current X.
+        // This search is CCW starting at 12 o'clock.
+        Point3d outBnd = null;
+        // North
+        outBnd = TestAndAddBoundary(curX,curY-1,curZ,curW);
+        if (outBnd != null) {
+            outBnds[0][1] = true;
+            lastFoundBoundaryBlock = outBnd;
+        }
+        // North West
+        // curX - 1, curY - 1
+        outBnd = TestAndAddBoundary(curX-1,curY-1,curZ,curW);
+        if (outBnd != null) {
+            outBnds[0][0] = true;
+            lastFoundBoundaryBlock = outBnd;
+        }
+        // West
+        // curX - 1, curY
+        outBnd = TestAndAddBoundary(curX-1,curY,curZ,curW);
+        if (outBnd != null) {
+            outBnds[1][0] = true;
+            lastFoundBoundaryBlock = outBnd;
+        }  
+        // South West
+        // curX - 1, curY + 1
+        outBnd = TestAndAddBoundary(curX-1,curY+1,curZ,curW);
+        if (outBnd != null) {
+            outBnds[2][0] = true;
+            lastFoundBoundaryBlock = outBnd;
+        }
+        // South
+        // curX, curY + 1
+        outBnd = TestAndAddBoundary(curX,curY+1,curZ,curW);
+        if (outBnd != null) {
+            outBnds[2][1] = true;
+            lastFoundBoundaryBlock = outBnd;
+        }
+        // South East
+        // curX + 1, curY + 1
+        outBnd = TestAndAddBoundary(curX+1,curY+1,curZ,curW);
+        if (outBnd != null) {
+            outBnds[2][2] = true;
+            lastFoundBoundaryBlock = outBnd;
+        }
+        // East
+        // curX + 1, curY
+        outBnd = TestAndAddBoundary(curX+1,curY,curZ,curW);
+        if (outBnd != null) {
+            outBnds[1][2] = true;
+            lastFoundBoundaryBlock = outBnd;
+        }
+        // North East
+        // curX + 1, curY - 1
+        outBnd = TestAndAddBoundary(curX+1,curY-1,curZ,curW);
+        if (outBnd != null) {
+            outBnds[0][2] = true;
+            lastFoundBoundaryBlock = outBnd;
+        }
+    }
+
+    private void FindAndTakeNextHop(Point3d lastFoundBoundaryBlock, boolean[][] BoundsForCurLoc) {
+        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    }
+
+    
+    private Point3d TestAndAddBoundary(int testX, int testY, int curZ, int curW){
+        if (!isCoordsInBoundaries(testX, testY)) {
+            if ((dimension.getHeightAt(testX, testY - 1) > curZ) ||
+                (dimension.getWaterLevelAt(testX, testY - 1) > curZ )) {
+                Point3d newBound = new Point3d(testX, testY - 1, dimension.getHeightAt(testX, testY - 1));
+                putCoordsToBoundaries(newBound);
+                return newBound;
+            }
+        }
+        return null;
+    }
+    
     // Drives the currentPoint coordinates to the northern-most (y-most) 'edge'
     // we can find.
     private void MoveCurrentPointToNorthernMostEdge() {
@@ -115,7 +217,7 @@ public class QueueRiverFloodFiller {
         while (!NorthEdgeFound) {
             Point3d nextPointUp = new Point3d();
             nextPointUp.x = currentPoint.x;
-            nextPointUp.y = currentPoint.y - 1; // for some reason Y coords are upside down...
+            nextPointUp.y = currentPoint.y - 1; // Not + 1, for some reason Y coords are upside down...
             nextPointUp.z = dimension.getIntHeightAt(offsetX + (int)nextPointUp.x, offsetY + (int)nextPointUp.y);
             
             if (!(nextPointUp.z <= currentPoint.z)){
@@ -127,7 +229,7 @@ public class QueueRiverFloodFiller {
                 currentPoint.y = nextPointUp.y;
             }
         }
-        // This is first entry in boundaries so no need to check for existing keys.
+        // This is first entry in boundaries.
         putCoordsToBoundaries(currentPoint);
         
         JOptionPane.showMessageDialog(null, "Northernmost Edge = " + coordShow(currentPoint));
@@ -143,8 +245,23 @@ public class QueueRiverFloodFiller {
         if (!(YZBounds.containsKey((int)coords.y))) {
             YZBounds.put((int)coords.y, (int)coords.z);
         }
-            
         return true;
+    }
+    
+    private boolean isCoordsInBoundaries(int X, int Y) {
+        if (boundaries.containsKey(X)) {
+            Hashtable YZhash = (Hashtable)boundaries.get(X);
+            if (YZhash.containsKey(Y)) {
+                // Not checking Z right now, not relevant
+                    return true;
+                
+            }
+        }
+        return false;
+    }
+        
+    private boolean isCoordsInBoundaries(Point3d coords) {
+        return isCoordsInBoundaries((int)coords.x,(int)coords.y);
     }
     
     private void DetectIslands(Hashtable boundaries) {
@@ -320,8 +437,6 @@ public class QueueRiverFloodFiller {
             }
         }
     }
-
-
 
     // Represents a linear range to be filled and branched from.
     protected class FloodFillRange {
