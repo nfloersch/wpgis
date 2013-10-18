@@ -55,11 +55,12 @@ import org.pepsoft.worldpainter.layers.Layer;
  */
 // TODO: add support for multiple dimensions
 public class OverlayResourcesDialog extends javax.swing.JDialog implements Listener {
+    WorldPainter view;
     /** Creates new form ExportWorldDialog */
-    public OverlayResourcesDialog(java.awt.Frame parent, WorldPainter view) {
+    public OverlayResourcesDialog(java.awt.Frame parent, WorldPainter inView) {
         super(parent, true);
         selectedDimension = DIM_NORMAL;
-        
+        view = inView;
         initComponents();
 
         Configuration config = Configuration.getInstance();
@@ -187,6 +188,56 @@ public class OverlayResourcesDialog extends javax.swing.JDialog implements Liste
         progressComponent1.setListener(this);
         progressComponent1.start();
     }
+
+    
+    private void processOverlayRoads() {
+        Configuration config = Configuration.getInstance();
+        
+
+        setDefaultCloseOperation(JDialog.DO_NOTHING_ON_CLOSE);
+        
+        start = System.currentTimeMillis();
+        progressComponent1.setTask(new ProgressTask<Void>() {
+            @Override
+            public String getName() {
+                return "Please wait";
+            }
+
+            @Override
+            public Void execute(ProgressReceiver progressReceiver) throws OperationCancelled {
+                final WorldMerger merger = null;//new WorldMerger(world, levelDatFile);
+                try {
+                    // DOES THE WORK
+                    OverlayProcessor theOP = new OverlayProcessor(view);
+                    theOP.Roadwork(null,(int)jSpinner2.getValue(),progressReceiver);
+                    // DID THE WORK
+                    if (theOP.getWarnings() != null) {
+                        try {
+                            SwingUtilities.invokeAndWait(new Runnable() {
+                                @Override
+                                public void run() {
+                                    Icon warningIcon = UIManager.getIcon("OptionPane.warningIcon");
+                                    Toolkit.getDefaultToolkit().beep();
+                                    
+                                }
+                            });
+                           throw new IOException();
+                        } catch (InterruptedException e) {
+                            throw new RuntimeException(e);
+                        } catch (InvocationTargetException e) {
+                            throw new RuntimeException(e);
+                        }
+                    }
+                } catch (IOException e) {
+                    throw new RuntimeException("I/O error while merging world", e);
+                }
+                return null;
+            }
+        });
+        progressComponent1.setListener(this);
+        progressComponent1.start();
+        }
+
 
     private void close() {
         dispose();
@@ -458,7 +509,7 @@ public class OverlayResourcesDialog extends javax.swing.JDialog implements Liste
     }// </editor-fold>//GEN-END:initComponents
 
     private void jButton_OverlayResources_RoadsActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton_OverlayResources_RoadsActionPerformed
-        processOverlay();
+        processOverlayRoads();
     }//GEN-LAST:event_jButton_OverlayResources_RoadsActionPerformed
 
     private void jButton_OverlayResources_SelectPNGActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton_OverlayResources_SelectPNGActionPerformed
@@ -514,4 +565,5 @@ public class OverlayResourcesDialog extends javax.swing.JDialog implements Liste
     private int selectedDimension;
 
     private static final long serialVersionUID = 1L;
-}
+
+    }
