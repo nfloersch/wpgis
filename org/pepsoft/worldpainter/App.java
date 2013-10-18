@@ -1854,6 +1854,18 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
         }
     }
 
+    private void overlayResources() {
+        
+        OverlayResourcesDialog dialog = new OverlayResourcesDialog(this, view);
+        view.setInhibitUpdates(true);
+        try {
+            dialog.setVisible(true);
+        } finally {
+            view.setInhibitUpdates(false);
+        }
+    }
+
+    
     private void updateZoomLabel() {
         double factor = Math.pow(2.0, zoom);
         int zoomPercentage = (int) (100 * factor);
@@ -3007,6 +3019,10 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
         menuItem.setMnemonic('m');
         menu.add(menuItem);
 
+        menuItem = new JMenuItem(ACTION_OVERLAY_RESOURCES);
+        menuItem.setMnemonic('m');
+        menu.add(menuItem);
+        
         if (! SystemUtils.isMac()) {
             menu.add(new JSeparator());
 
@@ -5084,6 +5100,20 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
         private static final long serialVersionUID = 1L;
     };
 
+    private final BetterAction ACTION_OVERLAY_RESOURCES = new BetterAction("overlayResources", strings.getString("overlay.Resources") + "...", false) {
+        {
+            //setAcceleratorKey(KeyStroke.getKeyStroke(VK_R, PLATFORM_COMMAND_MASK));
+            setShortDescription("Use a bitmap as a mask to edit specific tiles.");
+        }
+
+        @Override
+        public void performAction(ActionEvent e) {
+            overlayResources();
+        }
+
+        private static final long serialVersionUID = 1L;
+    };
+    
     private final BetterAction ACTION_EXIT = new BetterAction("exit", strings.getString("exit") + "...", ICON_EXIT) {
         {
             setShortDescription(strings.getString("shut.down.worldpainter"));
