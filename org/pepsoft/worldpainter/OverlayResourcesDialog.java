@@ -140,6 +140,27 @@ public class OverlayResourcesDialog extends javax.swing.JDialog implements Liste
         close();
     }
 
+    private void processOverlaySelector() {
+        String selectedProcess = this.jList_OverlayResources_Operations.getSelectedValue().toString();
+        switch(selectedProcess) {
+            case "Raise or Lower":
+                
+                break;
+            case "Roads":
+                processOverlayRoads();
+                break;
+            case "Rivers":
+                break;
+            case "Landuse":
+                break;
+            case "Color Landuse":
+                break;
+            case "Colorize":
+                break;
+            default:
+        }
+    }
+    
     private void processOverlay() {
         
 
@@ -190,6 +211,55 @@ public class OverlayResourcesDialog extends javax.swing.JDialog implements Liste
     }
 
     
+    private void processRaiseLower() {
+        Configuration config = Configuration.getInstance();
+        
+
+        setDefaultCloseOperation(JDialog.DO_NOTHING_ON_CLOSE);
+        
+        start = System.currentTimeMillis();
+        progressComponent1.setTask(new ProgressTask<Void>() {
+            @Override
+            public String getName() {
+                return "Please wait";
+            }
+
+            @Override
+            public Void execute(ProgressReceiver progressReceiver) throws OperationCancelled {
+                final WorldMerger merger = null;//new WorldMerger(world, levelDatFile);
+                try {
+                    // DOES THE WORK
+                    OverlayProcessor theOP = new OverlayProcessor(view);
+                    theOP.RaiseLowerTerrain(null,  (int)jSpinner_OverlayResources_RaiseLowerTerrain.getValue(), progressReceiver);
+                        
+                    // DID THE WORK
+                    if (theOP.getWarnings() != null) {
+                        try {
+                            SwingUtilities.invokeAndWait(new Runnable() {
+                                @Override
+                                public void run() {
+                                    Icon warningIcon = UIManager.getIcon("OptionPane.warningIcon");
+                                    Toolkit.getDefaultToolkit().beep();
+                                    
+                                }
+                            });
+                           throw new IOException();
+                        } catch (InterruptedException e) {
+                            throw new RuntimeException(e);
+                        } catch (InvocationTargetException e) {
+                            throw new RuntimeException(e);
+                        }
+                    }
+                } catch (IOException e) {
+                    throw new RuntimeException("I/O error while merging world", e);
+                }
+                return null;
+            }
+        });
+        progressComponent1.setListener(this);
+        progressComponent1.start();
+        }
+    
     private void processOverlayRoads() {
         Configuration config = Configuration.getInstance();
         
@@ -209,7 +279,11 @@ public class OverlayResourcesDialog extends javax.swing.JDialog implements Liste
                 try {
                     // DOES THE WORK
                     OverlayProcessor theOP = new OverlayProcessor(view);
-                    theOP.Roadwork(null,(int)jSpinner2.getValue(),progressReceiver);
+                    theOP.Roadwork(
+                        null,
+                        (int)jSpinner_OverlayResources_RaiseLowerTerrain.getValue(),
+                        (int)jSpinner_OverlayResources_NewTerrainThickness.getValue(),
+                        progressReceiver);
                     // DID THE WORK
                     if (theOP.getWarnings() != null) {
                         try {
@@ -298,20 +372,20 @@ public class OverlayResourcesDialog extends javax.swing.JDialog implements Liste
         jLabel2 = new javax.swing.JLabel();
         jLabel3 = new javax.swing.JLabel();
         jPanel2 = new javax.swing.JPanel();
-        jSpinner2 = new javax.swing.JSpinner();
+        jSpinner_OverlayResources_NewTerrainThickness = new javax.swing.JSpinner();
         jScrollPane1 = new javax.swing.JScrollPane();
         jTextPane1 = new javax.swing.JTextPane();
         jScrollPane2 = new javax.swing.JScrollPane();
         jList_OverlayResources_Operations = new javax.swing.JList();
         jScrollPane3 = new javax.swing.JScrollPane();
-        jList1 = new javax.swing.JList();
+        jList_OverlayResources_Landuse = new javax.swing.JList();
         jLabel5 = new javax.swing.JLabel();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
         setTitle("Overlay Resources");
-        setMaximumSize(new java.awt.Dimension(450, 370));
-        setMinimumSize(new java.awt.Dimension(450, 370));
-        setPreferredSize(new java.awt.Dimension(450, 370));
+        setMaximumSize(new java.awt.Dimension(500, 370));
+        setMinimumSize(new java.awt.Dimension(500, 370));
+        setPreferredSize(new java.awt.Dimension(500, 370));
 
         jLabel_OverlayResources_Title.setText("Future load image here. Now uses View Overlay image...");
 
@@ -376,7 +450,7 @@ public class OverlayResourcesDialog extends javax.swing.JDialog implements Liste
                 .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
         );
 
-        jSpinner2.setModel(new javax.swing.SpinnerNumberModel(1, -3, 3, 1));
+        jSpinner_OverlayResources_NewTerrainThickness.setModel(new javax.swing.SpinnerNumberModel(1, -3, 3, 1));
 
         jTextPane1.setEditable(false);
         jTextPane1.setBackground(javax.swing.UIManager.getDefaults().getColor("Button.background"));
@@ -390,7 +464,7 @@ public class OverlayResourcesDialog extends javax.swing.JDialog implements Liste
             jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(jPanel2Layout.createSequentialGroup()
                 .addContainerGap()
-                .addComponent(jSpinner2, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addComponent(jSpinner_OverlayResources_NewTerrainThickness, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 260, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
@@ -401,7 +475,7 @@ public class OverlayResourcesDialog extends javax.swing.JDialog implements Liste
                 .addContainerGap()
                 .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(jSpinner2, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addComponent(jSpinner_OverlayResources_NewTerrainThickness, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
                 .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
         );
 
@@ -414,12 +488,13 @@ public class OverlayResourcesDialog extends javax.swing.JDialog implements Liste
         jList_OverlayResources_Operations.setToolTipText("What operation to perform?");
         jScrollPane2.setViewportView(jList_OverlayResources_Operations);
 
-        jList1.setModel(new javax.swing.AbstractListModel() {
-            String[] strings = { "Item 1", "Item 2", "Item 3", "Item 4", "Item 5" };
+        jList_OverlayResources_Landuse.setModel(new javax.swing.AbstractListModel() {
+            String[] strings = { "Deciduous", "Pine", "Swamp", "Beach", "Frozen Deciduous", "Frozen Pine", "Frozen Swamp", "Frozen Beach" };
             public int getSize() { return strings.length; }
             public Object getElementAt(int i) { return strings[i]; }
         });
-        jScrollPane3.setViewportView(jList1);
+        jList_OverlayResources_Landuse.setSelectionMode(javax.swing.ListSelectionModel.SINGLE_SELECTION);
+        jScrollPane3.setViewportView(jList_OverlayResources_Landuse);
 
         jLabel5.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
         jLabel5.setText("Landuse");
@@ -431,29 +506,26 @@ public class OverlayResourcesDialog extends javax.swing.JDialog implements Liste
             .addGroup(layout.createSequentialGroup()
                 .addContainerGap()
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addComponent(jLabel_OverlayResources_Title, javax.swing.GroupLayout.PREFERRED_SIZE, 437, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addGroup(layout.createSequentialGroup()
                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                             .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING, false)
                                 .addComponent(jTextField_OverlayResources_PNGPath)
-                                .addGroup(javax.swing.GroupLayout.Alignment.LEADING, layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING, false)
-                                    .addComponent(jLabel1, javax.swing.GroupLayout.Alignment.LEADING, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                                    .addComponent(jPanel1, javax.swing.GroupLayout.Alignment.LEADING, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                                .addComponent(jLabel1, javax.swing.GroupLayout.Alignment.LEADING, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                                .addComponent(jPanel1, javax.swing.GroupLayout.Alignment.LEADING, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                                 .addComponent(jPanel2, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
                             .addComponent(progressComponent1, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, 331, javax.swing.GroupLayout.PREFERRED_SIZE))
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addComponent(jScrollPane3, javax.swing.GroupLayout.DEFAULT_SIZE, 145, Short.MAX_VALUE)
                             .addGroup(layout.createSequentialGroup()
-                                .addComponent(jButton_OverlayResources_SelectPNG)
+                                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                                    .addComponent(jButton_OverlayResources_SelectPNG)
+                                    .addComponent(jLabel5, javax.swing.GroupLayout.PREFERRED_SIZE, 109, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                    .addComponent(jButton_OverlayResources_Run))
                                 .addGap(0, 0, Short.MAX_VALUE))
-                            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
-                                .addGap(0, 0, Short.MAX_VALUE)
-                                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
-                                    .addComponent(jScrollPane3)
-                                    .addComponent(jButton_OverlayResources_Run, javax.swing.GroupLayout.Alignment.TRAILING)
-                                    .addComponent(jScrollPane2)
-                                    .addComponent(jLabel5, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))))))
-                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                            .addComponent(jScrollPane2)))
+                    .addComponent(jLabel_OverlayResources_Title, javax.swing.GroupLayout.PREFERRED_SIZE, 437, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addContainerGap())
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -490,7 +562,7 @@ public class OverlayResourcesDialog extends javax.swing.JDialog implements Liste
     }// </editor-fold>//GEN-END:initComponents
 
     private void jButton_OverlayResources_RunActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton_OverlayResources_RunActionPerformed
-        processOverlayRoads();
+        processOverlaySelector();
     }//GEN-LAST:event_jButton_OverlayResources_RunActionPerformed
 
     private void jButton_OverlayResources_SelectPNGActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton_OverlayResources_SelectPNGActionPerformed
@@ -508,14 +580,14 @@ public class OverlayResourcesDialog extends javax.swing.JDialog implements Liste
     private javax.swing.JLabel jLabel4;
     private javax.swing.JLabel jLabel5;
     private javax.swing.JLabel jLabel_OverlayResources_Title;
-    private javax.swing.JList jList1;
+    private javax.swing.JList jList_OverlayResources_Landuse;
     private javax.swing.JList jList_OverlayResources_Operations;
     private javax.swing.JPanel jPanel1;
     private javax.swing.JPanel jPanel2;
     private javax.swing.JScrollPane jScrollPane1;
     private javax.swing.JScrollPane jScrollPane2;
     private javax.swing.JScrollPane jScrollPane3;
-    private javax.swing.JSpinner jSpinner2;
+    private javax.swing.JSpinner jSpinner_OverlayResources_NewTerrainThickness;
     private javax.swing.JSpinner jSpinner_OverlayResources_RaiseLowerTerrain;
     private javax.swing.JTextField jTextField_OverlayResources_PNGPath;
     private javax.swing.JTextPane jTextPane1;

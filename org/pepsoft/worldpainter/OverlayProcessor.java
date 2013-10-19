@@ -38,6 +38,11 @@ import org.pepsoft.util.ProgressReceiver;
 import static org.pepsoft.worldpainter.Constants.EVENT_KEY_ACTION_MERGE_WORLD;
 import org.pepsoft.worldpainter.merging.WorldMerger;
 import org.pepsoft.worldpainter.vo.EventVO;
+import org.pepsoft.worldpainter.layers.DeciduousForest;
+import org.pepsoft.worldpainter.layers.TreeLayer;
+import org.pepsoft.worldpainter.layers.Frost;
+import org.pepsoft.worldpainter.layers.PineForest;
+import org.pepsoft.worldpainter.layers.SwampLand;
 
 /**
  *
@@ -49,16 +54,106 @@ class OverlayProcessor {
         view = world;
     }
     
-    public void Roadwork(File imageFile, int TerrainAlt, ProgressReceiver progressReceiver) throws IOException, ProgressReceiver.OperationCancelled {
+    public void Roadwork(
+            File imageFile, 
+            int RaiseLowerAmt,
+            int TerrainThickness, 
+            ProgressReceiver progressReceiver) throws IOException, ProgressReceiver.OperationCancelled {
         logger.info("Roadwork() Starting...");
         // Record start of roadwork
         long start = System.currentTimeMillis();
         
         overlayMask = LoadImage(imageFile);
-        ORGNodeGraph theGraph;
-        theGraph = GenerateInitialGraph(overlayMask, TerrainAlt);
+        EtchRoads(overlayMask,RaiseLowerAmt,TerrainThickness);
         
         view.getDimension().setOverlayEnabled(false);
+        view.repaint();
+        view.getDimension().setOverlay(null);
+        // Log an event
+        Configuration config = Configuration.getInstance();
+        if (config != null) {
+            EventVO event = new EventVO(EVENT_KEY_ACTION_MERGE_WORLD).duration(System.currentTimeMillis() - start);
+            event.setAttribute(EventVO.ATTRIBUTE_TIMESTAMP, new Date(start));
+            config.logEvent(event);
+        }
+    }
+    
+    public void SetLanduse(
+            File imageFile, 
+            String luName,
+            ProgressReceiver progressReceiver) throws IOException, ProgressReceiver.OperationCancelled {
+        logger.info("SetLanduse() Starting...");
+        // Record start of roadwork
+        long start = System.currentTimeMillis();
+        
+        org.pepsoft.worldpainter.layers.Layer layerType = null;
+        switch(luName) {
+            case "Deciduous":
+                layerType = DeciduousForest.INSTANCE;
+                break;
+            case "Pine":
+                layerType = PineForest.INSTANCE;
+                break;
+            case "Swamp":
+                layerType = SwampLand.INSTANCE;
+                break;
+            case "Frozen Deciduous":
+                break;
+            case "Frozen Pine":
+                break;
+            case "Frozen Swamp":
+                break;
+            default:
+                break;
+        }
+        
+        overlayMask = LoadImage(imageFile);
+        for (int y = 0; y < overlayMask.getHeight(); y++) {
+            for (int x = 0; x < overlayMask.getWidth(); x++) {
+                int  clr   = overlayMask.getRGB(x, y);
+                if (isNotWhite(clr,overlayMask.getColorModel())) {
+                    // Get Location in Map for X/Y
+                    Point mapLoc2d = view.imageToWorldCoordinates(x, y);
+                    // Get Height At That Location
+                    Point3d mapLoc = new Point3d(mapLoc2d.x,mapLoc2d.y,view.getDimension().getHeightAt(mapLoc2d));
+                    view.getDimension().setLayerValueAt(layerType, x, y, clr);
+                    
+                }
+            }
+        }
+        
+        view.getDimension().setOverlayEnabled(false);
+        view.repaint();
+        view.getDimension().setOverlay(null);
+        // Log an event
+        Configuration config = Configuration.getInstance();
+        if (config != null) {
+            EventVO event = new EventVO(EVENT_KEY_ACTION_MERGE_WORLD).duration(System.currentTimeMillis() - start);
+            event.setAttribute(EventVO.ATTRIBUTE_TIMESTAMP, new Date(start));
+            config.logEvent(event);
+        }
+    }
+    
+    public void RaiseLowerTerrain(File imageFile, int RaiseLowerAmt, ProgressReceiver progressReceiver) throws IOException, ProgressReceiver.OperationCancelled {
+        logger.info("RaiseLowerTerrain() Starting...");
+        long start = System.currentTimeMillis();
+        
+        overlayMask = LoadImage(imageFile);
+        for (int y = 0; y < overlayMask.getHeight(); y++) {
+            for (int x = 0; x < overlayMask.getWidth(); x++) {
+                int  clr   = overlayMask.getRGB(x, y);
+                if (isNotWhite(clr,overlayMask.getColorModel())) {
+                    // Get Location in Map for X/Y
+                    Point mapLoc2d = view.imageToWorldCoordinates(x, y);
+                    // Get Height At That Location
+                    Point3d mapLoc = new Point3d(mapLoc2d.x,mapLoc2d.y,view.getDimension().getHeightAt(mapLoc2d));
+                    
+                    view.getDimension().setHeightAt(mapLoc2d, ((int)mapLoc.z) + RaiseLowerAmt);
+                }
+            }
+        }
+        view.getDimension().setOverlayEnabled(false);
+        view.repaint();
         view.getDimension().setOverlay(null);
         // Log an event
         Configuration config = Configuration.getInstance();
@@ -347,9 +442,7 @@ class OverlayProcessor {
         return view.getOverlay();
     }
 
-    private ORGNodeGraph GenerateInitialGraph(BufferedImage overlayMask, int TerrainAlt) {
-        ORGNodeGraph outGraph = new ORGNodeGraph();
-        //LinkedHashMap<Integer, LinkedHashMap<Integer, ORGNode>> tNodes = new LinkedHashMap<Integer, LinkedHashMap<Integer, ORGNode>>();
+    private void EtchRoads(BufferedImage overlayMask,int RaiseLowerAmt, int TerrainThickness) {
         for (int y = 0; y < overlayMask.getHeight(); y++) {
             for (int x = 0; x < overlayMask.getWidth(); x++) {
                 int  clr   = overlayMask.getRGB(x, y);
@@ -358,16 +451,29 @@ class OverlayProcessor {
                     Point mapLoc2d = view.imageToWorldCoordinates(x, y);
                     // Get Height At That Location
                     Point3d mapLoc = new Point3d(mapLoc2d.x,mapLoc2d.y,view.getDimension().getHeightAt(mapLoc2d));
-                    // Get parent dialog value for how much to raise lower terrain
-                    // -->TerrainAlt
-                    view.getDimension().setHeightAt(mapLoc2d, ((int)mapLoc.z) + TerrainAlt);
-                    view.getDimension().setTerrainAt(mapLoc2d, Terrain.OBSIDIAN);
                     
-                    
+                    view.getDimension().setHeightAt(mapLoc2d, ((int)mapLoc.z) + RaiseLowerAmt);
+                    // In theory fills up from ground level to TerrainThickness but
+                    // in practice it is not filling up evenly ... may depend on
+                    // where the topsoil is vs where the underlying stone is.
+                    if (TerrainThickness < 0) {
+                        for (int i = 0;i > TerrainThickness;i--) {
+                            view.getDimension().setHeightAt(mapLoc2d, ((int)mapLoc.z) + 1);
+                            view.getDimension().setTerrainAt(mapLoc2d, Terrain.OBSIDIAN);
+                        }
+                    } 
+                    // In theory fills _down_ from ground level to TerrainThickness
+                    // In practice it is filling a lot farther down...
+                    if (TerrainThickness > 0) {
+                        for (int i = 0;i < TerrainThickness;i++) {
+                            view.getDimension().setHeightAt(mapLoc2d, ((int)mapLoc.z) - 1);
+                            view.getDimension().setTerrainAt(mapLoc2d, Terrain.OBSIDIAN);
+                        }
+                    }
+                    if (TerrainThickness == 0) view.getDimension().setTerrainAt(mapLoc2d, Terrain.OBSIDIAN);
                 }
             }
         }
-        return outGraph;
     }
 
     private boolean isNotWhite(int clr,ColorModel cm) {
