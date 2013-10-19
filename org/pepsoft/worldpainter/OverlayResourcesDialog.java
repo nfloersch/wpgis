@@ -275,7 +275,6 @@ public class OverlayResourcesDialog extends javax.swing.JDialog implements Liste
 
             @Override
             public Void execute(ProgressReceiver progressReceiver) throws OperationCancelled {
-                final WorldMerger merger = null;//new WorldMerger(world, levelDatFile);
                 try {
                     // DOES THE WORK
                     OverlayProcessor theOP = new OverlayProcessor(view);
@@ -283,6 +282,7 @@ public class OverlayResourcesDialog extends javax.swing.JDialog implements Liste
                         null,
                         (int)jSpinner_OverlayResources_RaiseLowerTerrain.getValue(),
                         (int)jSpinner_OverlayResources_NewTerrainThickness.getValue(),
+                        jList_OverlayResources_Landuse.getSelectedValue().toString(),
                         progressReceiver);
                     // DID THE WORK
                     if (theOP.getWarnings() != null) {
@@ -489,7 +489,7 @@ public class OverlayResourcesDialog extends javax.swing.JDialog implements Liste
         jScrollPane2.setViewportView(jList_OverlayResources_Operations);
 
         jList_OverlayResources_Landuse.setModel(new javax.swing.AbstractListModel() {
-            String[] strings = { "Deciduous", "Pine", "Swamp", "Beach", "Frozen Deciduous", "Frozen Pine", "Frozen Swamp", "Frozen Beach" };
+            String[] strings = { "Deciduous", "Pine", "Swamp", "Frozen Deciduous", "Frozen Pine", "Frozen Swamp", "Paved", "Gravel", "Cement", "Brick", "Cobble" };
             public int getSize() { return strings.length; }
             public Object getElementAt(int i) { return strings[i]; }
         });
