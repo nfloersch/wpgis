@@ -98,7 +98,7 @@ public class OverlayResourcesDialog extends javax.swing.JDialog implements Liste
         InputMap inputMap = rootPane.getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT);
         inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "cancel");
 
-        rootPane.setDefaultButton(jButton_OverlayResources_Roads);
+        rootPane.setDefaultButton(jButton_OverlayResources_Run);
 
         setControlStates();
     }
@@ -289,69 +289,56 @@ public class OverlayResourcesDialog extends javax.swing.JDialog implements Liste
         jLabel_OverlayResources_Title = new javax.swing.JLabel();
         jTextField_OverlayResources_PNGPath = new javax.swing.JTextField();
         jButton_OverlayResources_SelectPNG = new javax.swing.JButton();
-        jButton_OverlayResources_Roads = new javax.swing.JButton();
+        jButton_OverlayResources_Run = new javax.swing.JButton();
         progressComponent1 = new org.pepsoft.util.swing.ProgressComponent();
-        jRadioButton_OverlayResources_RaiseLowerTerrainOption = new javax.swing.JRadioButton();
-        jRadioButton_OverlayResources_ReplaceTerrainOption = new javax.swing.JRadioButton();
         jLabel1 = new javax.swing.JLabel();
         jPanel1 = new javax.swing.JPanel();
         jLabel4 = new javax.swing.JLabel();
-        jSpinner1 = new javax.swing.JSpinner();
+        jSpinner_OverlayResources_RaiseLowerTerrain = new javax.swing.JSpinner();
         jLabel2 = new javax.swing.JLabel();
         jLabel3 = new javax.swing.JLabel();
         jPanel2 = new javax.swing.JPanel();
-        jLabel5 = new javax.swing.JLabel();
-        radioButtonBiomes1 = new javax.swing.JRadioButton();
-        radioButtonAll1 = new javax.swing.JRadioButton();
         jSpinner2 = new javax.swing.JSpinner();
         jScrollPane1 = new javax.swing.JScrollPane();
         jTextPane1 = new javax.swing.JTextPane();
-        jButton_OverlayResources_Rivers = new javax.swing.JButton();
+        jScrollPane2 = new javax.swing.JScrollPane();
+        jList_OverlayResources_Operations = new javax.swing.JList();
+        jScrollPane3 = new javax.swing.JScrollPane();
+        jList1 = new javax.swing.JList();
+        jLabel5 = new javax.swing.JLabel();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
-        setTitle("Merging");
+        setTitle("Overlay Resources");
+        setMaximumSize(new java.awt.Dimension(450, 370));
+        setMinimumSize(new java.awt.Dimension(450, 370));
+        setPreferredSize(new java.awt.Dimension(450, 370));
 
-        jLabel_OverlayResources_Title.setText("Black and White Bitmap Image - Actionable Area Is Where Black Part of Image Is");
+        jLabel_OverlayResources_Title.setText("Future load image here. Now uses View Overlay image...");
 
         jTextField_OverlayResources_PNGPath.setText("jTextField1");
+        jTextField_OverlayResources_PNGPath.setEnabled(false);
 
         jButton_OverlayResources_SelectPNG.setText("...");
+        jButton_OverlayResources_SelectPNG.setEnabled(false);
         jButton_OverlayResources_SelectPNG.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 jButton_OverlayResources_SelectPNGActionPerformed(evt);
             }
         });
 
-        jButton_OverlayResources_Roads.setText("Roads");
-        jButton_OverlayResources_Roads.addActionListener(new java.awt.event.ActionListener() {
+        jButton_OverlayResources_Run.setText("Process");
+        jButton_OverlayResources_Run.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
-                jButton_OverlayResources_RoadsActionPerformed(evt);
-            }
-        });
-
-        buttonGroup2.add(jRadioButton_OverlayResources_RaiseLowerTerrainOption);
-        jRadioButton_OverlayResources_RaiseLowerTerrainOption.setText("Raise/Lower Terrain");
-        jRadioButton_OverlayResources_RaiseLowerTerrainOption.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                jRadioButton_OverlayResources_RaiseLowerTerrainOptionActionPerformed(evt);
-            }
-        });
-
-        buttonGroup2.add(jRadioButton_OverlayResources_ReplaceTerrainOption);
-        jRadioButton_OverlayResources_ReplaceTerrainOption.setSelected(true);
-        jRadioButton_OverlayResources_ReplaceTerrainOption.setText("Replace Terrain");
-        jRadioButton_OverlayResources_ReplaceTerrainOption.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                jRadioButton_OverlayResources_ReplaceTerrainOptionActionPerformed(evt);
+                jButton_OverlayResources_RunActionPerformed(evt);
             }
         });
 
         jLabel1.setText("Choose How To Use The Mask...");
 
-        jLabel4.setText("Raise or Lower How Much?");
+        jLabel4.setText("Raise or Lower Terrain?");
 
-        jSpinner1.setModel(new javax.swing.SpinnerNumberModel(0, -255, 255, 1));
-        jSpinner1.setEditor(new javax.swing.JSpinner.NumberEditor(jSpinner1, ""));
+        jSpinner_OverlayResources_RaiseLowerTerrain.setModel(new javax.swing.SpinnerNumberModel(0, -255, 255, 1));
+        jSpinner_OverlayResources_RaiseLowerTerrain.setEditor(new javax.swing.JSpinner.NumberEditor(jSpinner_OverlayResources_RaiseLowerTerrain, ""));
 
         jLabel2.setText("Positive Numbers Adds Levels");
 
@@ -362,15 +349,17 @@ public class OverlayResourcesDialog extends javax.swing.JDialog implements Liste
         jPanel1Layout.setHorizontalGroup(
             jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(jPanel1Layout.createSequentialGroup()
-                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                .addContainerGap()
                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addComponent(jLabel4, javax.swing.GroupLayout.PREFERRED_SIZE, 291, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addGroup(jPanel1Layout.createSequentialGroup()
-                        .addComponent(jSpinner1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addComponent(jSpinner_OverlayResources_RaiseLowerTerrain, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                         .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addComponent(jLabel3)
-                            .addComponent(jLabel2)))))
+                            .addComponent(jLabel2)
+                            .addComponent(jLabel3))
+                        .addGap(0, 0, Short.MAX_VALUE))
+                    .addComponent(jLabel4, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                .addContainerGap())
         );
         jPanel1Layout.setVerticalGroup(
             jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -378,35 +367,21 @@ public class OverlayResourcesDialog extends javax.swing.JDialog implements Liste
                 .addContainerGap()
                 .addComponent(jLabel4)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                    .addComponent(jSpinner1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(jLabel2))
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(jLabel3)
+                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addGroup(jPanel1Layout.createSequentialGroup()
+                        .addComponent(jLabel2)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(jLabel3))
+                    .addComponent(jSpinner_OverlayResources_RaiseLowerTerrain, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
                 .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
         );
 
-        jLabel5.setText("Currently Choices Is To Replace w/Water or Road");
-
-        buttonGroup1.add(radioButtonBiomes1);
-        radioButtonBiomes1.setText("Road");
-        radioButtonBiomes1.setToolTipText("Road");
-
-        buttonGroup1.add(radioButtonAll1);
-        radioButtonAll1.setSelected(true);
-        radioButtonAll1.setText("Water");
-        radioButtonAll1.setToolTipText("Water");
-        radioButtonAll1.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                radioButtonAll1ActionPerformed(evt);
-            }
-        });
-
         jSpinner2.setModel(new javax.swing.SpinnerNumberModel(1, -3, 3, 1));
 
+        jTextPane1.setEditable(false);
         jTextPane1.setBackground(javax.swing.UIManager.getDefaults().getColor("Button.background"));
-        jTextPane1.setBorder(null);
         jTextPane1.setText("Number of blocks deep to insert new terrain. A negative value indicates stacking new terrain on top of existing terrain, not replacing anything.");
+        jTextPane1.setCursor(new java.awt.Cursor(java.awt.Cursor.TEXT_CURSOR));
         jScrollPane1.setViewportView(jTextPane1);
 
         javax.swing.GroupLayout jPanel2Layout = new javax.swing.GroupLayout(jPanel2);
@@ -415,38 +390,39 @@ public class OverlayResourcesDialog extends javax.swing.JDialog implements Liste
             jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(jPanel2Layout.createSequentialGroup()
                 .addContainerGap()
-                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addComponent(jLabel5, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                    .addComponent(radioButtonBiomes1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                    .addComponent(radioButtonAll1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                    .addGroup(jPanel2Layout.createSequentialGroup()
-                        .addComponent(jSpinner2, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 260, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addGap(0, 0, Short.MAX_VALUE)))
-                .addContainerGap())
+                .addComponent(jSpinner2, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 260, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
         );
         jPanel2Layout.setVerticalGroup(
             jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(jPanel2Layout.createSequentialGroup()
-                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                .addComponent(jLabel5)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(radioButtonAll1)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(radioButtonBiomes1)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addContainerGap()
                 .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addComponent(jSpinner2, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                    .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(jSpinner2, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
         );
 
-        jButton_OverlayResources_Rivers.setText("Rivers");
-        jButton_OverlayResources_Rivers.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                jButton_OverlayResources_RiversActionPerformed(evt);
-            }
+        jList_OverlayResources_Operations.setModel(new javax.swing.AbstractListModel() {
+            String[] strings = { "Roads", "Landuse", "Color Landuse", "Colorize", "Rivers" };
+            public int getSize() { return strings.length; }
+            public Object getElementAt(int i) { return strings[i]; }
         });
+        jList_OverlayResources_Operations.setSelectionMode(javax.swing.ListSelectionModel.SINGLE_SELECTION);
+        jList_OverlayResources_Operations.setToolTipText("What operation to perform?");
+        jScrollPane2.setViewportView(jList_OverlayResources_Operations);
+
+        jList1.setModel(new javax.swing.AbstractListModel() {
+            String[] strings = { "Item 1", "Item 2", "Item 3", "Item 4", "Item 5" };
+            public int getSize() { return strings.length; }
+            public Object getElementAt(int i) { return strings[i]; }
+        });
+        jScrollPane3.setViewportView(jList1);
+
+        jLabel5.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
+        jLabel5.setText("Landuse");
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
         getContentPane().setLayout(layout);
@@ -455,89 +431,76 @@ public class OverlayResourcesDialog extends javax.swing.JDialog implements Liste
             .addGroup(layout.createSequentialGroup()
                 .addContainerGap()
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addComponent(jLabel_OverlayResources_Title, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                    .addComponent(progressComponent1, javax.swing.GroupLayout.DEFAULT_SIZE, 667, Short.MAX_VALUE)
-                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
-                        .addComponent(jTextField_OverlayResources_PNGPath)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(jButton_OverlayResources_SelectPNG))
-                    .addComponent(jLabel1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addComponent(jLabel_OverlayResources_Title, javax.swing.GroupLayout.PREFERRED_SIZE, 437, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addGroup(layout.createSequentialGroup()
-                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
-                            .addComponent(jPanel1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                            .addComponent(jRadioButton_OverlayResources_RaiseLowerTerrainOption, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addComponent(jRadioButton_OverlayResources_ReplaceTerrainOption, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                            .addComponent(jPanel2, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))))
-                .addContainerGap())
-            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
-                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                .addComponent(jButton_OverlayResources_Roads)
-                .addGap(18, 18, 18)
-                .addComponent(jButton_OverlayResources_Rivers)
-                .addGap(58, 58, 58))
+                            .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING, false)
+                                .addComponent(jTextField_OverlayResources_PNGPath)
+                                .addGroup(javax.swing.GroupLayout.Alignment.LEADING, layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING, false)
+                                    .addComponent(jLabel1, javax.swing.GroupLayout.Alignment.LEADING, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                                    .addComponent(jPanel1, javax.swing.GroupLayout.Alignment.LEADING, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                                .addComponent(jPanel2, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                            .addComponent(progressComponent1, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, 331, javax.swing.GroupLayout.PREFERRED_SIZE))
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addGroup(layout.createSequentialGroup()
+                                .addComponent(jButton_OverlayResources_SelectPNG)
+                                .addGap(0, 0, Short.MAX_VALUE))
+                            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
+                                .addGap(0, 0, Short.MAX_VALUE)
+                                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                                    .addComponent(jScrollPane3)
+                                    .addComponent(jButton_OverlayResources_Run, javax.swing.GroupLayout.Alignment.TRAILING)
+                                    .addComponent(jScrollPane2)
+                                    .addComponent(jLabel5, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))))))
+                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(layout.createSequentialGroup()
-                .addContainerGap(22, Short.MAX_VALUE)
+                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                 .addComponent(jLabel_OverlayResources_Title)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(jTextField_OverlayResources_PNGPath, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addComponent(jButton_OverlayResources_SelectPNG))
-                .addGap(18, 18, 18)
-                .addComponent(jLabel1)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                    .addComponent(jRadioButton_OverlayResources_RaiseLowerTerrainOption)
-                    .addComponent(jRadioButton_OverlayResources_ReplaceTerrainOption))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addComponent(jPanel1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(jPanel2, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addGroup(layout.createSequentialGroup()
+                        .addComponent(jLabel1)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(jPanel1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addComponent(jScrollPane2, javax.swing.GroupLayout.PREFERRED_SIZE, 98, javax.swing.GroupLayout.PREFERRED_SIZE))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(progressComponent1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                    .addComponent(jButton_OverlayResources_Roads)
-                    .addComponent(jButton_OverlayResources_Rivers)))
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                    .addGroup(layout.createSequentialGroup()
+                        .addComponent(jLabel5)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(jScrollPane3, javax.swing.GroupLayout.PREFERRED_SIZE, 0, Short.MAX_VALUE)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(jButton_OverlayResources_Run))
+                    .addGroup(layout.createSequentialGroup()
+                        .addComponent(jPanel2, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(progressComponent1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
         );
 
         pack();
     }// </editor-fold>//GEN-END:initComponents
 
-    private void jButton_OverlayResources_RoadsActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton_OverlayResources_RoadsActionPerformed
+    private void jButton_OverlayResources_RunActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton_OverlayResources_RunActionPerformed
         processOverlayRoads();
-    }//GEN-LAST:event_jButton_OverlayResources_RoadsActionPerformed
+    }//GEN-LAST:event_jButton_OverlayResources_RunActionPerformed
 
     private void jButton_OverlayResources_SelectPNGActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton_OverlayResources_SelectPNGActionPerformed
         selectImageFile();
     }//GEN-LAST:event_jButton_OverlayResources_SelectPNGActionPerformed
 
-    private void jRadioButton_OverlayResources_RaiseLowerTerrainOptionActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jRadioButton_OverlayResources_RaiseLowerTerrainOptionActionPerformed
-        setControlStates();
-    }//GEN-LAST:event_jRadioButton_OverlayResources_RaiseLowerTerrainOptionActionPerformed
-
-    private void jRadioButton_OverlayResources_ReplaceTerrainOptionActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jRadioButton_OverlayResources_ReplaceTerrainOptionActionPerformed
-        setControlStates();
-
-    }//GEN-LAST:event_jRadioButton_OverlayResources_ReplaceTerrainOptionActionPerformed
-
-    private void radioButtonAll1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_radioButtonAll1ActionPerformed
-        // TODO add your handling code here:
-    }//GEN-LAST:event_radioButtonAll1ActionPerformed
-
-    private void jButton_OverlayResources_RiversActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton_OverlayResources_RiversActionPerformed
-        processOverlay();
-    }//GEN-LAST:event_jButton_OverlayResources_RiversActionPerformed
-
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.ButtonGroup buttonGroup1;
     private javax.swing.ButtonGroup buttonGroup2;
-    private javax.swing.JButton jButton_OverlayResources_Rivers;
-    private javax.swing.JButton jButton_OverlayResources_Roads;
+    private javax.swing.JButton jButton_OverlayResources_Run;
     private javax.swing.JButton jButton_OverlayResources_SelectPNG;
     private javax.swing.JLabel jLabel1;
     private javax.swing.JLabel jLabel2;
@@ -545,18 +508,18 @@ public class OverlayResourcesDialog extends javax.swing.JDialog implements Liste
     private javax.swing.JLabel jLabel4;
     private javax.swing.JLabel jLabel5;
     private javax.swing.JLabel jLabel_OverlayResources_Title;
+    private javax.swing.JList jList1;
+    private javax.swing.JList jList_OverlayResources_Operations;
     private javax.swing.JPanel jPanel1;
     private javax.swing.JPanel jPanel2;
-    private javax.swing.JRadioButton jRadioButton_OverlayResources_RaiseLowerTerrainOption;
-    private javax.swing.JRadioButton jRadioButton_OverlayResources_ReplaceTerrainOption;
     private javax.swing.JScrollPane jScrollPane1;
-    private javax.swing.JSpinner jSpinner1;
+    private javax.swing.JScrollPane jScrollPane2;
+    private javax.swing.JScrollPane jScrollPane3;
     private javax.swing.JSpinner jSpinner2;
+    private javax.swing.JSpinner jSpinner_OverlayResources_RaiseLowerTerrain;
     private javax.swing.JTextField jTextField_OverlayResources_PNGPath;
     private javax.swing.JTextPane jTextPane1;
     private org.pepsoft.util.swing.ProgressComponent progressComponent1;
-    private javax.swing.JRadioButton radioButtonAll1;
-    private javax.swing.JRadioButton radioButtonBiomes1;
     // End of variables declaration//GEN-END:variables
 
 
