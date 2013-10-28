@@ -248,7 +248,7 @@
         <Component class="javax.swing.JSpinner" name="jSpinner_OverlayResources_NewTerrainThickness">
           <Properties>
             <Property name="model" type="javax.swing.SpinnerModel" editor="org.netbeans.modules.form.editors2.SpinnerModelEditor">
-              <SpinnerModel initial="1" maximum="3" minimum="-3" numberType="java.lang.Integer" stepSize="1" type="number"/>
+              <SpinnerModel initial="1" maximum="5" minimum="-5" numberType="java.lang.Integer" stepSize="1" type="number"/>
             </Property>
           </Properties>
         </Component>
@@ -285,12 +285,14 @@
         <Component class="javax.swing.JList" name="jList_OverlayResources_Operations">
           <Properties>
             <Property name="model" type="javax.swing.ListModel" editor="org.netbeans.modules.form.editors2.ListModelEditor">
-              <StringArray count="5">
-                <StringItem index="0" value="Roads"/>
-                <StringItem index="1" value="Landuse"/>
-                <StringItem index="2" value="Color Landuse"/>
-                <StringItem index="3" value="Colorize"/>
-                <StringItem index="4" value="Rivers"/>
+              <StringArray count="7">
+                <StringItem index="0" value="Raise or Lower"/>
+                <StringItem index="1" value="Roads"/>
+                <StringItem index="2" value="Landuse"/>
+                <StringItem index="3" value="Rivers"/>
+                <StringItem index="4" value="--not working--"/>
+                <StringItem index="5" value="Color Landuse"/>
+                <StringItem index="6" value="Colorize"/>
               </StringArray>
             </Property>
             <Property name="selectionMode" type="int" value="0"/>

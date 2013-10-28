@@ -13,6 +13,7 @@ import java.awt.image.BufferedImage;
 import java.awt.image.ColorModel;
 import java.io.File;
 import java.io.IOException;
+import static java.lang.Math.abs;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -21,6 +22,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Set;
 import java.util.logging.Logger;
+
 import javax.imageio.ImageIO;
 import javax.imageio.ImageReader;
 import javax.imageio.stream.FileImageInputStream;
@@ -38,11 +40,18 @@ import org.pepsoft.util.ProgressReceiver;
 import static org.pepsoft.worldpainter.Constants.EVENT_KEY_ACTION_MERGE_WORLD;
 import org.pepsoft.worldpainter.merging.WorldMerger;
 import org.pepsoft.worldpainter.vo.EventVO;
+import org.pepsoft.worldpainter.layers.Biome;
 import org.pepsoft.worldpainter.layers.DeciduousForest;
-import org.pepsoft.worldpainter.layers.TreeLayer;
+import org.pepsoft.worldpainter.layers.FloodWithLava;
 import org.pepsoft.worldpainter.layers.Frost;
+import org.pepsoft.worldpainter.layers.GardenCategory;
+import org.pepsoft.worldpainter.layers.Jungle;
+import org.pepsoft.worldpainter.layers.Layer;
 import org.pepsoft.worldpainter.layers.PineForest;
+import org.pepsoft.worldpainter.layers.Resources;
 import org.pepsoft.worldpainter.layers.SwampLand;
+import org.pepsoft.worldpainter.layers.exporters.ExporterSettings;
+import org.pepsoft.worldpainter.layers.exporters.ResourcesExporter.ResourcesExporterSettings;
 import org.pepsoft.minecraft.Material;
 import org.pepsoft.worldpainter.MixedMaterial;
 
@@ -54,21 +63,36 @@ import org.pepsoft.worldpainter.MixedMaterial;
  */
 class OverlayProcessor {
     private WorldPainter view;
+    private Set<Layer> tLayers;
+    private Layer tLyrPine;
+    private Layer tLyrDeciduous;
+    private Layer tLyrJungle;
+    private Layer tLyrSwamp;
+    private Layer tLyrBiome;
     public OverlayProcessor(WorldPainter world) {
         view = world;
     }
     
     public void Roadwork(
-            File imageFile, 
-            int RaiseLowerAmt,
-            int TerrainThickness,
-            String landuse,
-            ProgressReceiver progressReceiver) throws IOException, ProgressReceiver.OperationCancelled {
+        File imageFile, 
+        int RaiseLowerAmt,
+        int TerrainThickness,
+        String landuse,
+        ProgressReceiver progressReceiver) throws IOException, ProgressReceiver.OperationCancelled {
         logger.info("Roadwork() Starting...");
         // Record start of roadwork
         long start = System.currentTimeMillis();
         
         overlayMask = LoadImage(imageFile);
+        tLayers = view.getDimension().getAllLayers(true);
+        for (Layer l : tLayers) {
+            String tLName = l.getName();
+            if (tLName.equals("Pine")) tLyrPine = l;
+            if (tLName.equals("Jungle")) tLyrJungle = l;
+            if (tLName.equals("Swamp")) tLyrSwamp = l;
+            if (tLName.equals("Deciduous")) tLyrDeciduous = l;
+            if (tLName.equals("Biome")) tLyrBiome = l;
+            }
         EtchRoads(overlayMask,RaiseLowerAmt,TerrainThickness,landuse);
         
         view.getDimension().setOverlayEnabled(false);
@@ -84,14 +108,26 @@ class OverlayProcessor {
     }
     
     public void SetLanduse(
-            File imageFile, 
-            String luName,
-            ProgressReceiver progressReceiver) throws IOException, ProgressReceiver.OperationCancelled {
+        File imageFile, 
+        String luName,
+        ProgressReceiver progressReceiver) throws IOException, ProgressReceiver.OperationCancelled {
         logger.info("SetLanduse() Starting...");
         // Record start of roadwork
         long start = System.currentTimeMillis();
         
+        tLayers = view.getDimension().getAllLayers(true);
+        for (Layer l : tLayers) {
+            String tLName = l.getName();
+            if (tLName.equals("Pine")) tLyrPine = l;
+            if (tLName.equals("Jungle")) tLyrJungle = l;
+            if (tLName.equals("Swamp")) tLyrSwamp = l;
+            if (tLName.equals("Deciduous")) tLyrDeciduous = l;
+            if (tLName.equals("Biome")) tLyrBiome = l;
+            }
+        
         org.pepsoft.worldpainter.layers.Layer layerType = null;
+        org.pepsoft.worldpainter.layers.Layer frostLayer = Frost.INSTANCE;
+        boolean doFrost = false;
         switch(luName) {
             case "Deciduous":
                 layerType = DeciduousForest.INSTANCE;
@@ -103,10 +139,16 @@ class OverlayProcessor {
                 layerType = SwampLand.INSTANCE;
                 break;
             case "Frozen Deciduous":
+                layerType = DeciduousForest.INSTANCE;
+                doFrost = true;
                 break;
             case "Frozen Pine":
+                layerType = PineForest.INSTANCE;
+                doFrost = true;
                 break;
             case "Frozen Swamp":
+                layerType = SwampLand.INSTANCE;
+                doFrost = true;
                 break;
             default:
                 break;
@@ -121,8 +163,9 @@ class OverlayProcessor {
                     Point mapLoc2d = view.imageToWorldCoordinates(x, y);
                     // Get Height At That Location
                     Point3d mapLoc = new Point3d(mapLoc2d.x,mapLoc2d.y,view.getDimension().getHeightAt(mapLoc2d));
-                    view.getDimension().setLayerValueAt(layerType, x, y, clr);
-                    
+                    int tClr = scaleColorToNibble(clr,overlayMask.getColorModel());
+                    view.getDimension().setLayerValueAt(layerType, mapLoc2d.x, mapLoc2d.y, tClr);
+                    if (doFrost) view.getDimension().setLayerValueAt(frostLayer, mapLoc2d.x, mapLoc2d.y, 15 );
                 }
             }
         }
@@ -199,25 +242,6 @@ class OverlayProcessor {
                     // Get Height At That Location
                     Point3d mapLoc = new Point3d(mapLoc2d.x,mapLoc2d.y,view.getDimension().getHeightAt(mapLoc2d));
                     
-                    view.getDimension().setHeightAt(mapLoc2d, ((int)mapLoc.z) + RaiseLowerAmt);
-                    // In theory fills up from ground level to TerrainThickness but
-                    // in practice it is not filling up evenly ... may depend on
-                    // where the topsoil is vs where the underlying stone is.
-                    if (TerrainThickness < 0) {
-                        for (int i = 0;i > TerrainThickness;i--) {
-                            view.getDimension().setHeightAt(mapLoc2d, ((int)mapLoc.z) + 1);
-                            view.getDimension().setTerrainAt(mapLoc2d, Terrain.OBSIDIAN);
-                        }
-                    } 
-                    // In theory fills _down_ from ground level to TerrainThickness
-                    // In practice it is filling a lot farther down...
-                    if (TerrainThickness > 0) {
-                        for (int i = 0;i < TerrainThickness;i++) {
-                            view.getDimension().setHeightAt(mapLoc2d, ((int)mapLoc.z) - 1);
-                            view.getDimension().setTerrainAt(mapLoc2d, Terrain.OBSIDIAN);
-                        }
-                    }
-                    
                     Terrain luse;
                     switch(landuse) {
                         case "Paved":
@@ -239,7 +263,33 @@ class OverlayProcessor {
                             luse = Terrain.COBBLESTONE;
                             break;
                     }
+                    
+                    view.getDimension().setHeightAt(mapLoc2d, ((int)mapLoc.z) + RaiseLowerAmt);
+                    // In theory fills up from ground level to TerrainThickness but
+                    // in practice it is not filling up evenly ... may depend on
+                    // where the topsoil is vs where the underlying stone is.
+                    if (TerrainThickness < 0) {
+                        for (int i = 0;i > TerrainThickness;i--) {
+                            view.getDimension().setHeightAt(mapLoc2d, ((int)mapLoc.z) + 1);
+                            view.getDimension().setTerrainAt(mapLoc2d, luse);
+                        }
+                    } 
+                    // In theory fills _down_ from ground level to TerrainThickness
+                    // In practice it is filling a lot farther down...
+                    if (TerrainThickness > 0) {
+                        for (int i = 0;i < TerrainThickness;i++) {
+                            view.getDimension().setHeightAt(mapLoc2d, ((int)mapLoc.z) - 1);
+                            view.getDimension().setTerrainAt(mapLoc2d, luse);
+                        }
+                    }
+
                     if (TerrainThickness == 0) view.getDimension().setTerrainAt(mapLoc2d, luse);
+
+                    view.getDimension().setLayerValueAt(tLyrSwamp, mapLoc2d.x, mapLoc2d.y, 0);
+                    view.getDimension().setLayerValueAt(tLyrJungle, mapLoc2d.x, mapLoc2d.y, 0);
+                    view.getDimension().setLayerValueAt(tLyrPine, mapLoc2d.x, mapLoc2d.y, 0);
+                    view.getDimension().setLayerValueAt(tLyrDeciduous, mapLoc2d.x, mapLoc2d.y, 0);
+                    view.getDimension().setLayerValueAt(tLyrBiome, mapLoc2d.x, mapLoc2d.y, 0);
                 }
             }
         }
@@ -251,6 +301,22 @@ class OverlayProcessor {
         int  blue  =  clr & 0x000000ff;
         if (((red + green + blue)/3) != 255) return true;
         return false;
+    }
+
+    private int scaleColorToNibble(int clr,ColorModel cm) {
+        int  red   = (clr & 0x00ff0000) >> 16;
+        int  green = (clr & 0x0000ff00) >> 8;
+        int  blue  =  clr & 0x000000ff;
+        int intensity = ((red + green + blue)/3);
+        intensity = abs(intensity - 256); // mask uses black as highest intensity value, so this inverts the clr value's intensity
+        int nibble = intensity / 16;
+        // If tClr < 0 it is 0 and if it is more than 15 it is 15.
+        nibble = nibble > 0 ? (nibble < 16 ? nibble : 15) : 0;
+        return nibble;
+    }
+    
+    void PourRivers(Object object, ProgressReceiver progressReceiver) {
+        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
     }
 }
 

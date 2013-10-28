@@ -144,14 +144,16 @@ public class OverlayResourcesDialog extends javax.swing.JDialog implements Liste
         String selectedProcess = this.jList_OverlayResources_Operations.getSelectedValue().toString();
         switch(selectedProcess) {
             case "Raise or Lower":
-                
+                processRaiseLower();
                 break;
             case "Roads":
                 processOverlayRoads();
                 break;
             case "Rivers":
+                processOverlayRivers();
                 break;
             case "Landuse":
+                processLanduse();
                 break;
             case "Color Landuse":
                 break;
@@ -210,7 +212,6 @@ public class OverlayResourcesDialog extends javax.swing.JDialog implements Liste
         progressComponent1.start();
     }
 
-    
     private void processRaiseLower() {
         Configuration config = Configuration.getInstance();
         
@@ -230,8 +231,60 @@ public class OverlayResourcesDialog extends javax.swing.JDialog implements Liste
                 try {
                     // DOES THE WORK
                     OverlayProcessor theOP = new OverlayProcessor(view);
-                    theOP.RaiseLowerTerrain(null,  (int)jSpinner_OverlayResources_RaiseLowerTerrain.getValue(), progressReceiver);
+                    theOP.RaiseLowerTerrain(
+                        null,  
+                        (int)jSpinner_OverlayResources_RaiseLowerTerrain.getValue(), 
+                        progressReceiver);
                         
+                    // DID THE WORK
+                    if (theOP.getWarnings() != null) {
+                        try {
+                            SwingUtilities.invokeAndWait(new Runnable() {
+                                @Override
+                                public void run() {
+                                    Icon warningIcon = UIManager.getIcon("OptionPane.warningIcon");
+                                    Toolkit.getDefaultToolkit().beep();
+                                    
+                                }
+                            });
+                           throw new IOException();
+                        } catch (InterruptedException e) {
+                            throw new RuntimeException(e);
+                        } catch (InvocationTargetException e) {
+                            throw new RuntimeException(e);
+                        }
+                    }
+                } catch (IOException e) {
+                    throw new RuntimeException("I/O error while merging world", e);
+                }
+                return null;
+            }
+        });
+        progressComponent1.setListener(this);
+        progressComponent1.start();
+        }
+    
+    private void processLanduse() {
+        Configuration config = Configuration.getInstance();
+
+        setDefaultCloseOperation(JDialog.DO_NOTHING_ON_CLOSE);
+        
+        start = System.currentTimeMillis();
+        progressComponent1.setTask(new ProgressTask<Void>() {
+            @Override
+            public String getName() {
+                return "Please wait";
+            }
+
+            @Override
+            public Void execute(ProgressReceiver progressReceiver) throws OperationCancelled {
+                try {
+                    // DOES THE WORK
+                    OverlayProcessor theOP = new OverlayProcessor(view);
+                    theOP.SetLanduse(
+                        null,
+                        jList_OverlayResources_Landuse.getSelectedValue().toString(),
+                        progressReceiver);
                     // DID THE WORK
                     if (theOP.getWarnings() != null) {
                         try {
@@ -262,7 +315,6 @@ public class OverlayResourcesDialog extends javax.swing.JDialog implements Liste
     
     private void processOverlayRoads() {
         Configuration config = Configuration.getInstance();
-        
 
         setDefaultCloseOperation(JDialog.DO_NOTHING_ON_CLOSE);
         
@@ -312,6 +364,53 @@ public class OverlayResourcesDialog extends javax.swing.JDialog implements Liste
         progressComponent1.start();
         }
 
+    private void processOverlayRivers() {
+        Configuration config = Configuration.getInstance();
+
+        setDefaultCloseOperation(JDialog.DO_NOTHING_ON_CLOSE);
+        
+        start = System.currentTimeMillis();
+        progressComponent1.setTask(new ProgressTask<Void>() {
+            @Override
+            public String getName() {
+                return "Please wait";
+            }
+
+            @Override
+            public Void execute(ProgressReceiver progressReceiver) throws OperationCancelled {
+                try {
+                    // DOES THE WORK
+                    OverlayProcessor theOP = new OverlayProcessor(view);
+                    theOP.PourRivers(
+                        null,
+                        progressReceiver);
+                    // DID THE WORK
+                    if (theOP.getWarnings() != null) {
+                        try {
+                            SwingUtilities.invokeAndWait(new Runnable() {
+                                @Override
+                                public void run() {
+                                    Icon warningIcon = UIManager.getIcon("OptionPane.warningIcon");
+                                    Toolkit.getDefaultToolkit().beep();
+                                    
+                                }
+                            });
+                           throw new IOException();
+                        } catch (InterruptedException e) {
+                            throw new RuntimeException(e);
+                        } catch (InvocationTargetException e) {
+                            throw new RuntimeException(e);
+                        }
+                    }
+                } catch (IOException e) {
+                    throw new RuntimeException("I/O error while merging world", e);
+                }
+                return null;
+            }
+        });
+        progressComponent1.setListener(this);
+        progressComponent1.start();
+        }
 
     private void close() {
         dispose();
@@ -450,7 +549,7 @@ public class OverlayResourcesDialog extends javax.swing.JDialog implements Liste
                 .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
         );
 
-        jSpinner_OverlayResources_NewTerrainThickness.setModel(new javax.swing.SpinnerNumberModel(1, -3, 3, 1));
+        jSpinner_OverlayResources_NewTerrainThickness.setModel(new javax.swing.SpinnerNumberModel(1, -5, 5, 1));
 
         jTextPane1.setEditable(false);
         jTextPane1.setBackground(javax.swing.UIManager.getDefaults().getColor("Button.background"));
@@ -480,7 +579,7 @@ public class OverlayResourcesDialog extends javax.swing.JDialog implements Liste
         );
 
         jList_OverlayResources_Operations.setModel(new javax.swing.AbstractListModel() {
-            String[] strings = { "Roads", "Landuse", "Color Landuse", "Colorize", "Rivers" };
+            String[] strings = { "Raise or Lower", "Roads", "Landuse", "Rivers", "--not working--", "Color Landuse", "Colorize" };
             public int getSize() { return strings.length; }
             public Object getElementAt(int i) { return strings[i]; }
         });
