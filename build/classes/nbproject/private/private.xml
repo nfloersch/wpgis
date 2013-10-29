@@ -12,15 +12,11 @@
     </editor-bookmarks>
     <open-files xmlns="http://www.netbeans.org/ns/projectui-open-files/2">
         <group>
-            <file>file:/Volumes/Stomping%20Grounds/Users/ZoontF/Documents/02%20-%20Prsnl.%20Projects/Code/Minecraft/WPGIS/org/pepsoft/worldpainter/Dimension.java</file>
-            <file>file:/Volumes/Stomping%20Grounds/Users/ZoontF/Documents/02%20-%20Prsnl.%20Projects/Code/Minecraft/WPGIS/org/pepsoft/worldpainter/OverlayResourcesDialog.java</file>
-            <file>file:/Volumes/Stomping%20Grounds/Users/ZoontF/Documents/02%20-%20Prsnl.%20Projects/Code/Minecraft/WPGIS/org/pepsoft/worldpainter/WorldPainter.java</file>
-            <file>file:/Volumes/Stomping%20Grounds/Users/ZoontF/Documents/02%20-%20Prsnl.%20Projects/Code/Minecraft/WPGIS/org/pepsoft/worldpainter/layers/Frost.java</file>
-            <file>file:/Volumes/Stomping%20Grounds/Users/ZoontF/Documents/02%20-%20Prsnl.%20Projects/Code/Minecraft/WPGIS/org/pepsoft/worldpainter/MixedMaterialSelector.java</file>
-            <file>file:/Volumes/Stomping%20Grounds/Users/ZoontF/Documents/02%20-%20Prsnl.%20Projects/Code/Minecraft/WPGIS/org/pepsoft/worldpainter/Tile.java</file>
-            <file>file:/Volumes/Stomping%20Grounds/Users/ZoontF/Documents/02%20-%20Prsnl.%20Projects/Code/Minecraft/WPGIS/org/pepsoft/worldpainter/BiomeScheme.java</file>
-            <file>file:/Volumes/Stomping%20Grounds/Users/ZoontF/Documents/02%20-%20Prsnl.%20Projects/Code/Minecraft/WPGIS/org/pepsoft/worldpainter/biomeschemes/AbstractMinecraft1_2BiomeScheme.java</file>
-            <file>file:/Volumes/Stomping%20Grounds/Users/ZoontF/Documents/02%20-%20Prsnl.%20Projects/Code/Minecraft/WPGIS/org/pepsoft/worldpainter/layers/DeciduousForest.java</file>
+            <file>file:/C:/Users/zoontf/Documents/NetBeansProjects/wpgis/org/pepsoft/worldpainter/OverlayResourcesDialog.java</file>
+            <file>file:/C:/Users/zoontf/Documents/NetBeansProjects/wpgis/org/pepsoft/worldpainter/OverlayProcessor.java</file>
+            <file>file:/C:/Users/zoontf/Documents/NetBeansProjects/wpgis/org/pepsoft/worldpainter/Tile.java</file>
+            <file>file:/C:/Users/zoontf/Documents/NetBeansProjects/wpgis/org/pepsoft/util/swing/ProgressComponent.java</file>
+            <file>file:/C:/Users/zoontf/Documents/NetBeansProjects/wpgis/org/pepsoft/worldpainter/Dimension.java</file>
         </group>
     </open-files>
 </project-private>
