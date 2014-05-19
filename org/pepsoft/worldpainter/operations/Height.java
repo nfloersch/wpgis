@@ -17,7 +17,7 @@ import org.pepsoft.worldpainter.panels.FilterImpl;
  */
 public class Height extends RadiusOperation {
     public Height(WorldPainter view, RadiusControl radiusControl, MapDragControl mapDragControl) {
-        super("Height", "Raise or lower the terrain", view, radiusControl, mapDragControl, 100, true, "operation.height");
+        super("Height", "Raise or lower the terrain", view, radiusControl, mapDragControl, 100, "operation.height");
     }
 
 //    @Override
@@ -31,7 +31,7 @@ public class Height extends RadiusOperation {
 //    }
 
     @Override
-    protected void tick(int centerX, int centerY, boolean undo, boolean first, float dynamicLevel) {
+    protected void tick(int centreX, int centreY, boolean inverse, boolean first, float dynamicLevel) {
         float adjustment = (float) Math.pow(dynamicLevel * getLevel() * 2, 2.0);
         Dimension dimension = getDimension();
         final int minHeight, maxHeight;
@@ -55,18 +55,18 @@ public class Height extends RadiusOperation {
         try {
             int radius = getEffectiveRadius();
             float maxZ = dimension.getMaxHeight() - 1;
-            for (int x = centerX - radius; x <= centerX + radius; x++) {
-                for (int y = centerY - radius; y <= centerY + radius; y++) {
+            for (int x = centreX - radius; x <= centreX + radius; x++) {
+                for (int y = centreY - radius; y <= centreY + radius; y++) {
                     float currentHeight = dimension.getHeightAt(x, y);
-                    float targetHeight = undo ? Math.max(currentHeight - adjustment, minHeight) : Math.min(currentHeight + adjustment, maxHeight);
+                    float targetHeight = inverse ? Math.max(currentHeight - adjustment, minHeight) : Math.min(currentHeight + adjustment, maxHeight);
                     if (targetHeight < 0.0f) {
                         targetHeight = 0.0f;
                     } else if (targetHeight > maxZ) {
                         targetHeight = maxZ;
                     }
-                    float strength = getFullStrength(centerX, centerY, x, y);
+                    float strength = getFullStrength(centreX, centreY, x, y);
                     float newHeight = strength * targetHeight + (1 - strength) * currentHeight;
-                    if (undo ? (newHeight < currentHeight) : (newHeight > currentHeight)) {
+                    if (inverse ? (newHeight < currentHeight) : (newHeight > currentHeight)) {
                         dimension.setHeightAt(x, y, newHeight);
                     }
                 }

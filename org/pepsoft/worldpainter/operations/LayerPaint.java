@@ -12,11 +12,10 @@ import org.pepsoft.worldpainter.WorldPainterView;
 import org.pepsoft.worldpainter.layers.Bo2Layer;
 import org.pepsoft.worldpainter.layers.CombinedLayer;
 import org.pepsoft.worldpainter.layers.CustomLayer;
-import org.pepsoft.worldpainter.layers.Frost;
 import org.pepsoft.worldpainter.layers.Layer;
-import org.pepsoft.worldpainter.layers.TreeLayer;
 import org.pepsoft.worldpainter.layers.groundcover.GroundCoverLayer;
 import org.pepsoft.worldpainter.layers.pockets.UndergroundPocketsLayer;
+import org.pepsoft.worldpainter.layers.tunnel.TunnelLayer;
 
 /**
  *
@@ -24,7 +23,7 @@ import org.pepsoft.worldpainter.layers.pockets.UndergroundPocketsLayer;
  */
 public class LayerPaint extends RadiusOperation {
     public LayerPaint(WorldPainterView view, RadiusControl radiusControl, MapDragControl mapDragControl, Layer layer) {
-        super(layer.getName(), layer.getDescription(), view, radiusControl, mapDragControl, 100, (layer instanceof TreeLayer) || (layer instanceof Frost), createStatisticsKey(layer));
+        super(layer.getName(), layer.getDescription(), view, radiusControl, mapDragControl, 100, createStatisticsKey(layer));
         this.layer = layer;
     }
 
@@ -33,27 +32,27 @@ public class LayerPaint extends RadiusOperation {
     }
 
     @Override
-    protected void tick(int centerX, int centerY, boolean undo, boolean first, float dynamicLevel) {
+    protected void tick(int centreX, int centreY, boolean inverse, boolean first, float dynamicLevel) {
         Dimension dimension = getDimension();
         dimension.setEventsInhibited(true);
         try {
             int radius = getEffectiveRadius();
-            for (int x = centerX - radius; x <= centerX + radius; x++) {
-                for (int y = centerY - radius; y <= centerY + radius; y++) {
+            for (int x = centreX - radius; x <= centreX + radius; x++) {
+                for (int y = centreY - radius; y <= centreY + radius; y++) {
                     switch (layer.getDataSize()) {
                         case BIT:
                         case BIT_PER_CHUNK:
-                            float strength = dynamicLevel * (undo ? getFullStrength(centerX, centerY, x, y) : getStrength(centerX, centerY, x, y));
+                            float strength = dynamicLevel * (inverse ? getFullStrength(centreX, centreY, x, y) : getStrength(centreX, centreY, x, y));
                             if ((strength > 0.95f) || (Math.random() < strength)) {
-                                dimension.setBitLayerValueAt(layer, x, y, ! undo);
+                                dimension.setBitLayerValueAt(layer, x, y, ! inverse);
                             }
                             break;
                         case NIBBLE:
                             int currentValue = dimension.getLayerValueAt(layer, x, y);
-                            strength = dynamicLevel * (undo ? getFullStrength(centerX, centerY, x, y) : getStrength(centerX, centerY, x, y));
+                            strength = dynamicLevel * (inverse ? getFullStrength(centreX, centreY, x, y) : getStrength(centreX, centreY, x, y));
                             if (strength != 0f) {
-                                int targetValue = undo ? (15 - (int) (strength * 14 + 1)) : (int) (strength * 14 + 1);
-                                if (undo ? (targetValue < currentValue) : (targetValue > currentValue)) {
+                                int targetValue = inverse ? (15 - (int) (strength * 14 + 1)) : (int) (strength * 14 + 1);
+                                if (inverse ? (targetValue < currentValue) : (targetValue > currentValue)) {
                                     dimension.setLayerValueAt(layer, x, y, targetValue);
                                 }
                             }
@@ -79,6 +78,8 @@ public class LayerPaint extends RadiusOperation {
             sb.append("custom.undergroundPockets.");
         } else if (layer instanceof CombinedLayer) {
             sb.append("custom.combined.");
+        } else if (layer instanceof TunnelLayer) {
+            sb.append("custom.cavesAndTunnels.");
         } else if (layer instanceof CustomLayer) {
             sb.append("custom.unknown.");
         }

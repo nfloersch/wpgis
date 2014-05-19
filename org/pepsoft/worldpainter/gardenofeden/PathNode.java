@@ -4,14 +4,14 @@
  */
 package org.pepsoft.worldpainter.gardenofeden;
 
-import java.awt.Point;
+import javax.vecmath.Point3i;
 
 /**
  *
  * @author pepijn
  */
 public abstract class PathNode extends Seed {
-    public PathNode(Garden garden, long seed, PathNode parent, Point location, int germinationTime, int category) {
+    public PathNode(Garden garden, long seed, PathNode parent, Point3i location, int germinationTime, int category) {
         super(garden, seed, parent, location, germinationTime, category);
     }
 }

@@ -19,19 +19,17 @@ import org.pepsoft.worldpainter.WorldPainterView;
  *
  * @author pepijn
  */
-public abstract class RadiusOperation extends MouseOrTabletOperation implements AutoBiomeOperation {
-    public RadiusOperation(String name, String description, WorldPainterView view, RadiusControl radiusControl, MapDragControl mapDragControl, boolean autoBiomesSupported, String statisticsKey) {
+public abstract class RadiusOperation extends MouseOrTabletOperation {
+    public RadiusOperation(String name, String description, WorldPainterView view, RadiusControl radiusControl, MapDragControl mapDragControl, String statisticsKey) {
         super(name, description, view, statisticsKey);
         this.radiusControl = radiusControl;
         this.mapDragControl = mapDragControl;
-        this.autoBiomesSupported = autoBiomesSupported;
     }
 
-    public RadiusOperation(String name, String description, WorldPainterView view, RadiusControl radiusControl, MapDragControl mapDragControl, int delay, boolean autoBiomesSupported, String statisticsKey) {
+    public RadiusOperation(String name, String description, WorldPainterView view, RadiusControl radiusControl, MapDragControl mapDragControl, int delay, String statisticsKey) {
         super(name, description, view, delay, statisticsKey);
         this.radiusControl = radiusControl;
         this.mapDragControl = mapDragControl;
-        this.autoBiomesSupported = autoBiomesSupported;
     }
 
     public final Brush getBrush() {
@@ -130,19 +128,6 @@ public abstract class RadiusOperation extends MouseOrTabletOperation implements 
         }
     }
 
-    @Override
-    public final boolean isAutoBiomesEnabled() {
-        return autoBiomesEnabled;
-    }
-
-    @Override
-    public final void setAutoBiomesEnabled(boolean autoBiomesEnabled) {
-        this.autoBiomesEnabled = autoBiomesEnabled;
-        if (isActive() && (getDimension() != null)) {
-            getDimension().setAutoUpdateBiomes(autoBiomesEnabled);
-        }
-    }
-
     public Filter getFilter() {
         return filter;
     }
@@ -155,16 +140,10 @@ public abstract class RadiusOperation extends MouseOrTabletOperation implements 
     @Override
     protected void activate() {
         super.activate();
-        if (getDimension() != null) {
-            getDimension().setAutoUpdateBiomes(autoBiomesSupported && autoBiomesEnabled);
-        }
     }
 
     @Override
     protected void deactivate() {
-        if (getDimension() != null) {
-            getDimension().setAutoUpdateBiomes(false);
-        }
         mapDragControl.setMapDraggingInhibited(false);
         super.deactivate();
     }
@@ -175,9 +154,8 @@ public abstract class RadiusOperation extends MouseOrTabletOperation implements 
 
     private final RadiusControl radiusControl;
     private final MapDragControl mapDragControl;
-    private final boolean autoBiomesSupported;
     private int radius;
     private Brush brush = null;
-    private boolean autoBiomesEnabled, filterEnabled;
+    private boolean filterEnabled;
     private Filter filter = null;
 }

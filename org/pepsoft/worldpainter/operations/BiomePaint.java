@@ -11,15 +11,21 @@ import java.awt.Window;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.image.BufferedImage;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.EnumSet;
 import java.util.Random;
+import java.util.Set;
+import javax.swing.BoxLayout;
 import javax.swing.ButtonGroup;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
+import javax.swing.JCheckBox;
+import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JToggleButton;
 import javax.swing.SwingUtilities;
 import org.pepsoft.util.IconUtils;
-import org.pepsoft.worldpainter.BiomeScheme;
 import org.pepsoft.worldpainter.ColourScheme;
 import org.pepsoft.worldpainter.Dimension;
 import org.pepsoft.worldpainter.MapDragControl;
@@ -27,9 +33,9 @@ import org.pepsoft.worldpainter.RadiusControl;
 import org.pepsoft.worldpainter.WorldPainterView;
 import org.pepsoft.worldpainter.biomeschemes.AutoBiomeScheme;
 import org.pepsoft.worldpainter.biomeschemes.BiomeSchemeManager;
-import org.pepsoft.worldpainter.biomeschemes.CachingBiomeScheme;
 import org.pepsoft.worldpainter.layers.Biome;
 import static org.pepsoft.worldpainter.biomeschemes.AutoBiomeScheme.*;
+import org.pepsoft.worldpainter.biomeschemes.BiomeHelper;
 import org.pepsoft.worldpainter.biomeschemes.CustomBiome;
 import org.pepsoft.worldpainter.biomeschemes.CustomBiomeManager;
 import org.pepsoft.worldpainter.biomeschemes.CustomBiomeManager.CustomBiomeListener;
@@ -38,46 +44,13 @@ import org.pepsoft.worldpainter.biomeschemes.CustomBiomeManager.CustomBiomeListe
  *
  * @author pepijn
  */
-public class BiomePaint extends LayerPaint implements BiomeOperation, CustomBiomeListener {
+public class BiomePaint extends LayerPaint implements CustomBiomeListener {
     public BiomePaint(WorldPainterView view, RadiusControl radiusControl, MapDragControl mapDragControl, ColourScheme colourScheme, CustomBiomeManager customBiomeManager) {
         super(view, radiusControl, mapDragControl, Biome.INSTANCE);
+        biomeHelper = new BiomeHelper(BIOME_SCHEME, colourScheme, customBiomeManager);
         optionsPanel = createOptionsPanel(colourScheme);
         this.customBiomeManager = customBiomeManager;
         customBiomeManager.addListener(this);
-    }
-
-    @Override
-    public void setBiomeScheme(BiomeScheme biomeScheme) {
-        // If biomeScheme is null, assume that custom biomes must be enabled
-        // (otherwise the Biomes layer button would not be active at all), in
-        // which case use the biomes from the automatic biome scheme
-        if (biomeScheme != null) {
-            // The seed should always already be set correctly, but in practice
-            // this does not always happen. TODO: find out why
-            if (getDimension() != null) {
-                biomeScheme.setSeed(getDimension().getMinecraftSeed());
-            }
-            this.biomeScheme = new CachingBiomeScheme(biomeScheme);
-            inverseEnabled = true;
-        } else {
-            this.biomeScheme = new CachingBiomeScheme(new AutoBiomeScheme(null));
-            inverseEnabled = false;
-        }
-        for (Component component: optionsPanel.getComponents()) {
-            if (component instanceof JToggleButton) {
-                JToggleButton button = (JToggleButton) component;
-                int biome = (Integer) button.getClientProperty(KEY_BIOME);
-                if ((biome >= this.biomeScheme.getBiomeCount()) && (biome <= BIOME_JUNGLE_HILLS)) {
-                    button.setEnabled(false);
-                    if (button.isSelected()) {
-                        button.setSelected(false);
-                        selectedBiome = BIOME_PLAINS;
-                    }
-                } else {
-                    button.setEnabled(true);
-                }
-            }
-        }
     }
     
     public Component getOptionsPanel() {
@@ -93,7 +66,7 @@ public class BiomePaint extends LayerPaint implements BiomeOperation, CustomBiom
 
     @Override
     public void customBiomeChanged(CustomBiome customBiome) {
-        for (Component component: optionsPanel.getComponents()) {
+        for (Component component: grid.getComponents()) {
             if ((component instanceof JToggleButton) && (((Integer) ((JToggleButton) component).getClientProperty(KEY_BIOME)) == customBiome.getId())) {
                 JToggleButton button = (JToggleButton) component;
                 button.setIcon(new ImageIcon(createIcon(customBiome.getColour())));
@@ -105,14 +78,14 @@ public class BiomePaint extends LayerPaint implements BiomeOperation, CustomBiom
 
     @Override
     public void customBiomeRemoved(CustomBiome customBiome) {
-        for (Component component: optionsPanel.getComponents()) {
+        for (Component component: grid.getComponents()) {
             if ((component instanceof JToggleButton) && (((Integer) ((JToggleButton) component).getClientProperty(KEY_BIOME)) == customBiome.getId())) {
                 JToggleButton button = (JToggleButton) component;
                 if (button.isSelected()) {
                     button.setSelected(false);
                     selectedBiome = BIOME_PLAINS;
                 }
-                optionsPanel.remove(component);
+                grid.remove(component);
                 forceRepaint();
                 return;
             }
@@ -120,19 +93,17 @@ public class BiomePaint extends LayerPaint implements BiomeOperation, CustomBiom
     }
 
     @Override
-    protected void tick(int centerX, int centerY, boolean inverse, boolean first, float level) {
+    protected void tick(int centreX, int centreY, boolean inverse, boolean first, float dynamicLevel) {
         Dimension dimension = getDimension();
         dimension.setEventsInhibited(true);
         try {
             int radius = getEffectiveRadius();
-            for (int x = centerX - radius; x <= centerX + radius; x++) {
-                for (int y = centerY - radius; y <= centerY + radius; y++) {
-                    float strength = level * getStrength(centerX, centerY, x, y);
+            for (int x = centreX - radius; x <= centreX + radius; x++) {
+                for (int y = centreY - radius; y <= centreY + radius; y++) {
+                    float strength = dynamicLevel * getStrength(centreX, centreY, x, y);
                     if ((strength > 0.95f) || (random.nextFloat() < strength)) {
                         if (inverse) {
-                            if (inverseEnabled) {
-                                dimension.setLayerValueAt(Biome.INSTANCE, x, y, biomeScheme.getBiome(x, y));
-                            }
+                            dimension.setLayerValueAt(Biome.INSTANCE, x, y, 255);
                         } else {
                             dimension.setLayerValueAt(Biome.INSTANCE, x, y, selectedBiome);
                         }
@@ -145,27 +116,38 @@ public class BiomePaint extends LayerPaint implements BiomeOperation, CustomBiom
     }
 
     private JPanel createOptionsPanel(ColourScheme colourScheme) {
-        JPanel panel = new JPanel(new GridLayout(0, 4));
-        BiomeScheme autoBiomeScheme = new AutoBiomeScheme(null);
+        JPanel panel = new JPanel();
+        panel.setLayout(new BoxLayout(panel, BoxLayout.PAGE_AXIS));
+
+        label1.setHorizontalTextPosition(JLabel.LEADING);
+        label1.setAlignmentX(0.0f);
+        panel.add(label1);
+        label2.setAlignmentX(0.0f);
+        panel.add(label2);
+
         for (int i = 0; i < BIOME_ORDER.length; i++) {
             final int biome = BIOME_ORDER[i];
-            final JToggleButton button = new JToggleButton(new ImageIcon(BiomeSchemeManager.createImage(autoBiomeScheme, biome, colourScheme)));
-            button.putClientProperty(KEY_BIOME, biome);
-            button.setMargin(new Insets(2, 2, 2, 2));
-            button.setToolTipText(AutoBiomeScheme.BIOME_NAMES[biome]);
-            if (i == 0) {
-                button.setSelected(true);
-            }
-            buttonGroup.add(button);
-            button.addActionListener(new ActionListener() {
-                @Override
-                public void actionPerformed(ActionEvent e) {
-                    if (button.isSelected()) {
-                        selectedBiome = biome;
-                    }
+            if (biome != -1) {
+                final JToggleButton button = new JToggleButton(new ImageIcon(BiomeSchemeManager.createImage(BIOME_SCHEME, biome, colourScheme)));
+                button.putClientProperty(KEY_BIOME, biome);
+                button.setMargin(new Insets(2, 2, 2, 2));
+                button.setToolTipText(AutoBiomeScheme.BIOME_NAMES[biome]);
+                if (biome == selectedBaseBiome) {
+                    button.setSelected(true);
                 }
-            });
-            panel.add(button);
+                buttonGroup.add(button);
+                button.addActionListener(new ActionListener() {
+                    @Override
+                    public void actionPerformed(ActionEvent e) {
+                        if (button.isSelected()) {
+                            selectBaseBiome(biome);
+                        }
+                    }
+                });
+                grid.add(button);
+            } else {
+                grid.add(new JLabel());
+            }
         }
         
         JButton addCustomBiomeButton = new JButton(IconUtils.loadIcon("org/pepsoft/worldpainter/icons/plus.png"));
@@ -177,8 +159,110 @@ public class BiomePaint extends LayerPaint implements BiomeOperation, CustomBiom
                 customBiomeManager.addCustomBiome();
             }
         });
-        panel.add(addCustomBiomeButton);
+        grid.add(addCustomBiomeButton);
+        grid.setAlignmentX(0.0f);
+        panel.add(grid);
+        
+        checkBoxHillsShore.setEnabled(false);
+        checkBoxEdgePlateau.setEnabled(false);
+        checkBoxM.setEnabled(false);
+        checkBoxF.setEnabled(false);
+        checkBoxVariant.setEnabled(false);
+        
+        ActionListener optionActionListener = new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                updateOptions();
+            }
+        };
+        checkBoxHillsShore.addActionListener(optionActionListener);
+        checkBoxEdgePlateau.addActionListener(optionActionListener);
+        checkBoxM.addActionListener(optionActionListener);
+        checkBoxF.addActionListener(optionActionListener);
+        checkBoxVariant.addActionListener(optionActionListener);
+        
+        panel.add(checkBoxHillsShore);
+        checkBoxEdgePlateau.setAlignmentX(0.0f);
+        panel.add(checkBoxEdgePlateau);
+        JPanel lowerRowPanel = new JPanel();
+        lowerRowPanel.setLayout(new BoxLayout(lowerRowPanel, BoxLayout.LINE_AXIS));
+        lowerRowPanel.add(checkBoxM);
+        lowerRowPanel.add(checkBoxF);
+        lowerRowPanel.add(checkBoxVariant);
+        lowerRowPanel.setAlignmentX(0.0f);
+        panel.add(lowerRowPanel);
+        
+        updateOptions();
+        
         return panel;
+    }
+    
+    private void selectBaseBiome(int biome) {
+        selectedBaseBiome = biome;
+        selectedBiome = biome;
+        resetOptions();
+        updateLabels();
+    }
+    
+    private void resetOptions() {
+        checkBoxHillsShore.setSelected(false);
+        checkBoxEdgePlateau.setSelected(false);
+        checkBoxM.setSelected(false);
+        checkBoxF.setSelected(false);
+        checkBoxVariant.setSelected(false);
+        Set<BiomeOption> availableOptions = findAvailableOptions(selectedBaseBiome, null);
+        checkBoxHillsShore.setEnabled(availableOptions.contains(BiomeOption.HILLS_SHORE));
+        checkBoxEdgePlateau.setEnabled(availableOptions.contains(BiomeOption.EDGE_PLATEAU));
+        checkBoxM.setEnabled(availableOptions.contains(BiomeOption.M));
+        checkBoxF.setEnabled(availableOptions.contains(BiomeOption.F));
+        checkBoxVariant.setEnabled(availableOptions.contains(BiomeOption.VARIANT));
+    }
+    
+    private void updateOptions() {
+        Set<BiomeOption> selectedOptions = getSelectedOptions();
+        selectedBiome = findBiome(selectedBaseBiome, selectedOptions);
+        Set<BiomeOption> availableOptions = findAvailableOptions(selectedBaseBiome, selectedOptions);
+        checkBoxHillsShore.setEnabled(availableOptions.contains(BiomeOption.HILLS_SHORE));
+        checkBoxEdgePlateau.setEnabled(availableOptions.contains(BiomeOption.EDGE_PLATEAU));
+        checkBoxM.setEnabled(availableOptions.contains(BiomeOption.M));
+        checkBoxF.setEnabled(availableOptions.contains(BiomeOption.F));
+        checkBoxVariant.setEnabled(availableOptions.contains(BiomeOption.VARIANT));
+        updateLabels();
+    }
+    
+    private Set<BiomeOption> getSelectedOptions() {
+        Set<BiomeOption> selectedOptions = EnumSet.noneOf(BiomeOption.class);
+        if (checkBoxHillsShore.isSelected()) {
+            selectedOptions.add(BiomeOption.HILLS_SHORE);
+        }
+        if (checkBoxEdgePlateau.isSelected()) {
+            selectedOptions.add(BiomeOption.EDGE_PLATEAU);
+        }
+        if (checkBoxM.isSelected()) {
+            selectedOptions.add(BiomeOption.M);
+        }
+        if (checkBoxF.isSelected()) {
+            selectedOptions.add(BiomeOption.F);
+        }
+        if (checkBoxVariant.isSelected()) {
+            selectedOptions.add(BiomeOption.VARIANT);
+        }
+        return selectedOptions;
+    }
+    
+    private int findBiome(int baseId, Set<BiomeOption> options) {
+        for (BiomeDescriptor descriptor: DESCRIPTORS) {
+            if ((descriptor.getBaseId() == baseId) && descriptor.getOptions().equals(options)) {
+                return descriptor.getId();
+            }
+        }
+        throw new IllegalArgumentException("There is no biome with base ID " + baseId + " and options " + options);
+    }
+    
+    private void updateLabels() {
+        label1.setText("Selected biome: " + selectedBiome);
+        label1.setIcon(biomeHelper.getBiomeIcon(selectedBiome));
+        label2.setText(biomeHelper.getBiomeName(selectedBiome));
     }
     
     private void addButton(CustomBiome customBiome) {
@@ -192,11 +276,11 @@ public class BiomePaint extends LayerPaint implements BiomeOperation, CustomBiom
             @Override
             public void actionPerformed(ActionEvent e) {
                 if (button.isSelected()) {
-                    selectedBiome = biome;
+                    selectBaseBiome(biome);
                 }
             }
         });
-        optionsPanel.add(button, optionsPanel.getComponentCount() - 1);
+        grid.add(button, grid.getComponentCount() - 1);
         forceRepaint();
     }
     
@@ -221,22 +305,148 @@ public class BiomePaint extends LayerPaint implements BiomeOperation, CustomBiom
         }
         return iconImage;
     }
-
-    private final JPanel optionsPanel;
-    private final Random random = new Random();
-    private final ButtonGroup buttonGroup = new ButtonGroup();
-    private final CustomBiomeManager customBiomeManager;
-    private CachingBiomeScheme biomeScheme;
-    private int selectedBiome = BIOME_PLAINS;
-    private boolean inverseEnabled;
     
+    private static Set<BiomeOption> findAvailableOptions(int baseId, Set<BiomeOption> options) {
+        if (BIOME_SCHEME.isBiomePresent(baseId)) {
+            Set<BiomeOption> availableOptions = (options != null) ? EnumSet.copyOf(options) : EnumSet.noneOf(BiomeOption.class);
+            for (BiomeDescriptor descriptor: DESCRIPTORS) {
+                if ((descriptor.getBaseId() == baseId) && ((options == null) || descriptor.getOptions().containsAll(options))) {
+                    availableOptions.addAll(descriptor.getOptions());
+                }
+            }
+            
+            // Special cases
+            if ((baseId == BIOME_MESA) && ((options == null) || options.isEmpty())) {
+                // There is no Mesa M, Mesa F or Mesa M F, so if only Mesa is
+                // selected, M and F should not yet be available
+                availableOptions.remove(BiomeOption.M);
+                availableOptions.remove(BiomeOption.F);
+            }
+            
+            return availableOptions;
+        } else {
+            return Collections.EMPTY_SET;
+        }
+    }
+
+    private final JPanel optionsPanel, grid = new JPanel(new GridLayout(0, 4));
+    private final ButtonGroup buttonGroup = new ButtonGroup();
+    private final JCheckBox checkBoxHillsShore = new JCheckBox("hills/shore");
+    private final JCheckBox checkBoxEdgePlateau = new JCheckBox("edge/plateau");
+    private final JCheckBox checkBoxM = new JCheckBox("M");
+    private final JCheckBox checkBoxF = new JCheckBox("F");
+    private final JCheckBox checkBoxVariant = new JCheckBox("variant");
+    private final JLabel label1 = new JLabel("Selected biome: 1"), label2 = new JLabel("Plains");
+
+    private final Random random = new Random();
+    private final CustomBiomeManager customBiomeManager;
+    private final BiomeHelper biomeHelper;
+    private int selectedBiome = BIOME_PLAINS, selectedBaseBiome = BIOME_PLAINS;
+    
+    private static final AutoBiomeScheme BIOME_SCHEME = new AutoBiomeScheme(null);
     private static final int[] BIOME_ORDER = {
-        BIOME_PLAINS, BIOME_SWAMPLAND, BIOME_EXTREME_HILLS, BIOME_EXTREME_HILLS_EDGE,
-        BIOME_JUNGLE, BIOME_JUNGLE_HILLS, BIOME_FOREST, BIOME_FOREST_HILLS,
-        BIOME_DESERT, BIOME_DESERT_HILLS, BIOME_TAIGA, BIOME_TAIGA_HILLS,
-        BIOME_OCEAN, BIOME_RIVER, BIOME_FROZEN_OCEAN, BIOME_FROZEN_RIVER,
-        BIOME_MUSHROOM_ISLAND, BIOME_MUSHROOM_ISLAND_SHORE, BIOME_ICE_PLAINS, BIOME_ICE_MOUNTAINS,
-        BIOME_BEACH, BIOME_HELL, BIOME_SKY
+        BIOME_PLAINS, BIOME_FOREST, BIOME_SWAMPLAND, BIOME_JUNGLE,
+        BIOME_BIRCH_FOREST, BIOME_ROOFED_FOREST, BIOME_EXTREME_HILLS, BIOME_MUSHROOM_ISLAND,
+        BIOME_TAIGA, BIOME_MEGA_TAIGA, BIOME_MEGA_SPRUCE_TAIGA, -1,
+        BIOME_DESERT, BIOME_SAVANNA, BIOME_MESA, -1,
+        BIOME_OCEAN, BIOME_RIVER, BIOME_BEACH, BIOME_STONE_BEACH,
+        BIOME_FROZEN_OCEAN, BIOME_FROZEN_RIVER, BIOME_COLD_BEACH, BIOME_ICE_PLAINS,
+        BIOME_ICE_MOUNTAINS, BIOME_COLD_TAIGA, BIOME_HELL, BIOME_SKY
     };
     private static final String KEY_BIOME = BiomePaint.class.getName() + ".biome";
+    
+    private static final BiomeDescriptor[] DESCRIPTORS = {
+        new BiomeDescriptor("Ocean", 0, 0),
+        new BiomeDescriptor("Plains", 1, 1),
+        new BiomeDescriptor("Desert", 2, 2),
+        new BiomeDescriptor("Extreme Hills", 3, 3),
+        new BiomeDescriptor("Forest", 4, 4),
+        new BiomeDescriptor("Taiga", 5, 5),
+        new BiomeDescriptor("Swampland", 6, 6),
+        new BiomeDescriptor("River", 7, 7),
+        new BiomeDescriptor("Nether", 8, 8),
+        new BiomeDescriptor("End", 9, 9),
+        new BiomeDescriptor("Frozen Ocean", 10, 10),
+        new BiomeDescriptor("Frozen River", 11, 11),
+        new BiomeDescriptor("Ice Plains", 12, 12),
+        new BiomeDescriptor("Ice Mountains", 13, 13),
+        new BiomeDescriptor("Mushroom Island", 14, 14),
+        new BiomeDescriptor("Mushroom Island Shore", 15, 14, BiomeOption.HILLS_SHORE),
+        new BiomeDescriptor("Beach", 16, 16),
+        new BiomeDescriptor("Desert Hills", 17, 2, BiomeOption.HILLS_SHORE),
+        new BiomeDescriptor("Forest Hills", 18, 4, BiomeOption.HILLS_SHORE),
+        new BiomeDescriptor("Taiga Hills", 19, 5, BiomeOption.HILLS_SHORE),
+        new BiomeDescriptor("Extreme Hills Edge", 20, 3, BiomeOption.EDGE_PLATEAU),
+        new BiomeDescriptor("Jungle", 21, 21),
+        new BiomeDescriptor("Jungle Hills", 22, 21, BiomeOption.HILLS_SHORE),
+        new BiomeDescriptor("Jungle Edge", 23, 21, BiomeOption.EDGE_PLATEAU),
+        new BiomeDescriptor("Deep Ocean", 24, 0, BiomeOption.VARIANT),
+        new BiomeDescriptor("Stone Beach", 25, 25),
+        new BiomeDescriptor("Cold Beach", 26, 26),
+        new BiomeDescriptor("Birch Forest", 27, 27),
+        new BiomeDescriptor("Birch Forest Hills", 28, 27, BiomeOption.HILLS_SHORE),
+        new BiomeDescriptor("Roofed Forest", 29, 29),
+        new BiomeDescriptor("Cold Taiga", 30, 30),
+        new BiomeDescriptor("Cold Taiga Hills", 31, 30, BiomeOption.HILLS_SHORE),
+        new BiomeDescriptor("Mega Taiga", 32, 32),
+        new BiomeDescriptor("Mega Taiga Hills", 33, 32, BiomeOption.HILLS_SHORE),
+        new BiomeDescriptor("Extreme Hills+", 34, 3, BiomeOption.VARIANT),
+        new BiomeDescriptor("Savanna", 35, 35),
+        new BiomeDescriptor("Savanna Plateau", 36, 35, BiomeOption.EDGE_PLATEAU),
+        new BiomeDescriptor("Mesa", 37, 37),
+        new BiomeDescriptor("Mesa Plateau F", 38, 37, BiomeOption.EDGE_PLATEAU, BiomeOption.F),
+        new BiomeDescriptor("Mesa Plateau", 39, 37, BiomeOption.EDGE_PLATEAU),
+        new BiomeDescriptor("Sunflower Plains", 129, 1, BiomeOption.VARIANT),
+        new BiomeDescriptor("Desert M", 130, 2, BiomeOption.M),
+        new BiomeDescriptor("Extreme Hills M", 131, 3, BiomeOption.M),
+        new BiomeDescriptor("Flower Forest", 132, 4, BiomeOption.VARIANT),
+        new BiomeDescriptor("Taiga M", 133, 5, BiomeOption.M),
+        new BiomeDescriptor("Swampland M", 134, 6, BiomeOption.M),
+        new BiomeDescriptor("Ice Plains Spikes", 140, 12, BiomeOption.VARIANT),
+        new BiomeDescriptor("Jungle M", 149, 21, BiomeOption.M),
+        new BiomeDescriptor("Jungle Edge M", 151, 21, BiomeOption.EDGE_PLATEAU, BiomeOption.M),
+        new BiomeDescriptor("Birch Forest M", 155, 27, BiomeOption.M),
+        new BiomeDescriptor("Birch Forest Hills M", 156, 27, BiomeOption.HILLS_SHORE, BiomeOption.M),
+        new BiomeDescriptor("Roofed Forest", 157, 157),
+        new BiomeDescriptor("Cold Taiga M", 158, 30, BiomeOption.M),
+        new BiomeDescriptor("Mega Spruce Taiga", 160, 160),
+        new BiomeDescriptor("Mega Spruce Taiga Hills", 161, 160, BiomeOption.HILLS_SHORE),
+        new BiomeDescriptor("Extreme Hills+ M", 162, 3, BiomeOption.VARIANT, BiomeOption.M),
+        new BiomeDescriptor("Savanna M", 163, 35, BiomeOption.M),
+        new BiomeDescriptor("Savanna Plateau M", 164, 35, BiomeOption.EDGE_PLATEAU, BiomeOption.M),
+        new BiomeDescriptor("Mesa (Bryce)", 165, 37, BiomeOption.VARIANT),
+        new BiomeDescriptor("Mesa Plateau F M", 166, 37, BiomeOption.EDGE_PLATEAU, BiomeOption.F, BiomeOption.M),
+        new BiomeDescriptor("Mesa Plateau M", 167, 37, BiomeOption.EDGE_PLATEAU, BiomeOption.M),
+    };
+    
+    public enum BiomeOption {HILLS_SHORE, EDGE_PLATEAU, M, F, VARIANT}
+    
+    public static class BiomeDescriptor {
+        public BiomeDescriptor(String name, int id, int baseId, BiomeOption... options) {
+            this.name = name;
+            this.id = id;
+            this.baseId = baseId;
+            this.options = ((options != null) && (options.length > 0)) ? EnumSet.copyOf(Arrays.asList(options)) : Collections.EMPTY_SET;
+        }
+
+        public String getName() {
+            return name;
+        }
+
+        public int getId() {
+            return id;
+        }
+
+        public int getBaseId() {
+            return baseId;
+        }
+
+        public Set<BiomeOption> getOptions() {
+            return options;
+        }
+        
+        private final String name;
+        private final int id, baseId;
+        private final Set<BiomeOption> options;
+    }
 }

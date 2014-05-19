@@ -85,12 +85,18 @@
       <Properties>
         <Property name="enabled" type="boolean" value="false"/>
       </Properties>
+      <Events>
+        <EventHandler event="stateChanged" listener="javax.swing.event.ChangeListener" parameters="javax.swing.event.ChangeEvent" handler="spinnerWaterLevelStateChanged"/>
+      </Events>
     </Component>
     <Component class="javax.swing.JCheckBox" name="checkBoxRandomise">
       <Properties>
         <Property name="text" type="java.lang.String" value="noisy edges"/>
         <Property name="toolTipText" type="java.lang.String" value="Whether to randomise the edges of the terrain types (except beaches)."/>
       </Properties>
+      <Events>
+        <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="checkBoxRandomiseActionPerformed"/>
+      </Events>
     </Component>
     <Component class="javax.swing.JLabel" name="jLabel1">
       <Properties>

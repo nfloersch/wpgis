@@ -30,7 +30,6 @@ import org.pepsoft.util.FileUtils;
 import org.pepsoft.util.SystemUtils;
 import org.pepsoft.worldpainter.Dimension.Border;
 import org.pepsoft.worldpainter.TileRenderer.LightOrigin;
-import org.pepsoft.worldpainter.layers.Bo2Layer;
 import org.pepsoft.worldpainter.layers.CustomLayer;
 import org.pepsoft.worldpainter.layers.Frost;
 import org.pepsoft.worldpainter.layers.Resources;
@@ -41,12 +40,12 @@ import org.pepsoft.worldpainter.vo.EventVO;
 
 import static org.pepsoft.minecraft.Constants.DEFAULT_MAX_HEIGHT_2;
 import static org.pepsoft.minecraft.Material.DIRT;
-import static org.pepsoft.worldpainter.World2.BIOME_ALGORITHM_AUTO_BIOMES;
-import static org.pepsoft.worldpainter.World2.BIOME_ALGORITHM_NONE;
+import static org.pepsoft.worldpainter.biomeschemes.BiomeSchemeManager.*;
 import org.pepsoft.worldpainter.layers.Layer;
 import org.pepsoft.worldpainter.themes.Filter;
 import org.pepsoft.worldpainter.themes.HeightFilter;
 import org.pepsoft.worldpainter.themes.SimpleTheme;
+import org.pepsoft.worldpainter.themes.Theme;
 
 /**
  *
@@ -287,14 +286,6 @@ public final class Configuration implements Serializable, EventLogger, Minecraft
         this.defaultContoursEnabled = defaultContoursEnabled;
     }
 
-    public synchronized boolean isDefaultCustomBiomesEnabled() {
-        return defaultCustomBiomesEnabled;
-    }
-
-    public synchronized void setDefaultCustomBiomesEnabled(boolean defaultCustomBiomesEnabled) {
-        this.defaultCustomBiomesEnabled = defaultCustomBiomesEnabled;
-    }
-
     public synchronized boolean isDefaultGridEnabled() {
         return defaultGridEnabled;
     }
@@ -369,59 +360,59 @@ public final class Configuration implements Serializable, EventLogger, Minecraft
         this.undoLevels = undoLevels;
     }
 
-    public Dimension getDefaultTerrainAndLayerSettings() {
+    public synchronized Dimension getDefaultTerrainAndLayerSettings() {
         return defaultTerrainAndLayerSettings;
     }
 
-    public void setDefaultTerrainAndLayerSettings(Dimension defaultTerrainAndLayerSettings) {
+    public synchronized void setDefaultTerrainAndLayerSettings(Dimension defaultTerrainAndLayerSettings) {
         this.defaultTerrainAndLayerSettings = defaultTerrainAndLayerSettings;
     }
 
-    public boolean isToolbarsLocked() {
+    public synchronized boolean isToolbarsLocked() {
         return toolbarsLocked;
     }
 
-    public void setToolbarsLocked(boolean toolbarsLocked) {
+    public synchronized void setToolbarsLocked(boolean toolbarsLocked) {
         this.toolbarsLocked = toolbarsLocked;
     }
 
-    public int getWorldFileBackups() {
+    public synchronized int getWorldFileBackups() {
         return worldFileBackups;
     }
 
-    public void setWorldFileBackups(int worldFileBackups) {
+    public synchronized void setWorldFileBackups(int worldFileBackups) {
         this.worldFileBackups = worldFileBackups;
     }
 
-    public float getDefaultRange() {
+    public synchronized float getDefaultRange() {
         return defaultRange;
     }
 
-    public void setDefaultRange(float defaultRange) {
+    public synchronized void setDefaultRange(float defaultRange) {
         this.defaultRange = defaultRange;
     }
 
-    public double getDefaultScale() {
+    public synchronized double getDefaultScale() {
         return defaultScale;
     }
 
-    public void setDefaultScale(double defaultScale) {
+    public synchronized void setDefaultScale(double defaultScale) {
         this.defaultScale = defaultScale;
     }
 
-    public LightOrigin getDefaultLightOrigin() {
+    public synchronized LightOrigin getDefaultLightOrigin() {
         return defaultLightOrigin;
     }
 
-    public void setDefaultLightOrigin(LightOrigin defaultLightOrigin) {
+    public synchronized void setDefaultLightOrigin(LightOrigin defaultLightOrigin) {
         this.defaultLightOrigin = defaultLightOrigin;
     }
     
-    public boolean isDefaultCircularWorld() {
+    public synchronized boolean isDefaultCircularWorld() {
         return defaultHeight == CIRCULAR_WORLD;
     }
     
-    public void setDefaultCircularWorld(boolean defaultCircularWorld) {
+    public synchronized void setDefaultCircularWorld(boolean defaultCircularWorld) {
         if (defaultCircularWorld && (defaultHeight != CIRCULAR_WORLD)) {
             defaultHeight = CIRCULAR_WORLD;
         } else if ((! defaultCircularWorld) && (defaultHeight == CIRCULAR_WORLD)) {
@@ -429,61 +420,133 @@ public final class Configuration implements Serializable, EventLogger, Minecraft
         }
     }
 
-    public int getMaximumBrushSize() {
+    public synchronized int getMaximumBrushSize() {
         return maximumBrushSize;
     }
 
-    public void setMaximumBrushSize(int maximumBrushSize) {
+    public synchronized void setMaximumBrushSize(int maximumBrushSize) {
         this.maximumBrushSize = maximumBrushSize;
     }
 
-    public boolean isDefaultAutomaticBiomesEnabled() {
-        return defaultAutomaticBiomesEnabled;
-    }
-
-    public void setDefaultAutomaticBiomesEnabled(boolean defaultAutomaticBiomesEnabled) {
-        this.defaultAutomaticBiomesEnabled = defaultAutomaticBiomesEnabled;
-    }
-
-    public List<CustomLayer> getCustomLayers() {
+    public synchronized List<CustomLayer> getCustomLayers() {
         return customLayers;
     }
 
-    public List<MixedMaterial> getMixedMaterials() {
+    public synchronized List<MixedMaterial> getMixedMaterials() {
         return mixedMaterials;
     }
 
-    public boolean isEasyMode() {
+    public synchronized boolean isEasyMode() {
         return false;
 //        return easyMode;
     }
 
-//    public void setEasyMode(final boolean easyMode) {
+//    public synchronized void setEasyMode(final boolean easyMode) {
 //        this.easyMode = easyMode;
 //    }
 
-    public boolean isDefaultExtendedBlockIds() {
+    public synchronized boolean isDefaultExtendedBlockIds() {
         return defaultExtendedBlockIds;
     }
 
-    public void setDefaultExtendedBlockIds(boolean defaultExtendedBlockIds) {
+    public synchronized void setDefaultExtendedBlockIds(boolean defaultExtendedBlockIds) {
         this.defaultExtendedBlockIds = defaultExtendedBlockIds;
     }
 
-    public File getLayerDirectory() {
+    public synchronized File getLayerDirectory() {
         return layerDirectory;
     }
 
-    public void setLayerDirectory(File layerDirectory) {
+    public synchronized void setLayerDirectory(File layerDirectory) {
         this.layerDirectory = layerDirectory;
     }
 
-    public File getTerrainDirectory() {
+    public synchronized File getTerrainDirectory() {
         return terrainDirectory;
     }
 
-    public void setTerrainDirectory(File terrainDirectory) {
+    public synchronized void setTerrainDirectory(File terrainDirectory) {
         this.terrainDirectory = terrainDirectory;
+    }
+
+    public synchronized File getHeightMapsDirectory() {
+        return heightMapsDirectory;
+    }
+    
+    public synchronized void setHeightMapsDirectory(File heightMapsDirectory) {
+        this.heightMapsDirectory = heightMapsDirectory;
+    }
+
+    public Theme getHeightMapDefaultTheme() {
+        return heightMapDefaultTheme;
+    }
+
+    public void setHeightMapDefaultTheme(Theme heightMapDefaultTheme) {
+        this.heightMapDefaultTheme = heightMapDefaultTheme;
+    }
+
+    public boolean isDefaultCreateGoodiesChest() {
+        return defaultCreateGoodiesChest;
+    }
+
+    public void setDefaultCreateGoodiesChest(boolean defaultCreateGoodiesChest) {
+        this.defaultCreateGoodiesChest = defaultCreateGoodiesChest;
+    }
+
+    public boolean isDefaultMapFeatures() {
+        return defaultMapFeatures;
+    }
+
+    public void setDefaultMapFeatures(boolean defaultMapFeatures) {
+        this.defaultMapFeatures = defaultMapFeatures;
+    }
+
+    public boolean isDefaultAllowCheats() {
+        return defaultAllowCheats;
+    }
+
+    public void setDefaultAllowCheats(boolean defaultAllowCheats) {
+        this.defaultAllowCheats = defaultAllowCheats;
+    }
+
+    public Generator getDefaultGenerator() {
+        return defaultGenerator;
+    }
+
+    public void setDefaultGenerator(Generator defaultGenerator) {
+        this.defaultGenerator = defaultGenerator;
+    }
+
+    public int getDefaultGameType() {
+        return defaultGameType;
+    }
+
+    public void setDefaultGameType(int defaultGameType) {
+        this.defaultGameType = defaultGameType;
+    }
+
+    public String getDefaultGeneratorOptions() {
+        return defaultGeneratorOptions;
+    }
+
+    public void setDefaultGeneratorOptions(String defaultGeneratorOptions) {
+        this.defaultGeneratorOptions = defaultGeneratorOptions;
+    }
+
+    public byte[] getDefaultJideLayoutData() {
+        return defaultJideLayoutData;
+    }
+
+    public void setDefaultJideLayoutData(byte[] defaultJideLayoutData) {
+        this.defaultJideLayoutData = defaultJideLayoutData;
+    }
+
+    public Map<String, byte[]> getJideLayoutData() {
+        return jideLayoutData;
+    }
+
+    public void setJideLayoutData(Map<String, byte[]> jideLayoutData) {
+        this.jideLayoutData = jideLayoutData;
     }
 
     @Override
@@ -531,7 +594,7 @@ public final class Configuration implements Serializable, EventLogger, Minecraft
         if (minecraftJars == null) {
             minecraftJars = new HashMap<Integer, File>();
             if (minecraft1_9_p3Jar != null) {
-                minecraftJars.put(World2.BIOME_ALGORITHM_1_9, minecraft1_9_p3Jar);
+                minecraftJars.put(BIOME_ALGORITHM_1_9, minecraft1_9_p3Jar);
                 minecraft1_9_p3Jar = null;
             }
         }
@@ -542,14 +605,12 @@ public final class Configuration implements Serializable, EventLogger, Minecraft
             checkForUpdates = true;
             undoEnabled = true;
             defaultContoursEnabled = true;
-            defaultCustomBiomesEnabled = true;
             undoLevels = 100;
             defaultGridSize = 128;
             defaultContourSeparation = 10;
             defaultWidth = 5;
             defaultHeight = 5;
             defaultMaxHeight = DEFAULT_MAX_HEIGHT_2;
-            defaultBiomeAlgorithm = BIOME_ALGORITHM_AUTO_BIOMES;
         }
         if (defaultTerrainAndLayerSettings == null) {
             defaultTerrainAndLayerSettings = new Dimension(World2.DEFAULT_OCEAN_SEED, TileFactoryFactory.createNoiseTileFactory(new Random().nextLong(), surface, defaultMaxHeight, level, waterLevel, lava, beaches, 20, 1.0), Constants.DIM_NORMAL, defaultMaxHeight);
@@ -592,8 +653,6 @@ public final class Configuration implements Serializable, EventLogger, Minecraft
             if (! Boolean.FALSE.equals(pingAllowed)) {
                 eventLog = new LinkedList<EventVO>();
             }
-            defaultAutomaticBiomesEnabled = defaultBiomeAlgorithm == BIOME_ALGORITHM_AUTO_BIOMES;
-            defaultBiomeAlgorithm = BIOME_ALGORITHM_NONE;
         }
         if (version < 7) {
             customLayers = new ArrayList<CustomLayer>();
@@ -629,6 +688,13 @@ public final class Configuration implements Serializable, EventLogger, Minecraft
                     }
                 }
             }
+        }
+        if (version < 9) {
+            // Set default export settings
+            defaultCreateGoodiesChest = true;
+            defaultGenerator = Generator.DEFAULT;
+            defaultMapFeatures = true;
+            defaultGameType = org.pepsoft.minecraft.Constants.GAME_TYPE_SURVIVAL;
         }
         version = CURRENT_VERSION;
         
@@ -732,36 +798,36 @@ public final class Configuration implements Serializable, EventLogger, Minecraft
     private int colourschemeIndex, launchCount;
     private Map<Integer, File> minecraftJars = new HashMap<Integer, File>();
     private DonationStatus donationStatus;
-    @Deprecated
-    private List<Bo2Layer> customObjectLayers;
     private UUID uuid = UUID.randomUUID();
     // Default view and world settings
-    private boolean checkForUpdates = true, undoEnabled = true, defaultGridEnabled, defaultContoursEnabled = true, defaultViewDistanceEnabled, defaultWalkingDistanceEnabled, defaultCustomBiomesEnabled = false;
+    private boolean checkForUpdates = true, undoEnabled = true, defaultGridEnabled, defaultContoursEnabled = true, defaultViewDistanceEnabled, defaultWalkingDistanceEnabled;
     private int undoLevels = 100, defaultGridSize = 128, defaultContourSeparation = 10, defaultWidth = 5, defaultHeight = 5, defaultMaxHeight = World2.DEFAULT_MAX_HEIGHT;
-    @Deprecated
-    private int defaultBiomeAlgorithm = BIOME_ALGORITHM_NONE;
     private Dimension defaultTerrainAndLayerSettings = new Dimension(World2.DEFAULT_OCEAN_SEED, TileFactoryFactory.createNoiseTileFactory(new Random().nextLong(), surface, defaultMaxHeight, level, waterLevel, lava, beaches, 20, 1.0), Constants.DIM_NORMAL, defaultMaxHeight);
     private boolean toolbarsLocked;
-    @Deprecated
-    private boolean saveAsWarningShown = true;
     private int version = CURRENT_VERSION, worldFileBackups = 3;
     private float defaultRange = 20;
     private double defaultScale = 1.0;
     private LightOrigin defaultLightOrigin = LightOrigin.NORTHWEST;
     private int maximumBrushSize = 300;
     private List<EventVO> eventLog = new LinkedList<EventVO>();
-    private boolean defaultAutomaticBiomesEnabled = true;
     private List<CustomLayer> customLayers = new ArrayList<CustomLayer>();
     private List<MixedMaterial> mixedMaterials = new ArrayList<MixedMaterial>();
 //    private boolean easyMode = true;
     private boolean defaultExtendedBlockIds;
-    private File layerDirectory, terrainDirectory;
+    private File layerDirectory, terrainDirectory, heightMapsDirectory;
+    private Theme heightMapDefaultTheme;
+    private boolean defaultCreateGoodiesChest = true, defaultMapFeatures = true, defaultAllowCheats;
+    private Generator defaultGenerator = Generator.DEFAULT;
+    private int defaultGameType = org.pepsoft.minecraft.Constants.GAME_TYPE_SURVIVAL;
+    private String defaultGeneratorOptions;
+    private byte[] defaultJideLayoutData;
+    private Map<String, byte[]> jideLayoutData;
 
     private static Configuration instance;
     private static final Logger logger = Logger.getLogger(Configuration.class.getName());
     private static final long serialVersionUID = 2011041801L;
     private static final int CIRCULAR_WORLD = -1;
-    private static final int CURRENT_VERSION = 8;
+    private static final int CURRENT_VERSION = 9;
     
     public enum DonationStatus {DONATED, NO_THANK_YOU}
 }

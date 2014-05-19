@@ -16,24 +16,24 @@ import org.pepsoft.worldpainter.WorldPainter;
  */
 public class Flatten extends RadiusOperation {
     public Flatten(WorldPainter view, RadiusControl radiusControl, MapDragControl mapDragControl) {
-        super("Flatten", "Flatten an area", view, radiusControl, mapDragControl, 100, true, "operation.flatten");
+        super("Flatten", "Flatten an area", view, radiusControl, mapDragControl, 100, "operation.flatten");
     }
 
     @Override
-    protected void tick(int centerX, int centerY, boolean undo, boolean first, float dynamicLevel) {
-        Dimension dimension = getDimension();
+    protected void tick(final int centreX, final int centreY, final boolean inverse, final boolean first, final float dynamicLevel) {
+        final Dimension dimension = getDimension();
         if (first) {
-            targetHeight = dimension.getHeightAt(centerX, centerY);
+            targetHeight = dimension.getHeightAt(centreX, centreY);
         }
 //        System.out.println("targetHeight: " + targetHeight);
         dimension.setEventsInhibited(true);
         try {
-            int radius = getEffectiveRadius();
-            for (int x = centerX - radius; x <= centerX + radius; x++) {
-                for (int y = centerY - radius; y <= centerY + radius; y++) {
-                    float currentHeight = dimension.getHeightAt(x, y);
-                    float strength = dynamicLevel * getStrength(centerX, centerY, x, y);
-                    float newHeight = strength * targetHeight  + (1f - strength) * currentHeight;
+            final int radius = getEffectiveRadius();
+            for (int x = centreX - radius; x <= centreX + radius; x++) {
+                for (int y = centreY - radius; y <= centreY + radius; y++) {
+                    final float currentHeight = dimension.getHeightAt(x, y);
+                    final float strength = dynamicLevel * getStrength(centreX, centreY, x, y);
+                    final float newHeight = strength * targetHeight  + (1f - strength) * currentHeight;
                     dimension.setHeightAt(x, y, newHeight);
 //                    if (y == centerY) {
 //                        System.out.printf("[%5d] [%7.5f] [%5d]\n", currentHeight, strength, newHeight);

@@ -69,6 +69,14 @@ public abstract class CustomLayer extends Layer {
         this.hide = hide;
     }
 
+    public String getPalette() {
+        return palette;
+    }
+
+    public void setPalette(String palette) {
+        this.palette = palette;
+    }
+
     @Override
     public BufferedImage getIcon() {
         if (icon == null) {
@@ -114,6 +122,9 @@ public abstract class CustomLayer extends Layer {
         if (version < 1) {
             biome = -1;
         }
+        if (version < 2) {
+            palette = "Custom Layers";
+        }
         version = CURRENT_VERSION;
     }
     
@@ -123,10 +134,11 @@ public abstract class CustomLayer extends Layer {
     
     private int colour, biome = -1, version = CURRENT_VERSION;
     private boolean hide;
+    private String palette = "Custom Layers";
     private transient BufferedImage icon;
     private transient LayerRenderer renderer;
     
-    private static final int CURRENT_VERSION = 1;
+    private static final int CURRENT_VERSION = 2;
     private static final Random ID_GENERATOR = new Random();
     private static final long serialVersionUID = 1L;
 }

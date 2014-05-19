@@ -36,17 +36,18 @@ public class WPObjectRenderer {
     }
     
     public BufferedImage render() {
-        BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
-        Graphics2D g2 = image.createGraphics();
+        final BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
+        final Graphics2D g2 = image.createGraphics();
         try {
             for (int z = 0; z < dim.z; z++) {
                 for (int y = dim.y - 1; y >= 0; y--) {
                     for (int x = dim.x - 1; x >= 0; x--) {
                         if (object.getMask(x, dim.y - y - 1, z)) {
-                            Material material = object.getMaterial(x, dim.y - y - 1, z);
+                            final Material material = object.getMaterial(x, dim.y - y - 1, z);
                             if (material != Material.AIR) {
-                                Point coords = getImageCoordinates(x, y, z);
-                                int alpha = (material.getBlockType() == Constants.BLK_LEAVES) ? 192 : 255;
+                                final Point coords = getImageCoordinates(x, y, z);
+                                final int blockType = material.getBlockType();
+                                final int alpha = ((blockType == Constants.BLK_LEAVES) || (blockType == Constants.BLK_LEAVES2)) ? 192 : 255;
                                 paintBlock(g2,  coords.x, coords.y, material, alpha);
                             }
                         }
@@ -122,7 +123,7 @@ public class WPObjectRenderer {
 //                return true;
 //            }
 //        };
-        ColourScheme colourScheme = new DynMapColourScheme("default");
+        ColourScheme colourScheme = new DynMapColourScheme("default", true);
         WPObjectRenderer renderer = new WPObjectRenderer(object, colourScheme, 10);
         BufferedImage image = renderer.render();
         ImageIcon icon = new ImageIcon(image);

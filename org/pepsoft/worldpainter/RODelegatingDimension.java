@@ -5,7 +5,6 @@
 package org.pepsoft.worldpainter;
 
 import java.awt.Point;
-import java.awt.Window;
 import java.beans.PropertyChangeListener;
 import java.io.File;
 import java.util.Collection;
@@ -36,72 +35,72 @@ public class RODelegatingDimension extends Dimension {
 
     @Override
     public World2 getWorld() {
-        return dimension.getWorld(); //To change body of generated methods, choose Tools | Templates.
+        return dimension.getWorld();
     }
 
     @Override
     public int getDim() {
-        return dimension.getDim(); //To change body of generated methods, choose Tools | Templates.
+        return dimension.getDim();
     }
 
     @Override
     public String getName() {
-        return dimension.getName(); //To change body of generated methods, choose Tools | Templates.
+        return dimension.getName();
     }
 
     @Override
     public boolean isDirty() {
-        return dimension.isDirty(); //To change body of generated methods, choose Tools | Templates.
+        return dimension.isDirty();
     }
 
     @Override
     public long getSeed() {
-        return dimension.getSeed(); //To change body of generated methods, choose Tools | Templates.
+        return dimension.getSeed();
     }
 
     @Override
     public Terrain getSubsurfaceMaterial() {
-        return dimension.getSubsurfaceMaterial(); //To change body of generated methods, choose Tools | Templates.
+        return dimension.getSubsurfaceMaterial();
     }
 
     @Override
     public boolean isPopulate() {
-        return dimension.isPopulate(); //To change body of generated methods, choose Tools | Templates.
+        return dimension.isPopulate();
     }
 
     @Override
     public Border getBorder() {
-        return dimension.getBorder(); //To change body of generated methods, choose Tools | Templates.
+        return dimension.getBorder();
     }
 
     @Override
     public int getBorderLevel() {
-        return dimension.getBorderLevel(); //To change body of generated methods, choose Tools | Templates.
+        return dimension.getBorderLevel();
     }
 
     @Override
     public int getBorderSize() {
-        return dimension.getBorderSize(); //To change body of generated methods, choose Tools | Templates.
+        return dimension.getBorderSize();
     }
 
     @Override
     public boolean isDarkLevel() {
-        return dimension.isDarkLevel(); //To change body of generated methods, choose Tools | Templates.
+        return dimension.isDarkLevel();
     }
 
     @Override
     public boolean isBedrockWall() {
-        return dimension.isBedrockWall(); //To change body of generated methods, choose Tools | Templates.
+        return dimension.isBedrockWall();
     }
 
     @Override
     public TileFactory getTileFactory() {
-        return dimension.getTileFactory(); //To change body of generated methods, choose Tools | Templates.
+        return dimension.getTileFactory();
     }
 
     @Override
     public int getTileCount() {
-        return dimension.getTileCount(); //To change body of generated methods, choose Tools | Templates.
+        return dimension.getTileCount();
     }
 
     @Override
@@ -116,32 +115,37 @@ public class RODelegatingDimension extends Dimension {
 
     @Override
     public int getIntHeightAt(int x, int y) {
-        return dimension.getIntHeightAt(x, y); //To change body of generated methods, choose Tools | Templates.
+        return dimension.getIntHeightAt(x, y);
     }
 
     @Override
+    public int getIntHeightAt(int x, int y, int defaultValue) {
+        return dimension.getIntHeightAt(x, y, defaultValue);
+    }
+    
+    @Override
     public int getIntHeightAt(Point coords) {
-        return dimension.getIntHeightAt(coords); //To change body of generated methods, choose Tools | Templates.
+        return dimension.getIntHeightAt(coords);
     }
 
     @Override
     public float getHeightAt(int x, int y) {
-        return dimension.getHeightAt(x, y); //To change body of generated methods, choose Tools | Templates.
+        return dimension.getHeightAt(x, y);
     }
 
     @Override
     public float getHeightAt(Point coords) {
-        return dimension.getHeightAt(coords); //To change body of generated methods, choose Tools | Templates.
+        return dimension.getHeightAt(coords);
     }
 
     @Override
     public int getRawHeightAt(int x, int y) {
-        return dimension.getRawHeightAt(x, y); //To change body of generated methods, choose Tools | Templates.
+        return dimension.getRawHeightAt(x, y);
     }
 
     @Override
     public int getRawHeightAt(Point coords) {
-        return dimension.getRawHeightAt(coords); //To change body of generated methods, choose Tools | Templates.
+        return dimension.getRawHeightAt(coords);
     }
 
     @Override
@@ -156,47 +160,42 @@ public class RODelegatingDimension extends Dimension {
 
     @Override
     public Terrain getTerrainAt(int x, int y) {
-        return super.getTerrainAt(x, y); //To change body of generated methods, choose Tools | Templates.
+        return super.getTerrainAt(x, y);
     }
 
     @Override
     public int getWaterLevelAt(int x, int y) {
-        return dimension.getWaterLevelAt(x, y); //To change body of generated methods, choose Tools | Templates.
+        return dimension.getWaterLevelAt(x, y);
     }
 
     @Override
     public int getWaterLevelAt(Point coords) {
-        return dimension.getWaterLevelAt(coords); //To change body of generated methods, choose Tools | Templates.
+        return dimension.getWaterLevelAt(coords);
     }
 
     @Override
     public int getLayerValueAt(Layer layer, int x, int y) {
-        return dimension.getLayerValueAt(layer, x, y); //To change body of generated methods, choose Tools | Templates.
+        return dimension.getLayerValueAt(layer, x, y);
     }
 
     @Override
     public int getLayerValueAt(Layer layer, Point coords) {
-        return dimension.getLayerValueAt(layer, coords); //To change body of generated methods, choose Tools | Templates.
+        return dimension.getLayerValueAt(layer, coords);
     }
 
     @Override
     public boolean getBitLayerValueAt(Layer layer, int x, int y) {
-        return dimension.getBitLayerValueAt(layer, x, y); //To change body of generated methods, choose Tools | Templates.
+        return dimension.getBitLayerValueAt(layer, x, y);
     }
 
     @Override
     public int getBitLayerCount(Layer layer, int x, int y, int r) {
-        return dimension.getBitLayerCount(layer, x, y, r); //To change body of generated methods, choose Tools | Templates.
+        return dimension.getBitLayerCount(layer, x, y, r);
     }
 
     @Override
     public float getDistanceToEdge(Layer layer, int x, int y, float maxDistance) {
-        return dimension.getDistanceToEdge(layer, x, y, maxDistance); //To change body of generated methods, choose Tools | Templates.
-    }
-
-    @Override
-    public void updateBiome(Tile tile, int x, int y) {
-        throw new UnsupportedOperationException();
+        return dimension.getDistanceToEdge(layer, x, y, maxDistance);
     }
 
     @Override
@@ -206,12 +205,12 @@ public class RODelegatingDimension extends Dimension {
 
     @Override
     public long getMinecraftSeed() {
-        return dimension.getMinecraftSeed(); //To change body of generated methods, choose Tools | Templates.
+        return dimension.getMinecraftSeed();
     }
 
     @Override
     public File getOverlay() {
-        return dimension.getOverlay(); //To change body of generated methods, choose Tools | Templates.
+        return dimension.getOverlay();
     }
 
     @Override
@@ -221,7 +220,7 @@ public class RODelegatingDimension extends Dimension {
 
     @Override
     public int getOverlayOffsetX() {
-        return dimension.getOverlayOffsetX(); //To change body of generated methods, choose Tools | Templates.
+        return dimension.getOverlayOffsetX();
     }
 
     @Override
@@ -231,7 +230,7 @@ public class RODelegatingDimension extends Dimension {
 
     @Override
     public int getOverlayOffsetY() {
-        return dimension.getOverlayOffsetY(); //To change body of generated methods, choose Tools | Templates.
+        return dimension.getOverlayOffsetY();
     }
 
     @Override
@@ -241,7 +240,7 @@ public class RODelegatingDimension extends Dimension {
 
     @Override
     public float getOverlayScale() {
-        return dimension.getOverlayScale(); //To change body of generated methods, choose Tools | Templates.
+        return dimension.getOverlayScale();
     }
 
     @Override
@@ -251,7 +250,7 @@ public class RODelegatingDimension extends Dimension {
 
     @Override
     public float getOverlayTransparency() {
-        return dimension.getOverlayTransparency(); //To change body of generated methods, choose Tools | Templates.
+        return dimension.getOverlayTransparency();
     }
 
     @Override
@@ -261,7 +260,7 @@ public class RODelegatingDimension extends Dimension {
 
     @Override
     public boolean isGridEnabled() {
-        return dimension.isGridEnabled(); //To change body of generated methods, choose Tools | Templates.
+        return dimension.isGridEnabled();
     }
 
     @Override
@@ -271,7 +270,7 @@ public class RODelegatingDimension extends Dimension {
 
     @Override
     public int getGridSize() {
-        return dimension.getGridSize(); //To change body of generated methods, choose Tools | Templates.
+        return dimension.getGridSize();
     }
 
     @Override
@@ -281,7 +280,7 @@ public class RODelegatingDimension extends Dimension {
 
     @Override
     public boolean isOverlayEnabled() {
-        return dimension.isOverlayEnabled(); //To change body of generated methods, choose Tools | Templates.
+        return dimension.isOverlayEnabled();
     }
 
     @Override
@@ -291,7 +290,7 @@ public class RODelegatingDimension extends Dimension {
 
     @Override
     public int getMaxHeight() {
-        return dimension.getMaxHeight(); //To change body of generated methods, choose Tools | Templates.
+        return dimension.getMaxHeight();
     }
 
     @Override
@@ -300,18 +299,8 @@ public class RODelegatingDimension extends Dimension {
     }
 
     @Override
-    public boolean isAutoUpdateBiomes() {
-        return dimension.isAutoUpdateBiomes(); //To change body of generated methods, choose Tools | Templates.
-    }
-
-    @Override
-    public void setAutoUpdateBiomes(boolean autoUpdateBiomes) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
     public int getContourSeparation() {
-        return dimension.getContourSeparation(); //To change body of generated methods, choose Tools | Templates.
+        return dimension.getContourSeparation();
     }
 
     @Override
@@ -321,7 +310,7 @@ public class RODelegatingDimension extends Dimension {
 
     @Override
     public boolean isContoursEnabled() {
-        return dimension.isContoursEnabled(); //To change body of generated methods, choose Tools | Templates.
+        return dimension.isContoursEnabled();
     }
 
     @Override
@@ -331,7 +320,7 @@ public class RODelegatingDimension extends Dimension {
 
     @Override
     public int getTopLayerMinDepth() {
-        return dimension.getTopLayerMinDepth(); //To change body of generated methods, choose Tools | Templates.
+        return dimension.getTopLayerMinDepth();
     }
 
     @Override
@@ -341,7 +330,7 @@ public class RODelegatingDimension extends Dimension {
 
     @Override
     public int getTopLayerVariation() {
-        return dimension.getTopLayerVariation(); //To change body of generated methods, choose Tools | Templates.
+        return dimension.getTopLayerVariation();
     }
 
     @Override
@@ -351,7 +340,7 @@ public class RODelegatingDimension extends Dimension {
 
     @Override
     public boolean isBottomless() {
-        return dimension.isBottomless(); //To change body of generated methods, choose Tools | Templates.
+        return dimension.isBottomless();
     }
 
     @Override
@@ -361,7 +350,7 @@ public class RODelegatingDimension extends Dimension {
 
     @Override
     public Point getLastViewPosition() {
-        return dimension.getLastViewPosition(); //To change body of generated methods, choose Tools | Templates.
+        return dimension.getLastViewPosition();
     }
 
     @Override
@@ -371,7 +360,7 @@ public class RODelegatingDimension extends Dimension {
 
     @Override
     public List<CustomBiome> getCustomBiomes() {
-        return dimension.getCustomBiomes(); //To change body of generated methods, choose Tools | Templates.
+        return dimension.getCustomBiomes();
     }
 
     @Override
@@ -381,17 +370,17 @@ public class RODelegatingDimension extends Dimension {
 
     @Override
     public Garden getGarden() {
-        return dimension.getGarden(); //To change body of generated methods, choose Tools | Templates.
+        return dimension.getGarden();
     }
 
     @Override
     public Set<Layer> getAllLayers(boolean applyCombinedLayers) {
-        return dimension.getAllLayers(applyCombinedLayers); //To change body of generated methods, choose Tools | Templates.
+        return dimension.getAllLayers(applyCombinedLayers);
     }
 
     @Override
     public Set<Layer> getMinimumLayers() {
-        return dimension.getMinimumLayers(); //To change body of generated methods, choose Tools | Templates.
+        return dimension.getMinimumLayers();
     }
 
     @Override
@@ -410,23 +399,13 @@ public class RODelegatingDimension extends Dimension {
     }
 
     @Override
-    public boolean isBiomesCalculated() {
-        return dimension.isBiomesCalculated(); //To change body of generated methods, choose Tools | Templates.
-    }
-
-    @Override
-    public void recalculateBiomes(Tile tile, BiomeScheme biomeScheme) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
     public Dimension getSnapshot() {
-        return dimension.getSnapshot(); //To change body of generated methods, choose Tools | Templates.
+        return dimension.getSnapshot();
     }
 
     @Override
     public int getTopLayerDepth(int x, int y, int z) {
-        return dimension.getTopLayerDepth(x, y, z); //To change body of generated methods, choose Tools | Templates.
+        return dimension.getTopLayerDepth(x, y, z);
     }
 
     @Override
@@ -451,7 +430,7 @@ public class RODelegatingDimension extends Dimension {
 
     @Override
     public void rotate(CoordinateTransform rotation, ProgressReceiver progressReceiver) throws OperationCancelled {
-        super.rotate(rotation, progressReceiver); //To change body of generated methods, choose Tools | Templates.
+        super.rotate(rotation, progressReceiver);
     }
 
     @Override
@@ -628,11 +607,6 @@ public class RODelegatingDimension extends Dimension {
     @Override
     public boolean isEventsInhibited() {
         return false;
-    }
-
-    @Override
-    public void recalculateBiomes(BiomeScheme biomeScheme, Window parent) {
-        throw new UnsupportedOperationException();
     }
 
     @Override

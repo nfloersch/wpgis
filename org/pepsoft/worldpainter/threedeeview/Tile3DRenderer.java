@@ -49,6 +49,7 @@ public class Tile3DRenderer {
         tileRenderer.renderTile(tileImgBuffer, 0, 0);
 //        Terrain subSurfaceMaterial = dimension.getSubsurfaceMaterial();
         final long seed = dimension.getSeed();
+        final boolean coverSteepTerrain = dimension.isCoverSteepTerrain();
         final int tileOffsetX = tile.getX() * TILE_SIZE, tileOffsetY = tile.getY() * TILE_SIZE;
         int currentColour = -1;
         final int imgWidth = TILE_SIZE * 2;
@@ -98,7 +99,14 @@ public class Tile3DRenderer {
                     // Image coordinates
                     final float imgX = TILE_SIZE + x - y - 0.5f, imgY = (x + y) / 2f + maxHeight - 0.5f;
     //                                System.out.println(blockX + ", " + blockY + " -> " + blockXTranslated + ", " + blockYTranslated + " -> " + imgX + ", " + imgY);
-                    final int subsurfaceHeight = Math.max(terrainHeight - dimension.getTopLayerDepth(blockX, blockY, terrainHeight), 0);
+                    int subsurfaceHeight = Math.max(terrainHeight - dimension.getTopLayerDepth(blockX, blockY, terrainHeight), 0);
+                    if (coverSteepTerrain) {
+                        subsurfaceHeight = Math.min(subsurfaceHeight,
+                            Math.min(Math.min(dimension.getIntHeightAt(blockX - 1, blockY, Integer.MAX_VALUE),
+                            dimension.getIntHeightAt(blockX + 1, blockY, Integer.MAX_VALUE)),
+                            Math.min(dimension.getIntHeightAt(blockX, blockY - 1, Integer.MAX_VALUE),
+                            dimension.getIntHeightAt(blockX, blockY + 1, Integer.MAX_VALUE))));
+                    }
                     int colour = colourScheme.getColour(BLK_STONE);
                     if (colour != currentColour) {
                         g2.setColor(new Color(colour));

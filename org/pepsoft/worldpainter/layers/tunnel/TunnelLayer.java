@@ -7,10 +7,12 @@ package org.pepsoft.worldpainter.layers.tunnel;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
+import java.util.Map;
 import org.pepsoft.worldpainter.MixedMaterial;
 import org.pepsoft.worldpainter.NoiseSettings;
 import org.pepsoft.worldpainter.exporting.LayerExporter;
 import org.pepsoft.worldpainter.layers.CustomLayer;
+import org.pepsoft.worldpainter.layers.Layer;
 import org.pepsoft.worldpainter.layers.renderers.LayerRenderer;
 
 /**
@@ -196,6 +198,14 @@ public class TunnelLayer extends CustomLayer {
         this.floodWithLava = floodWithLava;
     }
 
+    public Map<Layer, LayerSettings> getFloorLayers() {
+        return floorLayers;
+    }
+
+    public void setFloorLayers(Map<Layer, LayerSettings> floorLayers) {
+        this.floorLayers = floorLayers;
+    }
+
     // CustomLayer
     
     @Override
@@ -219,9 +229,22 @@ public class TunnelLayer extends CustomLayer {
     private boolean stalactites, stalagmites, floodWithLava, removeWater;
     private MixedMaterial floorMaterial, wallMaterial, roofMaterial;
     private NoiseSettings floorNoise, roofNoise, wallNoise;
+    private Map<Layer, LayerSettings> floorLayers;
     private transient TunnelLayerRenderer renderer = new TunnelLayerRenderer(this);
     
     private static final long serialVersionUID = 1L;
     
     public enum Mode {FIXED_HEIGHT, CONSTANT_DEPTH, INVERTED_DEPTH}
+    
+    public static class LayerSettings {
+        public int getIntensity() {
+            return intensity;
+        }
+
+        public void setIntensity(int intensity) {
+            this.intensity = intensity;
+        }
+        
+        private int intensity;
+    }
 }

@@ -46,11 +46,14 @@ public class CustomBiomeManager {
     public void addCustomBiome() {
         int id = -1;
         if (customBiomes != null) {
-outer:      for (int i = 23; i < 256; i++) {
+outer:      for (int i = 40; i < 256; i++) {
                 for (CustomBiome customBiome: customBiomes) {
                     if (customBiome.getId() == i) {
                         continue outer;
                     }
+                }
+                if (autoBiomeScheme.isBiomePresent(i)) {
+                    continue;
                 }
                 id = i;
                 break;
@@ -60,12 +63,16 @@ outer:      for (int i = 23; i < 256; i++) {
                 return;
             }
         } else {
-            id = 23;
+            id = 40;
         }
         CustomBiome customBiome = new CustomBiome("Custom", id, Color.ORANGE.getRGB());
         CustomBiomeDialog dialog = new CustomBiomeDialog(parent, customBiome, true);
         dialog.setVisible(true);
         if (! dialog.isCancelled()) {
+            if (autoBiomeScheme.isBiomePresent(customBiome.getId())) {
+                JOptionPane.showMessageDialog(parent, "The specified ID (" + customBiome.getId() + ") is already a regular biome (named " + autoBiomeScheme.getBiomeName(customBiome.getId()) + ")", "ID Already In Use", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
             if (customBiomes == null) {
                 customBiomes = new ArrayList<CustomBiome>();
             }
@@ -99,6 +106,7 @@ outer:      for (int i = 23; i < 256; i++) {
     }
     
     private final Window parent;
+    private final AutoBiomeScheme autoBiomeScheme = new AutoBiomeScheme(null);
     private List<CustomBiome> customBiomes;
     private List<CustomBiomeListener> listeners = new ArrayList<CustomBiomeListener>();
     

@@ -25,4 +25,8 @@ public abstract class WorldPainterView extends JComponent {
     public abstract Point worldToImageCoordinates(int x, int y);
     
     public abstract void updateStatusBar(int x, int y);
+    
+    public abstract boolean isDrawRadius();
+    
+    public abstract void setDrawRadius(boolean drawRadius);
 }

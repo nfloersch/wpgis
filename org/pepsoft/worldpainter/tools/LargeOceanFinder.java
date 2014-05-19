@@ -10,9 +10,8 @@ import java.util.TreeSet;
 import org.pepsoft.worldpainter.BiomeScheme;
 import org.pepsoft.worldpainter.Configuration;
 import static org.pepsoft.worldpainter.Constants.*;
-import org.pepsoft.worldpainter.World2;
 import org.pepsoft.worldpainter.biomeschemes.BiomeSchemeManager;
-import static org.pepsoft.worldpainter.biomeschemes.Minecraft1_2BiomeScheme.*;
+import static org.pepsoft.worldpainter.biomeschemes.Minecraft1_7BiomeScheme.*;
 
 /**
  *
@@ -25,9 +24,9 @@ public class LargeOceanFinder {
             config = new Configuration();
         }
         Configuration.setInstance(config);
-        final BiomeScheme biomeScheme = BiomeSchemeManager.getBiomeScheme(World2.BIOME_ALGORITHM_1_2_AND_1_3_DEFAULT, null);
+        final BiomeScheme biomeScheme = BiomeSchemeManager.getBiomeScheme(BiomeSchemeManager.BIOME_ALGORITHM_1_7_LARGE, null);
         if (biomeScheme == null) {
-            System.err.println("Can't continue without a Minecraft 1.2 or 1.3 minecraft.jar");
+            System.err.println("Can't continue without a Minecraft 1.7 minecraft.jar");
             System.exit(1);
         }
         long seed = 0;
@@ -57,7 +56,7 @@ public class LargeOceanFinder {
                     for (int i = 0; i < biomes.length; i++) {
                         if ((biomes[i] == BIOME_MUSHROOM_ISLAND_SHORE) || (biomes[i] == BIOME_MUSHROOM_ISLAND)) {
                             mushroomTile = true;
-                        } else if (biomes[i] != BIOME_OCEAN) {
+                        } else if ((biomes[i] != BIOME_OCEAN) && (biomes[i] != BIOME_DEEP_OCEAN)) {
                             return false;
                         }
                     }
@@ -78,6 +77,12 @@ public class LargeOceanFinder {
                 largeOceanWorlds.add(new World(seed, oceanTilesFound[0], oceanOrMushroomTilesFound));
             }
             seed++;
+            if ((seed % 10000L) == 0) {
+                System.out.println("Results after " + seed + " seeds:");
+                for (World world: largeOceanWorlds) {
+                    System.out.println("    " + world);
+                }
+            }
         }
     }
     

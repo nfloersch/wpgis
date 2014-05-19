@@ -5,7 +5,6 @@
 
 package org.pepsoft.worldpainter;
 
-import org.pepsoft.util.PerlinNoise;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.util.SortedMap;
@@ -154,7 +153,6 @@ public class HeightMapTileFactory extends AbstractTileFactory {
             waterHeight = -1;
             terrainRanges = null;
             terrainRangesTable = null;
-            perlinNoise = null;
             randomise = false;
             beaches = false;
         }
@@ -170,8 +168,6 @@ public class HeightMapTileFactory extends AbstractTileFactory {
     private int maxHeight;
     @Deprecated
     private SortedMap<Integer, Terrain> terrainRanges;
-    @Deprecated
-    private PerlinNoise perlinNoise = new PerlinNoise(0);
     @Deprecated
     private boolean randomise, beaches;
     private long seed;

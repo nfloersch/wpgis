@@ -29,7 +29,7 @@ public class WorldMorph {
         SwingUtilities.invokeLater(new Runnable() {
             @Override
             public void run() {
-                final WorldPainter view = new WorldPainter(createNewWorld().getDimension(0), new DynMapColourScheme("default"), null, null);
+                final WorldPainter view = new WorldPainter(createNewWorld().getDimension(0), new DynMapColourScheme("default", true), null, null);
                 JFrame frame = new JFrame("WorldMorph");
                 frame.getContentPane().add(view, BorderLayout.CENTER);
                 frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);

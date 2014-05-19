@@ -94,6 +94,16 @@ public class TunnelLayerExporter extends AbstractLayerExporter<TunnelLayer> impl
                                 }
                             }
                         }
+                        if (actualFloorLevel == 0) {
+                            // Bottomless world, and cave extends all the way to
+                            // the bottom. Remove the floor block, as that is
+                            // probably what the user wants
+                            if ((floodLevel > 0) && (0 <= floodLevel)) {
+                                world.setMaterialAt(x, y, 0, floodWithLava ? Material.LAVA : Material.WATER);
+                            } else {
+                                world.setMaterialAt(x, y, 0, Material.AIR);
+                            }
+                        }
                     }
                 }
             }
@@ -192,6 +202,16 @@ public class TunnelLayerExporter extends AbstractLayerExporter<TunnelLayer> impl
                                 } else {
                                     world.setMaterialAt(x, y, z, Material.AIR);
                                 }
+                            }
+                        }
+                        if (actualFloorLevel == 0) {
+                            // Bottomless world, and cave extends all the way to
+                            // the bottom. Remove the floor block, as that is
+                            // probably what the user wants
+                            if ((floodLevel > 0) && (0 <= floodLevel)) {
+                                world.setMaterialAt(x, y, 0, floodWithLava ? Material.LAVA : Material.WATER);
+                            } else {
+                                world.setMaterialAt(x, y, 0, Material.AIR);
                             }
                         }
                     }

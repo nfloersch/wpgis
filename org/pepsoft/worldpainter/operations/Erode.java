@@ -17,19 +17,19 @@ import org.pepsoft.worldpainter.WorldPainter;
  */
 public class Erode extends RadiusOperation {
     public Erode(WorldPainter view, RadiusControl radiusControl, MapDragControl mapDragControl) {
-        super("Erode", "Erode the terrain", view, radiusControl, mapDragControl, 100, true, "operation.erode");
+        super("Erode", "Erode the terrain", view, radiusControl, mapDragControl, 100, "operation.erode");
     }
 
     @Override
-    protected void tick(int centerX, int centerY, boolean undo, boolean first, float dynamicLevel) {
+    protected void tick(int centreX, int centreY, boolean inverse, boolean first, float dynamicLevel) {
         Dimension dimension = getDimension();
         dimension.setEventsInhibited(true);
         try {
             int radius = getEffectiveRadius();
             for (int i = 0; i < ROUNDS; i++) {
-                for (int x = centerX - radius; x <= centerX + radius; x++) {
-                    for (int y = centerY - radius; y <= centerY + radius; y++) {
-                        float strength = getStrength(centerX, centerY, x, y);
+                for (int x = centreX - radius; x <= centreX + radius; x++) {
+                    for (int y = centreY - radius; y <= centreY + radius; y++) {
+                        float strength = getStrength(centreX, centreY, x, y);
                         if ((strength == 1.0f) || (random.nextFloat() < strength)) {
                             for (int dx = -1; dx <= 1; dx++) {
                                 for (int dy = -1; dy <= 1; dy++) {

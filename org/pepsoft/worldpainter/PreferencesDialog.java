@@ -123,10 +123,16 @@ public class PreferencesDialog extends javax.swing.JDialog {
         checkBoxLava.setSelected(config.isLava());
         checkBoxBeaches.setSelected(config.isBeaches());
         comboBoxSurfaceMaterial.setSelectedItem(config.getSurface());
-        checkBoxAutomaticBiomes.setSelected(config.isDefaultAutomaticBiomesEnabled());
-        checkBoxCustomBiomes.setSelected(config.isDefaultCustomBiomesEnabled());
         spinnerWorldBackups.setValue(config.getWorldFileBackups());
         checkBoxExtendedBlockIds.setSelected(config.isDefaultExtendedBlockIds());
+        
+        // Export settings
+        checkBoxChestOfGoodies.setSelected(config.isDefaultCreateGoodiesChest());
+        comboBoxWorldType.setSelectedIndex(config.getDefaultGenerator().ordinal());
+        generatorOptions = config.getDefaultGeneratorOptions();
+        checkBoxStructures.setSelected(config.isDefaultMapFeatures());
+        comboBoxMode.setSelectedIndex(config.getDefaultGameType());
+        checkBoxCheats.setSelected(config.isDefaultAllowCheats());
 
         previousExp = (int) Math.round(Math.log(config.getDefaultMaxHeight()) / Math.log(2.0));
         
@@ -165,11 +171,18 @@ public class PreferencesDialog extends javax.swing.JDialog {
         config.setLava(checkBoxLava.isSelected());
         config.setBeaches(checkBoxBeaches.isSelected());
         config.setSurface((Terrain) comboBoxSurfaceMaterial.getSelectedItem());
-        config.setDefaultAutomaticBiomesEnabled(checkBoxAutomaticBiomes.isSelected());
-        config.setDefaultCustomBiomesEnabled(checkBoxCustomBiomes.isSelected());
         config.setWorldFileBackups((Integer) spinnerWorldBackups.getValue());
         config.setMaximumBrushSize((Integer) spinnerBrushSize.getValue());
         config.setDefaultExtendedBlockIds(checkBoxExtendedBlockIds.isSelected());
+        
+        // Export settings
+        config.setDefaultCreateGoodiesChest(checkBoxChestOfGoodies.isSelected());
+        config.setDefaultGenerator(Generator.values()[comboBoxWorldType.getSelectedIndex()]);
+        config.setDefaultGeneratorOptions(generatorOptions);
+        config.setDefaultMapFeatures(checkBoxStructures.isSelected());
+        config.setDefaultGameType(comboBoxMode.getSelectedIndex());
+        config.setDefaultAllowCheats(checkBoxCheats.isSelected());
+        
         try {
             config.save();
         } catch (IOException e) {
@@ -181,13 +194,11 @@ public class PreferencesDialog extends javax.swing.JDialog {
     
     private void setControlStates() {
         spinnerUndoLevels.setEnabled(checkBoxUndo.isSelected());
-        boolean customBiomesPossible = comboBoxHeight.getSelectedIndex() == 3;
-        checkBoxCustomBiomes.setEnabled(customBiomesPossible);
-        checkBoxAutomaticBiomes.setEnabled(customBiomesPossible);
         boolean hilly = radioButtonHilly.isSelected();
         spinnerRange.setEnabled(hilly);
         spinnerScale.setEnabled(hilly);
         spinnerHeight.setEnabled(! checkBoxCircular.isSelected());
+        buttonModePreset.setEnabled(comboBoxWorldType.getSelectedIndex() == 1);
     }
     
     private void editTerrainAndLayerSettings() {
@@ -260,8 +271,6 @@ public class PreferencesDialog extends javax.swing.JDialog {
         checkBoxBeaches = new javax.swing.JCheckBox();
         jLabel16 = new javax.swing.JLabel();
         comboBoxSurfaceMaterial = new javax.swing.JComboBox();
-        jLabel17 = new javax.swing.JLabel();
-        checkBoxCustomBiomes = new javax.swing.JCheckBox();
         labelTerrainAndLayerSettings = new javax.swing.JLabel();
         jLabel19 = new javax.swing.JLabel();
         jLabel18 = new javax.swing.JLabel();
@@ -281,8 +290,17 @@ public class PreferencesDialog extends javax.swing.JDialog {
         spinnerBrushSize = new javax.swing.JSpinner();
         jLabel27 = new javax.swing.JLabel();
         checkBoxCircular = new javax.swing.JCheckBox();
-        checkBoxAutomaticBiomes = new javax.swing.JCheckBox();
         checkBoxExtendedBlockIds = new javax.swing.JCheckBox();
+        jLabel17 = new javax.swing.JLabel();
+        jSeparator5 = new javax.swing.JSeparator();
+        checkBoxChestOfGoodies = new javax.swing.JCheckBox();
+        jLabel28 = new javax.swing.JLabel();
+        comboBoxWorldType = new javax.swing.JComboBox();
+        buttonModePreset = new javax.swing.JButton();
+        checkBoxStructures = new javax.swing.JCheckBox();
+        jLabel29 = new javax.swing.JLabel();
+        comboBoxMode = new javax.swing.JComboBox();
+        checkBoxCheats = new javax.swing.JCheckBox();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
         setTitle("Preferences");
@@ -442,10 +460,6 @@ public class PreferencesDialog extends javax.swing.JDialog {
             }
         });
 
-        jLabel17.setText("Biomes:");
-
-        checkBoxCustomBiomes.setText("Custom");
-
         labelTerrainAndLayerSettings.setForeground(java.awt.Color.blue);
         labelTerrainAndLayerSettings.setText("<html><u>Configure default border, terrain and layer settings</u></html>");
         labelTerrainAndLayerSettings.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
@@ -503,10 +517,41 @@ public class PreferencesDialog extends javax.swing.JDialog {
             }
         });
 
-        checkBoxAutomaticBiomes.setSelected(true);
-        checkBoxAutomaticBiomes.setText("Automatic");
-
         checkBoxExtendedBlockIds.setText("Extended block ID's");
+
+        jLabel17.setFont(jLabel17.getFont().deriveFont((jLabel17.getFont().getStyle() | java.awt.Font.ITALIC)));
+        jLabel17.setText("Default export settings");
+
+        checkBoxChestOfGoodies.setText("Include chest of goodies");
+
+        jLabel28.setText("World type:");
+
+        comboBoxWorldType.setModel(new javax.swing.DefaultComboBoxModel(new String[] { "Default", "Superflat", "Large Biomes" }));
+        comboBoxWorldType.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                comboBoxWorldTypeActionPerformed(evt);
+            }
+        });
+
+        buttonModePreset.setText("...");
+        buttonModePreset.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                buttonModePresetActionPerformed(evt);
+            }
+        });
+
+        checkBoxStructures.setText("Structures");
+
+        jLabel29.setText("Mode:");
+
+        comboBoxMode.setModel(new javax.swing.DefaultComboBoxModel(new String[] { "Survival", "Creative", "Adventure" }));
+        comboBoxMode.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                comboBoxModeActionPerformed(evt);
+            }
+        });
+
+        checkBoxCheats.setText("Allow Cheats");
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
         getContentPane().setLayout(layout);
@@ -533,8 +578,25 @@ public class PreferencesDialog extends javax.swing.JDialog {
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                         .addComponent(buttonReset))
                     .addComponent(jSeparator1)
+                    .addComponent(jSeparator5)
                     .addGroup(layout.createSequentialGroup()
                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addGroup(layout.createSequentialGroup()
+                                .addComponent(checkBoxChestOfGoodies)
+                                .addGap(18, 18, 18)
+                                .addComponent(jLabel28)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                .addComponent(comboBoxWorldType, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                .addComponent(buttonModePreset)
+                                .addGap(18, 18, 18)
+                                .addComponent(checkBoxStructures)
+                                .addGap(18, 18, 18)
+                                .addComponent(jLabel29)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                .addComponent(comboBoxMode, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                .addComponent(checkBoxCheats))
                             .addGroup(layout.createSequentialGroup()
                                 .addComponent(jLabel10)
                                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
@@ -619,13 +681,7 @@ public class PreferencesDialog extends javax.swing.JDialog {
                                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                                 .addComponent(comboBoxSurfaceMaterial, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                                 .addGap(18, 18, 18)
-                                .addComponent(checkBoxExtendedBlockIds)
-                                .addGap(18, 18, 18)
-                                .addComponent(jLabel17)
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                .addComponent(checkBoxAutomaticBiomes)
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                .addComponent(checkBoxCustomBiomes))
+                                .addComponent(checkBoxExtendedBlockIds))
                             .addComponent(jLabel2)
                             .addGroup(layout.createSequentialGroup()
                                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -646,7 +702,8 @@ public class PreferencesDialog extends javax.swing.JDialog {
                                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                                 .addComponent(jLabel20)
                                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                .addComponent(spinnerWorldBackups, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                                .addComponent(spinnerWorldBackups, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                            .addComponent(jLabel17))
                         .addGap(0, 0, Short.MAX_VALUE)))
                 .addContainerGap())
         );
@@ -714,14 +771,25 @@ public class PreferencesDialog extends javax.swing.JDialog {
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(jLabel16)
                     .addComponent(comboBoxSurfaceMaterial, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(jLabel17)
-                    .addComponent(checkBoxCustomBiomes)
-                    .addComponent(checkBoxAutomaticBiomes)
                     .addComponent(checkBoxExtendedBlockIds))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(labelTerrainAndLayerSettings, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addComponent(buttonReset))
+                .addGap(18, 18, 18)
+                .addComponent(jLabel17)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(jSeparator5, javax.swing.GroupLayout.PREFERRED_SIZE, 10, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(checkBoxChestOfGoodies)
+                    .addComponent(jLabel28)
+                    .addComponent(comboBoxWorldType, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(buttonModePreset)
+                    .addComponent(checkBoxStructures)
+                    .addComponent(jLabel29)
+                    .addComponent(comboBoxMode, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(checkBoxCheats))
                 .addGap(18, 18, 18)
                 .addComponent(jLabel2)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
@@ -797,11 +865,6 @@ public class PreferencesDialog extends javax.swing.JDialog {
             ((SpinnerNumberModel) spinnerGroundLevel.getModel()).setMaximum(maxHeight - 1);
             ((SpinnerNumberModel) spinnerWaterLevel.getModel()).setMaximum(maxHeight - 1);
             
-            if (exp != 8) {
-                checkBoxCustomBiomes.setSelected(false);
-                checkBoxAutomaticBiomes.setSelected(false);
-            }
-            
             int range = (Integer) spinnerRange.getValue();
             if (range >= maxHeight) {
                 spinnerRange.setValue(maxHeight - 1);
@@ -858,8 +921,6 @@ public class PreferencesDialog extends javax.swing.JDialog {
             checkBoxLava.setSelected(false);
             checkBoxBeaches.setSelected(true);
             comboBoxSurfaceMaterial.setSelectedItem(GRASS);
-            checkBoxAutomaticBiomes.setSelected(true);
-            checkBoxCustomBiomes.setSelected(false);
             Configuration.getInstance().setDefaultTerrainAndLayerSettings(new Dimension(World2.DEFAULT_OCEAN_SEED, TileFactoryFactory.createNoiseTileFactory(new Random().nextLong(), GRASS, DEFAULT_MAX_HEIGHT_2, 58, 62, false, true, 20, 1.0), DIM_NORMAL, DEFAULT_MAX_HEIGHT_2));
         }
     }//GEN-LAST:event_buttonResetActionPerformed
@@ -894,27 +955,48 @@ public class PreferencesDialog extends javax.swing.JDialog {
         setControlStates();
     }//GEN-LAST:event_checkBoxCircularActionPerformed
 
+    private void buttonModePresetActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_buttonModePresetActionPerformed
+        String editedGeneratorOptions = JOptionPane.showInputDialog(this, "Edit the Superflat mode preset:", generatorOptions);
+        if (editedGeneratorOptions != null) {
+            generatorOptions = editedGeneratorOptions;
+        }
+    }//GEN-LAST:event_buttonModePresetActionPerformed
+
+    private void comboBoxWorldTypeActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_comboBoxWorldTypeActionPerformed
+        setControlStates();
+    }//GEN-LAST:event_comboBoxWorldTypeActionPerformed
+
+    private void comboBoxModeActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_comboBoxModeActionPerformed
+        if (comboBoxMode.getSelectedIndex() > 0) {
+            checkBoxCheats.setSelected(true);
+        }
+    }//GEN-LAST:event_comboBoxModeActionPerformed
+
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JButton buttonCancel;
     private javax.swing.ButtonGroup buttonGroup1;
+    private javax.swing.JButton buttonModePreset;
     private javax.swing.JButton buttonOK;
     private javax.swing.JButton buttonReset;
-    private javax.swing.JCheckBox checkBoxAutomaticBiomes;
     private javax.swing.JCheckBox checkBoxBeaches;
+    private javax.swing.JCheckBox checkBoxCheats;
     private javax.swing.JCheckBox checkBoxCheckForUpdates;
+    private javax.swing.JCheckBox checkBoxChestOfGoodies;
     private javax.swing.JCheckBox checkBoxCircular;
     private javax.swing.JCheckBox checkBoxContours;
-    private javax.swing.JCheckBox checkBoxCustomBiomes;
     private javax.swing.JCheckBox checkBoxExtendedBlockIds;
     private javax.swing.JCheckBox checkBoxGrid;
     private javax.swing.JCheckBox checkBoxLava;
     private javax.swing.JCheckBox checkBoxPing;
+    private javax.swing.JCheckBox checkBoxStructures;
     private javax.swing.JCheckBox checkBoxUndo;
     private javax.swing.JCheckBox checkBoxViewDistance;
     private javax.swing.JCheckBox checkBoxWalkingDistance;
     private javax.swing.JComboBox comboBoxHeight;
     private javax.swing.JComboBox comboBoxLightDirection;
+    private javax.swing.JComboBox comboBoxMode;
     private javax.swing.JComboBox comboBoxSurfaceMaterial;
+    private javax.swing.JComboBox comboBoxWorldType;
     private javax.swing.JLabel jLabel1;
     private javax.swing.JLabel jLabel10;
     private javax.swing.JLabel jLabel11;
@@ -935,6 +1017,8 @@ public class PreferencesDialog extends javax.swing.JDialog {
     private javax.swing.JLabel jLabel25;
     private javax.swing.JLabel jLabel26;
     private javax.swing.JLabel jLabel27;
+    private javax.swing.JLabel jLabel28;
+    private javax.swing.JLabel jLabel29;
     private javax.swing.JLabel jLabel3;
     private javax.swing.JLabel jLabel4;
     private javax.swing.JLabel jLabel5;
@@ -946,6 +1030,7 @@ public class PreferencesDialog extends javax.swing.JDialog {
     private javax.swing.JSeparator jSeparator2;
     private javax.swing.JSeparator jSeparator3;
     private javax.swing.JSeparator jSeparator4;
+    private javax.swing.JSeparator jSeparator5;
     private javax.swing.JLabel labelTerrainAndLayerSettings;
     private javax.swing.JRadioButton radioButtonFlat;
     private javax.swing.JRadioButton radioButtonHilly;
@@ -965,6 +1050,7 @@ public class PreferencesDialog extends javax.swing.JDialog {
     private final ColourScheme colourScheme;
     private boolean pingNotSet, cancelled = true;
     private int previousExp;
+    private String generatorOptions;
     
     private static final long serialVersionUID = 1L;
 }

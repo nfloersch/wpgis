@@ -12,6 +12,11 @@ public class Biome extends Layer {
     public Biome() {
         super("Biome", "Displays the biome Minecraft will generate", Layer.DataSize.BYTE, 70);
     }
+
+    @Override
+    public int getDefaultValue() {
+        return 255;
+    }
     
     public static final Biome INSTANCE = new Biome();
     

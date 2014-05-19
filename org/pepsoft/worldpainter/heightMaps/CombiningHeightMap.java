@@ -37,6 +37,8 @@ public abstract class CombiningHeightMap implements HeightMap {
         heightMap1.setSeed(seed);
         heightMap2.setSeed(seed);
     }
+
+    public abstract CombiningHeightMap clone();
     
     protected final HeightMap heightMap1, heightMap2;
 

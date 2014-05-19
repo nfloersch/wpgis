@@ -141,6 +141,10 @@ public final class MathUtils {
         return (value < min) ? min : ((value > max) ? max : value);
     }
 
+    public static float clamp(float min, float value, float max) {
+        return (value < min) ? min : ((value > max) ? max : value);
+    }
+    
     private static final float[][] DISTANCES_2D = new float[301][301];
     private static final float[][][] DISTANCES_3D = new float[51][51][51];
     private static final int[][] INTEGER_POWERS = new int[50][50];

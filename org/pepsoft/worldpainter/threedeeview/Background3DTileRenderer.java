@@ -67,7 +67,9 @@ public class Background3DTileRenderer extends Thread {
             logger.fine("Rendering 3D view of tile " + tile);
         }
         BufferedImage image = renderer.render(tile);
-        threeDeeRenderManager.tileFinished(new RenderResult(tile, image));
+        if (running) {
+            threeDeeRenderManager.tileFinished(new RenderResult(tile, image));
+        }
     }
     
     private final JobQueue<Tile3DRenderJob> jobQueue;

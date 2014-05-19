@@ -16,15 +16,15 @@ import org.pepsoft.worldpainter.WorldPainter;
  */
 public class RaiseMountain extends RadiusOperation {
     public RaiseMountain(WorldPainter view, RadiusControl radiusControl, MapDragControl mapDragControl) {
-        super("Raise Mountain", "Raises a mountain out of the ground", view, radiusControl, mapDragControl, 100, true, "operation.raiseMountain");
+        super("Raise Mountain", "Raises a mountain out of the ground", view, radiusControl, mapDragControl, 100, "operation.raiseMountain");
         brushChanged();
     }
 
     @Override
-    protected void tick(int centerX, int centerY, boolean undo, boolean first, float dynamicLevel) {
+    protected void tick(int centreX, int centreY, boolean inverse, boolean first, float dynamicLevel) {
         Dimension dimension = getDimension();
         float adjustment = (float) Math.pow(getLevel() * dynamicLevel * 2, 2.0);
-        float peakHeight = dimension.getHeightAt(centerX + peakDX, centerY + peakDY) + (undo ? -adjustment : adjustment);
+        float peakHeight = dimension.getHeightAt(centreX + peakDX, centreY + peakDY) + (inverse ? -adjustment : adjustment);
         if (peakHeight < 0.0f) {
             peakHeight = 0.0f;
         } else if (peakHeight > (dimension.getMaxHeight() - 1)) {
@@ -35,11 +35,11 @@ public class RaiseMountain extends RadiusOperation {
         try {
             int radius = getEffectiveRadius();
             long seed = dimension.getSeed();
-            for (int x = centerX - radius; x <= centerX + radius; x++) {
-                for (int y = centerY - radius; y <= centerY + radius; y++) {
+            for (int x = centreX - radius; x <= centreX + radius; x++) {
+                for (int y = centreY - radius; y <= centreY + radius; y++) {
                     float currentHeight = dimension.getHeightAt(x, y);
-                    float targetHeight = getTargetHeight(seed, maxZ, centerX, centerY, x, y, peakHeight, undo);
-                    if (undo ? (targetHeight < currentHeight) : (targetHeight > currentHeight)) {
+                    float targetHeight = getTargetHeight(seed, maxZ, centreX, centreY, x, y, peakHeight, inverse);
+                    if (inverse ? (targetHeight < currentHeight) : (targetHeight > currentHeight)) {
 //                        float strength = calcStrength(centerX, centerY, x, y);
 //                        float newHeight = strength * targetHeight  + (1f - strength) * currentHeight;
                         dimension.setHeightAt(x, y, targetHeight);

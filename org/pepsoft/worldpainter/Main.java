@@ -5,7 +5,9 @@
 
 package org.pepsoft.worldpainter;
 
-//import com.install4j.api.launcher.ApplicationLauncher;
+import com.install4j.api.launcher.ApplicationLauncher;
+import com.jidesoft.plaf.LookAndFeelFactory;
+import com.jidesoft.utils.Lm;
 import java.awt.Frame;
 import java.io.File;
 import java.io.IOException;
@@ -25,6 +27,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
+import java.util.Properties;
 import java.util.Random;
 import java.util.logging.FileHandler;
 import java.util.logging.Formatter;
@@ -57,7 +60,7 @@ public class Main {
     /**
      * @param args the command line arguments
      */
-    public static void main(String[] args) {
+    public static void main(String[] args) throws IOException {
         // Force language to English for now. TODO: remove this once the first
         // translations are implemented
         Locale.setDefault(Locale.US);
@@ -178,18 +181,18 @@ public class Main {
         // otherwise it will block until the installer application exits
         if ((! "true".equals(System.getProperty("org.pepsoft.worldpainter.devMode"))) && config.isCheckForUpdates()) {
             logger.info("Checking for updates");
-//            ApplicationLauncher.launchApplicationInProcess("217", null, new ApplicationLauncher.Callback() {
-//                    @Override
-//                    public void exited(int exitValue) {
-//                        // Do nothing
-//                    }
-//
-//                    @Override
-//                    public void prepareShutdown() {
-//                        // Do nothing
-//                    }
-//                }, ApplicationLauncher.WindowMode.FRAME, null
-//            );
+            ApplicationLauncher.launchApplicationInProcess("217", null, new ApplicationLauncher.Callback() {
+                    @Override
+                    public void exited(int exitValue) {
+                        // Do nothing
+                    }
+
+                    @Override
+                    public void prepareShutdown() {
+                        // Do nothing
+                    }
+                }, ApplicationLauncher.WindowMode.FRAME, null
+            );
             // Install4j overrides the default uncaught exception handler, so restore it:
             Thread.setDefaultUncaughtExceptionHandler(new ExceptionHandler());
         } else {
@@ -233,11 +236,18 @@ public class Main {
             }
         });
         
-        // Make the "action:" URLs used in various places work:
+        // Make the "action:" and "bitcoin:" URLs used in various places work:
         URL.setURLStreamHandlerFactory(new URLStreamHandlerFactory() {
             @Override
             public URLStreamHandler createURLStreamHandler(String protocol) {
                 if (protocol.equals("action")) {
+                    return new URLStreamHandler() {
+                        @Override
+                        protected URLConnection openConnection(URL u) throws IOException {
+                            throw new UnsupportedOperationException("Not supported");
+                        }
+                    };
+                } else if (protocol.equals("bitcoin")) {
                     return new URLStreamHandler() {
                         @Override
                         protected URLConnection openConnection(URL u) throws IOException {
@@ -258,14 +268,23 @@ public class Main {
         } else {
             file = null;
             world = WorldFactory.createDefaultWorld(config, new Random().nextLong());
+//            world = WorldFactory.createFancyWorld(config, new Random().nextLong());
         }
 
+        // Install JIDE licence
+        Properties jideLicenceProps = new Properties();
+        jideLicenceProps.load(ClassLoader.getSystemResourceAsStream("jide_licence.properties"));
+        Lm.verifyLicense(jideLicenceProps.getProperty("companyName"), jideLicenceProps.getProperty("projectName"), jideLicenceProps.getProperty("licenceKey"));
+        
         SwingUtilities.invokeLater(new Runnable() {
             @Override
             public void run() {
                 // Use the system look and feel
                 try {
-                    UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+                    String laf = UIManager.getSystemLookAndFeelClassName();
+                    logger.fine("Installing look and feel: " + laf);
+                    UIManager.setLookAndFeel(laf);
+                    LookAndFeelFactory.installJideExtension();
                 } catch (ClassNotFoundException e) {
                     // We tried...
                 } catch (InstantiationException e) {
@@ -282,7 +301,7 @@ public class Main {
                 App app = App.getInstance();
                 app.setVisible(true);
                 // Swing quirk:
-                if (Configuration.getInstance().isMaximised()) {
+                if (Configuration.getInstance().isMaximised() && (System.getProperty("org.pepsoft.worldpainter.size") == null)) {
                     app.setExtendedState(Frame.MAXIMIZED_BOTH);
                 }
                 if (world != null) {
@@ -290,16 +309,6 @@ public class Main {
                     // may be opening a .world file, but it has proven difficult
                     // to detect that. TODO
                     app.setWorld(world);
-                    if (world.isCustomBiomes() && (app.getBiomeScheme() != null)) {
-                        Dimension dimension = world.getDimension(0);
-                        
-                        // Initialise the custom biomes
-                        dimension.recalculateBiomes(app.getBiomeScheme(), null);
-                        
-                        // Throw away the undo information generated by initialising the biomes
-                        dimension.clearUndo();
-                        dimension.armSavePoint();
-                    }
                 } else {
                     app.open(file);
                 }

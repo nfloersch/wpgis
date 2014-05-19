@@ -107,6 +107,16 @@ public abstract class AbstractMinecraft1_2BiomeScheme extends AbstractBiomeSchem
         return BIOME_PATTERNS[biome];
     }
     
+    @Override
+    public boolean isBiomePresent(int biome) {
+        return biome <= BIOME_JUNGLE_HILLS;
+    }
+
+    @Override
+    public String getBiomeName(int biome) {
+        return BIOME_NAMES[biome];
+    }
+    
     public static final int BIOME_OCEAN = 0;
     public static final int BIOME_PLAINS = 1;
     public static final int BIOME_DESERT = 2;

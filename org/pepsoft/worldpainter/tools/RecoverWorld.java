@@ -86,9 +86,7 @@ public class RecoverWorld {
                     if (world.getName() != null) {
                         newWorld.setName(worlds.get(0).getName() + " (recovered)");
                     }
-                    newWorld.setBiomeAlgorithm(world.getBiomeAlgorithm());
                     newWorld.setCreateGoodiesChest(world.isCreateGoodiesChest());
-                    newWorld.setCustomBiomes(world.isCustomBiomes());
                     try {
                         for (int i = 0; i < Terrain.CUSTOM_TERRAIN_COUNT; i++) {
                             newWorld.setMixedMaterial(i, world.getMixedMaterial(i));

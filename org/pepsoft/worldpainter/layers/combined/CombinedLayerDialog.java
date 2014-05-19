@@ -22,7 +22,6 @@ import org.pepsoft.worldpainter.BiomeScheme;
 import org.pepsoft.worldpainter.ColourScheme;
 import org.pepsoft.worldpainter.LayerListCellRenderer;
 import org.pepsoft.worldpainter.Terrain;
-import org.pepsoft.worldpainter.biomeschemes.AutoBiomeScheme;
 import org.pepsoft.worldpainter.biomeschemes.CustomBiome;
 import org.pepsoft.worldpainter.biomeschemes.CustomBiomeManager;
 import org.pepsoft.worldpainter.layers.CombinedLayer;
@@ -83,9 +82,11 @@ public class CombinedLayerDialog extends CustomLayerDialog<CombinedLayer> {
         
         List<Integer> allBiomes = new ArrayList<Integer>();
         allBiomes.add(-1);
-        int biomeCount = (biomeScheme != null) ? biomeScheme.getBiomeCount() : new AutoBiomeScheme(null).getBiomeCount();
+        int biomeCount = biomeScheme.getBiomeCount();
         for (int i = 0; i < biomeCount; i++) {
-            allBiomes.add(i);
+            if (biomeScheme.isBiomePresent(i)) {
+                allBiomes.add(i);
+            }
         }
         List<CustomBiome> customBiomes = customBiomeManager.getCustomBiomes();
         if (customBiomes != null) {

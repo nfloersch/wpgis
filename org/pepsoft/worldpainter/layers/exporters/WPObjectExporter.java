@@ -50,6 +50,8 @@ public abstract class WPObjectExporter<L extends Layer> extends AbstractLayerExp
         final int undergroundMode = object.getAttribute(ATTRIBUTE_UNDERGROUND_MODE, COLLISION_MODE_ALL);
         final int leafDecayMode = object.getAttribute(ATTRIBUTE_LEAF_DECAY_MODE, LEAF_DECAY_NO_CHANGE);
         final boolean bottomless = dimension.isBottomless();
+        final int[] replaceBlockIds = object.getAttribute(ATTRIBUTE_REPLACE_WITH_AIR, null);
+        final boolean replaceBlocks = replaceBlockIds != null;
         if ((z + offset.z + dim.z - 1) >= world.getMaxHeight()) {
             // Object doesn't fit in the world vertically
             return;
@@ -57,40 +59,41 @@ public abstract class WPObjectExporter<L extends Layer> extends AbstractLayerExp
 //        System.out.println("Object dimensions: " + dim + ", origin: " + orig);
         for (int dx = 0; dx < dim.x; dx++) {
             for (int dy = 0; dy < dim.y; dy++) {
-                int xx = x + dx + offset.x;
-                int yy = y + dy + offset.y;
-                int terrainHeight = dimension.getIntHeightAt(xx, yy);
+                final int xx = x + dx + offset.x;
+                final int yy = y + dy + offset.y;
+                final int terrainHeight = dimension.getIntHeightAt(xx, yy);
                 for (int dz = 0; dz < dim.z; dz++) {
                     if (object.getMask(dx, dy, dz)) {
-                        int zz = z + dz + offset.z;
+                        final int zz = z + dz + offset.z;
                         if (bottomless ? (zz < 0) : (zz < 1)) {
                             continue;
                         } else {
-                            int existingBlockType = world.getBlockTypeAt(xx, yy, zz);
+                            final int existingBlockType = world.getBlockTypeAt(xx, yy, zz);
+                            final Material objectMaterial = object.getMaterial(dx, dy, dz);
+                            final Material finalMaterial = (replaceBlocks && (objectMaterial.getBlockType() == replaceBlockIds[0]) && (objectMaterial.getData() == replaceBlockIds[1])) ? Material.AIR : objectMaterial;
                             if (zz <= terrainHeight) {
                                 switch (undergroundMode) {
                                     case COLLISION_MODE_ALL:
                                         // Replace every block
-                                        placeBlock(world, xx, yy, zz, object.getMaterial(dx, dy, dz), leafDecayMode);
+                                        placeBlock(world, xx, yy, zz, finalMaterial, leafDecayMode);
                                         break;
                                     case COLLISION_MODE_SOLID:
                                         // Only replace if object block is solid
-                                        Material objectMaterial = object.getMaterial(dx, dy, dz);
                                         if (! VERY_INSUBSTANTIAL_BLOCKS.contains(objectMaterial.getBlockType())) {
-                                            placeBlock(world, xx, yy, zz, objectMaterial, leafDecayMode);
+                                            placeBlock(world, xx, yy, zz, finalMaterial, leafDecayMode);
                                         }
                                         break;
                                     case COLLISION_MODE_NONE:
                                         // Only replace less solid blocks
                                         if (VERY_INSUBSTANTIAL_BLOCKS.contains(existingBlockType)) {
-                                            placeBlock(world, xx, yy, zz, object.getMaterial(dx, dy, dz), leafDecayMode);
+                                            placeBlock(world, xx, yy, zz, finalMaterial, leafDecayMode);
                                         }
                                         break;
                                 }
                             } else {
                                 // Above ground only replace less solid blocks
                                 if (VERY_INSUBSTANTIAL_BLOCKS.contains(existingBlockType)) {
-                                    placeBlock(world, xx, yy, zz, object.getMaterial(dx, dy, dz), leafDecayMode);
+                                    placeBlock(world, xx, yy, zz, finalMaterial, leafDecayMode);
                                 }
                             }
                         }
@@ -115,12 +118,24 @@ public abstract class WPObjectExporter<L extends Layer> extends AbstractLayerExp
         if (tileEntities != null) {
             for (TileEntity tileEntity: tileEntities) {
                 int tileEntityX = x + tileEntity.getX() + offset.x,
-                        tileEntityY = y + tileEntity.getZ() + offset.y,
-                        tileEntityZ = z + tileEntity.getY() + offset.z;
-                if (logger.isLoggable(Level.FINE)) {
-                    logger.fine("Adding tile entity " + tileEntity.getId() + " @ " + tileEntityX + "," + tileEntityY + "," + tileEntityZ + " (block type: " + BLOCK_TYPE_NAMES[world.getBlockTypeAt(tileEntityX, tileEntityY, tileEntityZ)] + ")");
+                    tileEntityY = y + tileEntity.getZ() + offset.y,
+                    tileEntityZ = z + tileEntity.getY() + offset.z;
+                int existingBlockType = world.getBlockTypeAt(tileEntityX, tileEntityY, tileEntityZ);
+                if (TILE_ENTITY_MAP.get(tileEntity.getId()).contains(existingBlockType)) {
+                    if (logger.isLoggable(Level.FINE)) {
+                        logger.fine("Adding tile entity " + tileEntity.getId() + " @ " + tileEntityX + "," + tileEntityY + "," + tileEntityZ + " (block type: " + BLOCK_TYPE_NAMES[existingBlockType] + ")");
+                    }
+                    world.addTileEntity(tileEntityX, tileEntityY, tileEntityZ, tileEntity);
+                } else {
+                    // The tile entity is not there, for whatever reason (there
+                    // are all kinds of legitimate reasons why this would
+                    // happen, for instance if the block was not placed because
+                    // it collided with another block, or it was below or above
+                    // the world limits)
+                    if (logger.isLoggable(Level.FINE)) {
+                        logger.fine("Not adding tile entity " + tileEntity.getId() + " @ " + tileEntityX + "," + tileEntityY + "," + tileEntityZ + " because the block there is not a (or not the same) tile entity: " + BLOCK_TYPE_NAMES[existingBlockType] + "!");
+                    }
                 }
-                world.addTileEntity(x + tileEntity.getX(), y + tileEntity.getZ(), z + tileEntity.getY(), tileEntity);
             }
         }
     }
@@ -310,11 +325,12 @@ public abstract class WPObjectExporter<L extends Layer> extends AbstractLayerExp
     }
 
     private static void placeBlock(MinecraftWorld world, int x, int y, int z, Material material, int leafDecayMode) {
-        if ((material.getBlockType() == BLK_LEAVES) && (leafDecayMode != LEAF_DECAY_NO_CHANGE)) {
+        final int blockType = material.getBlockType();
+        if (((blockType == BLK_LEAVES) || (blockType == BLK_LEAVES2)) && (leafDecayMode != LEAF_DECAY_NO_CHANGE)) {
             if (leafDecayMode == LEAF_DECAY_ON) {
-                world.setMaterialAt(x, y, z, Material.get(BLK_LEAVES, material.getData() & 0xb)); // Reset bit 2
+                world.setMaterialAt(x, y, z, Material.get(blockType, material.getData() & 0xb)); // Reset bit 2
             } else {
-                world.setMaterialAt(x, y, z, Material.get(BLK_LEAVES, material.getData() | 0x4)); // Set bit 2
+                world.setMaterialAt(x, y, z, Material.get(blockType, material.getData() | 0x4)); // Set bit 2
             }
         } else {
             world.setMaterialAt(x, y, z, material);

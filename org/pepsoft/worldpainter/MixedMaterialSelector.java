@@ -37,6 +37,13 @@ public class MixedMaterialSelector extends javax.swing.JPanel {
     public void setMixedMaterial(MixedMaterial material) {
         this.material = material;
         materialSelected = material != null;
+        if (material != null) {
+            materialSelected = true;
+            radioButtonMaterial.setSelected(true);
+        } else {
+            materialSelected = false;
+            radioButtonNoMaterial.setSelected(true);
+        }
         setControlStates();
     }
     

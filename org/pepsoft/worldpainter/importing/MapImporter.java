@@ -45,71 +45,9 @@ import org.pepsoft.worldpainter.layers.exporters.FrostExporter.FrostSettings;
 import org.pepsoft.worldpainter.layers.exporters.ResourcesExporter.ResourcesExporterSettings;
 import org.pepsoft.worldpainter.vo.EventVO;
 
-import static org.pepsoft.minecraft.Constants.BLK_AIR;
-import static org.pepsoft.minecraft.Constants.BLK_BEDROCK;
-import static org.pepsoft.minecraft.Constants.BLK_BROWN_MUSHROOM;
-import static org.pepsoft.minecraft.Constants.BLK_CACTUS;
-import static org.pepsoft.minecraft.Constants.BLK_CHEST;
-import static org.pepsoft.minecraft.Constants.BLK_CLAY;
-import static org.pepsoft.minecraft.Constants.BLK_COAL;
-import static org.pepsoft.minecraft.Constants.BLK_COBBLESTONE;
-import static org.pepsoft.minecraft.Constants.BLK_COCOA_PLANT;
-import static org.pepsoft.minecraft.Constants.BLK_DANDELION;
-import static org.pepsoft.minecraft.Constants.BLK_DEAD_SHRUBS;
-import static org.pepsoft.minecraft.Constants.BLK_DIAMOND_ORE;
-import static org.pepsoft.minecraft.Constants.BLK_DIRT;
-import static org.pepsoft.minecraft.Constants.BLK_EMERALD_ORE;
-import static org.pepsoft.minecraft.Constants.BLK_END_STONE;
-import static org.pepsoft.minecraft.Constants.BLK_FIRE;
-import static org.pepsoft.minecraft.Constants.BLK_GLOWING_REDSTONE_ORE;
-import static org.pepsoft.minecraft.Constants.BLK_GLOWSTONE;
-import static org.pepsoft.minecraft.Constants.BLK_GOLD_ORE;
-import static org.pepsoft.minecraft.Constants.BLK_GRASS;
-import static org.pepsoft.minecraft.Constants.BLK_GRAVEL;
-import static org.pepsoft.minecraft.Constants.BLK_HUGE_BROWN_MUSHROOM;
-import static org.pepsoft.minecraft.Constants.BLK_HUGE_RED_MUSHROOM;
-import static org.pepsoft.minecraft.Constants.BLK_ICE;
-import static org.pepsoft.minecraft.Constants.BLK_IRON_ORE;
-import static org.pepsoft.minecraft.Constants.BLK_LAPIS_LAZULI_ORE;
-import static org.pepsoft.minecraft.Constants.BLK_LAVA;
-import static org.pepsoft.minecraft.Constants.BLK_LEAVES;
-import static org.pepsoft.minecraft.Constants.BLK_LILY_PAD;
-import static org.pepsoft.minecraft.Constants.BLK_MONSTER_SPAWNER;
-import static org.pepsoft.minecraft.Constants.BLK_MOSSY_COBBLESTONE;
-import static org.pepsoft.minecraft.Constants.BLK_MYCELIUM;
-import static org.pepsoft.minecraft.Constants.BLK_NETHERRACK;
-import static org.pepsoft.minecraft.Constants.BLK_OBSIDIAN;
-import static org.pepsoft.minecraft.Constants.BLK_PUMPKIN;
-import static org.pepsoft.minecraft.Constants.BLK_REDSTONE_ORE;
-import static org.pepsoft.minecraft.Constants.BLK_RED_MUSHROOM;
-import static org.pepsoft.minecraft.Constants.BLK_ROSE;
-import static org.pepsoft.minecraft.Constants.BLK_SAND;
-import static org.pepsoft.minecraft.Constants.BLK_SANDSTONE;
-import static org.pepsoft.minecraft.Constants.BLK_SNOW;
-import static org.pepsoft.minecraft.Constants.BLK_SNOW_BLOCK;
-import static org.pepsoft.minecraft.Constants.BLK_SOUL_SAND;
-import static org.pepsoft.minecraft.Constants.BLK_STATIONARY_LAVA;
-import static org.pepsoft.minecraft.Constants.BLK_STATIONARY_WATER;
-import static org.pepsoft.minecraft.Constants.BLK_STONE;
-import static org.pepsoft.minecraft.Constants.BLK_SUGAR_CANE;
-import static org.pepsoft.minecraft.Constants.BLK_TALL_GRASS;
-import static org.pepsoft.minecraft.Constants.BLK_TILLED_DIRT;
-import static org.pepsoft.minecraft.Constants.BLK_VINES;
-import static org.pepsoft.minecraft.Constants.BLK_WATER;
-import static org.pepsoft.minecraft.Constants.BLK_WOOD;
-import static org.pepsoft.minecraft.Constants.SUPPORTED_VERSION_1;
-import static org.pepsoft.minecraft.Constants.SUPPORTED_VERSION_2;
-import static org.pepsoft.worldpainter.Constants.ATTRIBUTE_KEY_ALLOW_CHEATS;
-import static org.pepsoft.worldpainter.Constants.ATTRIBUTE_KEY_GAME_TYPE;
-import static org.pepsoft.worldpainter.Constants.ATTRIBUTE_KEY_GENERATOR;
-import static org.pepsoft.worldpainter.Constants.ATTRIBUTE_KEY_GENERATOR_OPTIONS;
-import static org.pepsoft.worldpainter.Constants.ATTRIBUTE_KEY_MAP_FEATURES;
-import static org.pepsoft.worldpainter.Constants.ATTRIBUTE_KEY_MAX_HEIGHT;
-import static org.pepsoft.worldpainter.Constants.ATTRIBUTE_KEY_TILES;
-import static org.pepsoft.worldpainter.Constants.ATTRIBUTE_KEY_VERSION;
-import static org.pepsoft.worldpainter.Constants.DIM_NORMAL;
-import static org.pepsoft.worldpainter.Constants.EVENT_KEY_ACTION_IMPORT_MAP;
-import static org.pepsoft.worldpainter.Constants.TILE_SIZE_BITS;
+import static org.pepsoft.minecraft.Constants.*;
+import org.pepsoft.minecraft.Material;
+import static org.pepsoft.worldpainter.Constants.*;
 
 /**
  *
@@ -161,12 +99,6 @@ public class MapImporter {
         world.setVersion(version);
         long minecraftSeed = level.getSeed();
         tileFactory.setSeed(minecraftSeed);
-        if (version == SUPPORTED_VERSION_1) {
-            world.setBiomeAlgorithm(World2.BIOME_ALGORITHM_1_1);
-        } else {
-            world.setBiomeAlgorithm(World2.BIOME_ALGORITHM_NONE);
-            world.setCustomBiomes(true);
-        }
         Dimension dimension = new Dimension(minecraftSeed, tileFactory, DIM_NORMAL, maxHeight);
         dimension.setEventsInhibited(true);
         try {
@@ -268,12 +200,12 @@ public class MapImporter {
         if (progressReceiver != null) {
             progressReceiver.setMessage(dimension.getName() + " dimension");
         }
-        int maxHeight = dimension.getMaxHeight();
-        int maxY = maxHeight - 1;
+        final int maxHeight = dimension.getMaxHeight();
+        final int maxY = maxHeight - 1;
         final Pattern regionFilePattern = (version == SUPPORTED_VERSION_1)
             ? Pattern.compile("r\\.-?\\d+\\.-?\\d+\\.mcr")
             : Pattern.compile("r\\.-?\\d+\\.-?\\d+\\.mca");
-        File[] regionFiles = regionDir.listFiles(new FilenameFilter() {
+        final File[] regionFiles = regionDir.listFiles(new FilenameFilter() {
             @Override
             public boolean accept(File dir, String name) {
                 return regionFilePattern.matcher(name).matches();
@@ -282,11 +214,12 @@ public class MapImporter {
         if ((regionFiles == null) || (regionFiles.length == 0)) {
             throw new RuntimeException("The " + dimension.getName() + " dimension of this map has no region files!");
         }
-        Set<Point> newChunks = new HashSet<Point>();
-//        SortedSet<Integer> manMadeBlockTypes = new TreeSet<Integer>();
-        boolean importBiomes = (version == SUPPORTED_VERSION_2) && (dimension.getDim() == DIM_NORMAL);
-        int total = regionFiles.length * 1024, count = 0;
-        StringBuilder reportBuilder = new StringBuilder();
+        final Set<Point> newChunks = new HashSet<Point>();
+//        final SortedSet<Material> manMadeBlockTypes = new TreeSet<Material>();
+        final boolean importBiomes = (version == SUPPORTED_VERSION_2) && (dimension.getDim() == DIM_NORMAL);
+        final int total = regionFiles.length * 1024;
+        int count = 0;
+        final StringBuilder reportBuilder = new StringBuilder();
         for (File file: regionFiles) {
             try {
                 RegionFile regionFile = new RegionFile(file);
@@ -297,14 +230,14 @@ public class MapImporter {
                                 progressReceiver.setProgress((float) count / total);
                                 count++;
                             }
-                            Point2i chunkCoords = new Point2i((regionFile.getX() << 5) | x, (regionFile.getZ() << 5) | z);
+                            final Point2i chunkCoords = new Point2i((regionFile.getX() << 5) | x, (regionFile.getZ() << 5) | z);
                             if ((chunksToSkip != null) && chunksToSkip.contains(chunkCoords)) {
                                 continue;
                             }
                             if (regionFile.containsChunk(x, z)) {
-                                Tag tag;
+                                final Tag tag;
                                 try {
-                                    InputStream chunkData = regionFile.getChunkDataInputStream(x, z);
+                                    final InputStream chunkData = regionFile.getChunkDataInputStream(x, z);
                                     if (chunkData == null) {
                                         // This should never happen, since we checked
                                         // with containsChunk(), but in practice it
@@ -313,7 +246,7 @@ public class MapImporter {
                                         logger.warning("Missing chunk data for chunk " + x + ", " + z + " in " + file + "; skipping chunk");
                                         continue;
                                     }
-                                    NBTInputStream in = new NBTInputStream(chunkData);
+                                    final NBTInputStream in = new NBTInputStream(chunkData);
                                     try {
                                         tag = in.readTag();
                                     } finally {
@@ -328,11 +261,11 @@ public class MapImporter {
                                     logger.log(java.util.logging.Level.SEVERE, "Illegal argument exception while reading chunk " + x + ", " + z + " from file " + file + "; skipping chunk", e);
                                     continue;
                                 }
-                                Chunk chunk = (version == SUPPORTED_VERSION_1)
+                                final Chunk chunk = (version == SUPPORTED_VERSION_1)
                                     ? new ChunkImpl((CompoundTag) tag, maxHeight)
                                     : new ChunkImpl2((CompoundTag) tag, maxHeight);
 
-                                Point tileCoords = new Point(chunk.getxPos() >> 3, chunk.getzPos() >> 3);
+                                final Point tileCoords = new Point(chunk.getxPos() >> 3, chunk.getzPos() >> 3);
                                 Tile tile = dimension.getTile(tileCoords);
                                 if (tile == null) {
                                     tile = dimension.getTileFactory().createTile(tileCoords.x, tileCoords.y);
@@ -345,7 +278,8 @@ public class MapImporter {
                                 }
                                 newChunks.remove(new Point(chunk.getxPos() << 4, chunk.getzPos() << 4));
 
-                                boolean manMadeStructures = false;
+                                boolean manMadeStructuresBelowGround = false;
+                                boolean manMadeStructuresAboveGround = false;
                                 try {
                                     for (int xx = 0; xx < 16; xx++) {
                                         for (int zz = 0; zz < 16; zz++) {
@@ -357,8 +291,12 @@ public class MapImporter {
                                                 int blockType = chunk.getBlockType(xx, y, zz);
                                                 int data = chunk.getDataValue(xx, y, zz);
                                                 if (! NATURAL_BLOCKS.contains(blockType)) {
-                                                    manMadeStructures = true;
-//                                                    manMadeBlockTypes.add(blockType);
+                                                    if (height == -1.0f) {
+                                                        manMadeStructuresAboveGround = true;
+                                                    } else {
+                                                        manMadeStructuresBelowGround = true;
+                                                    }
+//                                                    manMadeBlockTypes.add(Material.get(blockType, data));
                                                 }
                                                 if ((blockType == BLK_SNOW) || (blockType == BLK_ICE)) {
                                                     frost = true;
@@ -368,10 +306,17 @@ public class MapImporter {
                                                     if ((blockType == BLK_LAVA) || (blockType == BLK_STATIONARY_LAVA)) {
                                                         floodWithLava = true;
                                                     }
-                                                } else if (TERRAIN_MAPPING.containsKey(blockType) && (height == -1.0f)) {
-                                                    // Terrain found
-                                                    height = y - 0.4375f; // Value that falls in the middle of the lowest one eigthth which will still round to the same integer value and will receive a one layer thick smooth snow block (principle of least surprise)
-                                                    terrain = TERRAIN_MAPPING.get(blockType);
+                                                } else if (height == -1.0f) {
+                                                    final Material material = Material.get(blockType, data);
+                                                    if (SPECIAL_TERRAIN_MAPPING.containsKey(material)) {
+                                                        // Special terrain found
+                                                        height = y - 0.4375f; // Value that falls in the middle of the lowest one eigthth which will still round to the same integer value and will receive a one layer thick smooth snow block (principle of least surprise)
+                                                        terrain = SPECIAL_TERRAIN_MAPPING.get(material);
+                                                    } else if (TERRAIN_MAPPING.containsKey(blockType)) {
+                                                        // Terrain found
+                                                        height = y - 0.4375f; // Value that falls in the middle of the lowest one eigthth which will still round to the same integer value and will receive a one layer thick smooth snow block (principle of least surprise)
+                                                        terrain = TERRAIN_MAPPING.get(blockType);
+                                                    }
                                                 }
                                             }
                                             // Use smooth snow, if present, to better approximate world height, so smooth snow will survive merge
@@ -385,9 +330,9 @@ public class MapImporter {
                                                 waterLevel = 62;
                                             }
 
-                                            int blockX = (chunk.getxPos() << 4) | xx;
-                                            int blockY = (chunk.getzPos() << 4) | zz;
-                                            Point coords = new Point(blockX, blockY);
+                                            final int blockX = (chunk.getxPos() << 4) | xx;
+                                            final int blockY = (chunk.getzPos() << 4) | zz;
+                                            final Point coords = new Point(blockX, blockY);
                                             dimension.setTerrainAt(coords, terrain);
                                             dimension.setHeightAt(coords, Math.max(height, 0.0f));
                                             dimension.setWaterLevelAt(blockX, blockY, waterLevel);
@@ -401,7 +346,7 @@ public class MapImporter {
                                                 dimension.setBitLayerValueAt(org.pepsoft.worldpainter.layers.Void.INSTANCE, blockX, blockY, true);
                                             }
                                             if (importBiomes && ((ChunkImpl2) chunk).isBiomesAvailable()) {
-                                                int biome = ((ChunkImpl2) chunk).getBiome(xx, zz);
+                                                final int biome = ((ChunkImpl2) chunk).getBiome(xx, zz);
                                                 if (biome != 255) {
                                                     // Around the edges of the map
                                                     // Minecraft sets the biome to 255,
@@ -427,7 +372,9 @@ public class MapImporter {
                                     continue;
                                 }
 
-                                if ((manMadeStructures && (readOnlyOption == ReadOnlyOption.MAN_MADE)) || (readOnlyOption == ReadOnlyOption.ALL)) {
+                                if (((readOnlyOption == ReadOnlyOption.MAN_MADE) && (manMadeStructuresBelowGround || manMadeStructuresAboveGround))
+                                        || ((readOnlyOption == ReadOnlyOption.MAN_MADE_ABOVE_GROUND) && manMadeStructuresAboveGround)
+                                        || (readOnlyOption == ReadOnlyOption.ALL)) {
                                     dimension.setBitLayerValueAt(ReadOnly.INSTANCE, chunk.getxPos() << 4, chunk.getzPos() << 4, true);
                                 }
                             }
@@ -451,13 +398,14 @@ public class MapImporter {
                 dimension.setBitLayerValueAt(Populate.INSTANCE, newChunkCoords.x, newChunkCoords.y, true);
             }
         }
+        
         if (progressReceiver != null) {
             progressReceiver.setProgress(1.0f);
         }
         
 //        System.err.println("Man-made block types encountered:");
-//        for (Integer blockType: manMadeBlockTypes) {
-//            System.err.println(blockType + ": " + BLOCK_TYPE_NAMES[blockType]);
+//        for (Material blockType: manMadeBlockTypes) {
+//            System.err.println(blockType);
 //        }
         
         return reportBuilder.length() != 0 ? reportBuilder.toString() : null;
@@ -471,6 +419,7 @@ public class MapImporter {
     private String warnings;
     
     public static final Map<Integer, Terrain> TERRAIN_MAPPING = new HashMap<Integer, Terrain>();
+    public static final Map<Material, Terrain> SPECIAL_TERRAIN_MAPPING = new HashMap<Material, Terrain>();
     
     private static final Set<Integer> NATURAL_BLOCKS = new HashSet<Integer>();
     private static final Logger logger = Logger.getLogger(MapImporter.class.getName());
@@ -480,7 +429,6 @@ public class MapImporter {
         TERRAIN_MAPPING.put(BLK_STONE, Terrain.STONE);
         TERRAIN_MAPPING.put(BLK_GRASS, Terrain.BARE_GRASS);
         TERRAIN_MAPPING.put(BLK_DIRT, Terrain.DIRT);
-//        TERRAIN_MAPPING.put(BLK_COBBLESTONE, Terrain.COBBLESTONE);
         TERRAIN_MAPPING.put(BLK_BEDROCK, Terrain.BEDROCK);
         TERRAIN_MAPPING.put(BLK_SAND, Terrain.SAND);
         TERRAIN_MAPPING.put(BLK_GRAVEL, Terrain.GRAVEL);
@@ -488,26 +436,52 @@ public class MapImporter {
         TERRAIN_MAPPING.put(BLK_IRON_ORE, Terrain.STONE);
         TERRAIN_MAPPING.put(BLK_COAL, Terrain.STONE);
         TERRAIN_MAPPING.put(BLK_LAPIS_LAZULI_ORE, Terrain.STONE);
-        TERRAIN_MAPPING.put(BLK_SANDSTONE, Terrain.SANDSTONE);
-//        TERRAIN_MAPPING.put(BLK_MOSSY_COBBLESTONE, Terrain.MOSSY_COBBLESTONE);
-        TERRAIN_MAPPING.put(BLK_OBSIDIAN, Terrain.OBSIDIAN);
         TERRAIN_MAPPING.put(BLK_DIAMOND_ORE, Terrain.STONE);
-        TERRAIN_MAPPING.put(BLK_TILLED_DIRT, Terrain.DIRT);
         TERRAIN_MAPPING.put(BLK_REDSTONE_ORE, Terrain.STONE);
         TERRAIN_MAPPING.put(BLK_GLOWING_REDSTONE_ORE, Terrain.STONE);
+        TERRAIN_MAPPING.put(BLK_HIDDEN_SILVERFISH, Terrain.STONE);
+        TERRAIN_MAPPING.put(BLK_SANDSTONE, Terrain.SANDSTONE);
+        TERRAIN_MAPPING.put(BLK_OBSIDIAN, Terrain.OBSIDIAN);
+        TERRAIN_MAPPING.put(BLK_TILLED_DIRT, Terrain.DIRT);
         TERRAIN_MAPPING.put(BLK_SNOW_BLOCK, Terrain.DEEP_SNOW);
         TERRAIN_MAPPING.put(BLK_CLAY, Terrain.CLAY);
         TERRAIN_MAPPING.put(BLK_NETHERRACK, Terrain.NETHERRACK);
+        TERRAIN_MAPPING.put(BLK_QUARTZ_ORE, Terrain.NETHERRACK);
         TERRAIN_MAPPING.put(BLK_SOUL_SAND, Terrain.SOUL_SAND);
-//        TERRAIN_MAPPING.put(BLK_GLOWSTONE, Terrain.NETHERRACK);
         TERRAIN_MAPPING.put(BLK_MYCELIUM, Terrain.MYCELIUM);
         TERRAIN_MAPPING.put(BLK_END_STONE, Terrain.END_STONE);
+        TERRAIN_MAPPING.put(BLK_HARDENED_CLAY, Terrain.HARDENED_CLAY);
+        
+        SPECIAL_TERRAIN_MAPPING.put(Material.RED_SAND, Terrain.RED_SAND);
+        SPECIAL_TERRAIN_MAPPING.put(Material.PERMADIRT, Terrain.PERMADIRT);
+        SPECIAL_TERRAIN_MAPPING.put(Material.PODZOL, Terrain.PODZOL);
+        SPECIAL_TERRAIN_MAPPING.put(Material.WHITE_CLAY, Terrain.WHITE_STAINED_CLAY);
+        SPECIAL_TERRAIN_MAPPING.put(Material.ORANGE_CLAY, Terrain.ORANGE_STAINED_CLAY);
+        SPECIAL_TERRAIN_MAPPING.put(Material.MAGENTA_CLAY, Terrain.MAGENTA_STAINED_CLAY);
+        SPECIAL_TERRAIN_MAPPING.put(Material.LIGHT_BLUE_CLAY, Terrain.LIGHT_BLUE_STAINED_CLAY);
+        SPECIAL_TERRAIN_MAPPING.put(Material.YELLOW_CLAY, Terrain.YELLOW_STAINED_CLAY);
+        SPECIAL_TERRAIN_MAPPING.put(Material.LIME_CLAY, Terrain.LIME_STAINED_CLAY);
+        SPECIAL_TERRAIN_MAPPING.put(Material.PINK_CLAY, Terrain.PINK_STAINED_CLAY);
+        SPECIAL_TERRAIN_MAPPING.put(Material.GREY_CLAY, Terrain.GREY_STAINED_CLAY);
+        SPECIAL_TERRAIN_MAPPING.put(Material.LIGHT_GREY_CLAY, Terrain.LIGHT_GREY_STAINED_CLAY);
+        SPECIAL_TERRAIN_MAPPING.put(Material.CYAN_CLAY, Terrain.CYAN_STAINED_CLAY);
+        SPECIAL_TERRAIN_MAPPING.put(Material.PURPLE_CLAY, Terrain.PURPLE_STAINED_CLAY);
+        SPECIAL_TERRAIN_MAPPING.put(Material.BLUE_CLAY, Terrain.BLUE_STAINED_CLAY);
+        SPECIAL_TERRAIN_MAPPING.put(Material.BROWN_CLAY, Terrain.BROWN_STAINED_CLAY);
+        SPECIAL_TERRAIN_MAPPING.put(Material.GREEN_CLAY, Terrain.GREEN_STAINED_CLAY);
+        SPECIAL_TERRAIN_MAPPING.put(Material.RED_CLAY, Terrain.RED_STAINED_CLAY);
+        SPECIAL_TERRAIN_MAPPING.put(Material.BLACK_CLAY, Terrain.BLACK_STAINED_CLAY);
         
         NATURAL_BLOCKS.addAll(TERRAIN_MAPPING.keySet());
+        for (Material material: SPECIAL_TERRAIN_MAPPING.keySet()) {
+            NATURAL_BLOCKS.add(material.getBlockType());
+        }
         NATURAL_BLOCKS.remove(BLK_TILLED_DIRT);
         NATURAL_BLOCKS.add(BLK_AIR);
         NATURAL_BLOCKS.add(BLK_WOOD);
+        NATURAL_BLOCKS.add(BLK_WOOD2);
         NATURAL_BLOCKS.add(BLK_LEAVES);
+        NATURAL_BLOCKS.add(BLK_LEAVES2);
         NATURAL_BLOCKS.add(BLK_DANDELION);
         NATURAL_BLOCKS.add(BLK_ROSE);
         NATURAL_BLOCKS.add(BLK_BROWN_MUSHROOM);
@@ -531,6 +505,9 @@ public class MapImporter {
         NATURAL_BLOCKS.add(BLK_GLOWSTONE);
         NATURAL_BLOCKS.add(BLK_COCOA_PLANT);
         NATURAL_BLOCKS.add(BLK_EMERALD_ORE);
+        NATURAL_BLOCKS.add(BLK_PACKED_ICE);
+        NATURAL_BLOCKS.add(BLK_LARGE_FLOWERS);
+        NATURAL_BLOCKS.add(BLK_NETHER_WART);
         
         // Dungeons:
         NATURAL_BLOCKS.add(BLK_MONSTER_SPAWNER);
@@ -544,5 +521,5 @@ public class MapImporter {
         // reveals where they are when importing a map.
     }
     
-    public enum ReadOnlyOption {NONE, MAN_MADE, ALL}
+    public enum ReadOnlyOption {NONE, MAN_MADE, MAN_MADE_ABOVE_GROUND, ALL}
 }

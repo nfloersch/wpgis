@@ -7,7 +7,6 @@ package org.pepsoft.worldpainter;
 
 import java.awt.Point;
 import java.awt.Rectangle;
-import java.awt.Window;
 import java.beans.PropertyChangeListener;
 import java.beans.PropertyChangeSupport;
 import java.io.File;
@@ -32,17 +31,15 @@ import javax.imageio.stream.FileImageInputStream;
 import javax.imageio.stream.ImageInputStream;
 import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
+import javax.vecmath.Point3i;
 
 import org.pepsoft.util.MathUtils;
 import org.pepsoft.util.PerlinNoise;
 import org.pepsoft.util.ProgressReceiver;
 import org.pepsoft.util.ProgressReceiver.OperationCancelled;
-import org.pepsoft.util.swing.ProgressDialog;
-import org.pepsoft.util.swing.ProgressTask;
 import org.pepsoft.util.undo.UndoManager;
 import org.pepsoft.worldpainter.gardenofeden.Garden;
 import org.pepsoft.worldpainter.gardenofeden.Seed;
-import org.pepsoft.worldpainter.layers.Biome;
 import org.pepsoft.worldpainter.layers.DeciduousForest;
 import org.pepsoft.worldpainter.layers.FloodWithLava;
 import org.pepsoft.worldpainter.layers.Frost;
@@ -57,7 +54,7 @@ import org.pepsoft.worldpainter.layers.exporters.ResourcesExporter.ResourcesExpo
 
 import static org.pepsoft.minecraft.Constants.*;
 import static org.pepsoft.worldpainter.Constants.*;
-import static org.pepsoft.worldpainter.biomeschemes.AbstractMinecraft1_2BiomeScheme.*;
+import static org.pepsoft.worldpainter.biomeschemes.AbstractMinecraft1_7BiomeScheme.*;
 import org.pepsoft.worldpainter.biomeschemes.CustomBiome;
 import org.pepsoft.worldpainter.layers.LayerContainer;
 import org.pepsoft.worldpainter.layers.River;
@@ -372,16 +369,20 @@ public class Dimension extends InstanceKeeper implements TileProvider, Serializa
     }
     
     public int getIntHeightAt(int x, int y) {
+        return getIntHeightAt(x, y, -1);
+    }
+    
+    public int getIntHeightAt(int x, int y, int defaultHeight) {
         Tile tile = getTile(x >> TILE_SIZE_BITS, y >> TILE_SIZE_BITS);
         if (tile != null) {
             return tile.getIntHeight(x & TILE_SIZE_MASK, y & TILE_SIZE_MASK);
         } else {
-            return -1;
+            return defaultHeight;
         }
     }
     
     public int getIntHeightAt(Point coords) {
-        return getIntHeightAt(coords.x, coords.y);
+        return getIntHeightAt(coords.x, coords.y, -1);
     }
 
     public float getHeightAt(int x, int y) {
@@ -405,9 +406,6 @@ public class Dimension extends InstanceKeeper implements TileProvider, Serializa
                 dirtyTiles.add(tile);
             }
             tile.setHeight(x & TILE_SIZE_MASK, y & TILE_SIZE_MASK, height);
-            if (autoUpdateBiomes) {
-                updateBiome(tile, x & TILE_SIZE_MASK, y & TILE_SIZE_MASK);
-            }
         }
     }
 
@@ -436,9 +434,6 @@ public class Dimension extends InstanceKeeper implements TileProvider, Serializa
                 dirtyTiles.add(tile);
             }
             tile.setRawHeight(x & TILE_SIZE_MASK, y & TILE_SIZE_MASK, rawHeight);
-            if (autoUpdateBiomes) {
-                updateBiome(tile, x & TILE_SIZE_MASK, y & TILE_SIZE_MASK);
-            }
         }
     }
 
@@ -482,9 +477,6 @@ public class Dimension extends InstanceKeeper implements TileProvider, Serializa
                 dirtyTiles.add(tile);
             }
             tile.setTerrain(x & TILE_SIZE_MASK, y & TILE_SIZE_MASK, terrain);
-            if (autoUpdateBiomes) {
-                updateBiome(tile, x & TILE_SIZE_MASK, y & TILE_SIZE_MASK);
-            }
         }
     }
 
@@ -500,9 +492,6 @@ public class Dimension extends InstanceKeeper implements TileProvider, Serializa
                 dirtyTiles.add(tile);
             }
             tileFactory.applyTheme(tile, x & TILE_SIZE_MASK, y & TILE_SIZE_MASK);
-            if (autoUpdateBiomes) {
-                updateBiome(tile, x & TILE_SIZE_MASK, y & TILE_SIZE_MASK);
-            }
         }
     }
 
@@ -527,9 +516,6 @@ public class Dimension extends InstanceKeeper implements TileProvider, Serializa
                 dirtyTiles.add(tile);
             }
             tile.setWaterLevel(x & TILE_SIZE_MASK, y & TILE_SIZE_MASK, waterLevel);
-            if (autoUpdateBiomes) {
-                updateBiome(tile, x & TILE_SIZE_MASK, y & TILE_SIZE_MASK);
-            }
         }
     }
 
@@ -538,7 +524,7 @@ public class Dimension extends InstanceKeeper implements TileProvider, Serializa
         if (tile != null) {
             return tile.getLayerValue(layer, x & TILE_SIZE_MASK, y & TILE_SIZE_MASK);
         } else {
-            return 0;
+            return layer.getDefaultValue();
         }
     }
 
@@ -554,9 +540,6 @@ public class Dimension extends InstanceKeeper implements TileProvider, Serializa
                 dirtyTiles.add(tile);
             }
             tile.setLayerValue(layer, x & TILE_SIZE_MASK, y & TILE_SIZE_MASK, value);
-            if (autoUpdateBiomes) {
-                updateBiome(tile, x & TILE_SIZE_MASK, y & TILE_SIZE_MASK);
-            }
         }
     }
 
@@ -721,25 +704,12 @@ public class Dimension extends InstanceKeeper implements TileProvider, Serializa
                 dirtyTiles.add(tile);
             }
             tile.setBitLayerValue(layer, x & TILE_SIZE_MASK, y & TILE_SIZE_MASK, value);
-            if (autoUpdateBiomes) {
-                updateBiome(tile, x & TILE_SIZE_MASK, y & TILE_SIZE_MASK);
-            }
-        }
-    }
-    
-    public void updateBiome(Tile tile, int x, int y) {
-        int biome = getAutoBiome(tile, x, y);
-        if (biome != -1) {
-            tile.setLayerValue(Biome.INSTANCE, x, y, biome);
         }
     }
     
     public void clearLayerData(Layer layer) {
         for (Tile tile: tiles.values()) {
             tile.clearLayerData(layer);
-        }
-        if (layer.equals(Biome.INSTANCE) && biomesCalculated) {
-            biomesCalculated = false;
         }
     }
 
@@ -774,7 +744,7 @@ public class Dimension extends InstanceKeeper implements TileProvider, Serializa
         return layerSettings.get(layer);
     }
     
-    public void setLayerSettings(Layer layer, ExporterSettings settings) {
+    public <L extends Layer> void setLayerSettings(L layer, ExporterSettings<L> settings) {
         if ((! layerSettings.containsKey(layer)) || (! settings.equals(layerSettings.get(layer)))) {
             layerSettings.put(layer, settings);
             dirty = true;
@@ -792,7 +762,6 @@ public class Dimension extends InstanceKeeper implements TileProvider, Serializa
                 undoManager.clear();
             }
             this.minecraftSeed = minecraftSeed;
-            biomesCalculated = false;
             dirty = true;
             propertyChangeSupport.firePropertyChange("minecraftSeed", oldMinecraftSeed, minecraftSeed);
         }
@@ -913,14 +882,6 @@ public class Dimension extends InstanceKeeper implements TileProvider, Serializa
         }
     }
 
-    public boolean isAutoUpdateBiomes() {
-        return autoUpdateBiomes;
-    }
-
-    public void setAutoUpdateBiomes(boolean autoUpdateBiomes) {
-        this.autoUpdateBiomes = autoUpdateBiomes;
-    }
-
     public int getContourSeparation() {
         return contourSeparation;
     }
@@ -1012,6 +973,18 @@ public class Dimension extends InstanceKeeper implements TileProvider, Serializa
             this.customBiomes = customBiomes;
             dirty = true;
             propertyChangeSupport.firePropertyChange("customBiomes", oldCustomBiomes, customBiomes);
+        }
+    }
+
+    public boolean isCoverSteepTerrain() {
+        return coverSteepTerrain;
+    }
+
+    public void setCoverSteepTerrain(boolean coverSteepTerrain) {
+        if (coverSteepTerrain != this.coverSteepTerrain) {
+            this.coverSteepTerrain = coverSteepTerrain;
+            dirty = true;
+            propertyChangeSupport.firePropertyChange("coverSteepTerrain", ! coverSteepTerrain, coverSteepTerrain);
         }
     }
 
@@ -1127,74 +1100,6 @@ public class Dimension extends InstanceKeeper implements TileProvider, Serializa
         undoManager = null;
     }
 
-    public boolean isBiomesCalculated() {
-        return biomesCalculated;
-    }
-
-    public void recalculateBiomes(final BiomeScheme biomeScheme, Window parent) {
-        if (dim != 0) {
-            // Biomes don't apply to the Nether or the End
-            return;
-        }
-        logger.info("Recalculating biomes for " + tiles.size() + " tiles");
-//        System.out.println("Recalculating biomes...");
-//        long start = System.currentTimeMillis();
-        // Merely recalculating the biomes should not cause the dimension to
-        // become dirty
-        boolean wasDirty = dirty;
-        biomeScheme.setSeed(minecraftSeed);
-        setEventsInhibited(true);
-        try {
-            if (tiles.size() > 100) {
-                ProgressDialog.executeTask(parent, new ProgressTask<Map<Point, Tile>>() {
-                    @Override
-                    public String getName() {
-                        return "Recalculating biomes";
-                    }
-
-                    @Override
-                    public Map<Point, Tile> execute(ProgressReceiver progressReceiver) throws OperationCancelled {
-                        int totalTileCount = tiles.size(), tileCount = 0;
-                        for (Tile tile: tiles.values()) {
-                            recalculateBiomes(tile, biomeScheme);
-                            tileCount++;
-                            progressReceiver.setProgress((float) tileCount / totalTileCount);
-                        }
-                        return tiles;
-                    }
-                }, false);
-            } else {
-                for (Tile tile: tiles.values()) {
-                    recalculateBiomes(tile, biomeScheme);
-                }
-            }
-        } finally {
-            setEventsInhibited(false);
-        }
-        biomesCalculated = true;
-        dirty = wasDirty;
-//        System.out.println("Recalculating biomes took " + (System.currentTimeMillis() - start) + "ms");
-    }
-    
-    public void recalculateBiomes(Tile tile, BiomeScheme biomeScheme) {
-        int[] biomes = biomeScheme.getBiomes(tile.getX() * TILE_SIZE, tile.getY() * TILE_SIZE, TILE_SIZE, TILE_SIZE);
-        if (eventsInhibited) {
-            dirtyTiles.add(tile);
-        }
-        tile.setEventsInhibited(true);
-        try {
-            for (int x = 0; x < TILE_SIZE; x++) {
-                for (int y = 0; y < TILE_SIZE; y++) {
-                    tile.setLayerValue(Biome.INSTANCE, x, y, biomes[x + y * TILE_SIZE]);
-                }
-            }
-        } finally {
-            if (! eventsInhibited) {
-                tile.setEventsInhibited(false);
-            }
-        }
-    }
-
     public final int getAutoBiome(int x, int y) {
         Tile tile = getTile(x >> TILE_SIZE_BITS, y >> TILE_SIZE_BITS);
         if (tile != null) {
@@ -1213,7 +1118,7 @@ public class Dimension extends InstanceKeeper implements TileProvider, Serializa
                     || (tile.getLayerValue(PineForest.INSTANCE, x, y) > 0)
                     || (tile.getLayerValue(SwampLand.INSTANCE, x, y) > 0)
                     || (tile.getLayerValue(Jungle.INSTANCE, x, y) > 0)) {
-                biome = BIOME_TAIGA;
+                biome = BIOME_COLD_TAIGA;
             } else if (tile.getTerrain(x, y) == Terrain.WATER) {
                 biome = BIOME_FROZEN_RIVER;
             } else {
@@ -1240,13 +1145,28 @@ public class Dimension extends InstanceKeeper implements TileProvider, Serializa
                 if ((waterLevel > 0) && (! tile.getBitLayerValue(FloodWithLava.INSTANCE, x, y))) {
                     if (waterLevel <= 5) {
                         biome = BIOME_RIVER;
-                    } else {
+                    } else if (waterLevel <= 20) {
                         biome = BIOME_OCEAN;
+                    } else {
+                        biome = BIOME_DEEP_OCEAN;
                     }
-                } else if ((tile.getLayerValue(DeciduousForest.INSTANCE, x, y) > 0) || (tile.getLayerValue(PineForest.INSTANCE, x, y) > 0)) {
-                    biome = BIOME_FOREST;
                 } else {
-                    biome = tile.getTerrain(x, y).getDefaultBiome();
+                    final int defaultBiome = tile.getTerrain(x, y).getDefaultBiome();
+                    if (((tile.getLayerValue(DeciduousForest.INSTANCE, x, y) > 0)
+                            || (tile.getLayerValue(PineForest.INSTANCE, x, y) > 0))
+                            && (defaultBiome != BIOME_DESERT)
+                            && (defaultBiome != BIOME_DESERT_HILLS)
+                            && (defaultBiome != BIOME_DESERT_M)
+                            && (defaultBiome != BIOME_MESA)
+                            && (defaultBiome != BIOME_MESA_BRYCE)
+                            && (defaultBiome != BIOME_MESA_PLATEAU)
+                            && (defaultBiome != BIOME_MESA_PLATEAU_F)
+                            && (defaultBiome != BIOME_MESA_PLATEAU_F_M)
+                            && (defaultBiome != BIOME_MESA_PLATEAU_M)) {
+                        biome = BIOME_FOREST;
+                    } else {
+                        biome = defaultBiome;
+                    }
                 }
             }
         }
@@ -1496,10 +1416,9 @@ public class Dimension extends InstanceKeeper implements TileProvider, Serializa
             // Convert the nibble sized biomes data from a legacy map (by
             // deleting it so that it will be recalculated
             for (Tile tile: tiles.values()) {
-                tile.clearLayerData(Biome.INSTANCE);
+                tile.convertBiomeData();
             }
             biomesConverted = true;
-            biomesCalculated = false;
         }
         if (maxHeight == 0) {
             maxHeight = 128;
@@ -1557,7 +1476,6 @@ public class Dimension extends InstanceKeeper implements TileProvider, Serializa
     private boolean darkLevel, bedrockWall;
     private Map<Layer, ExporterSettings> layerSettings = new HashMap<Layer, ExporterSettings>();
     private long minecraftSeed = Long.MIN_VALUE;
-    private boolean biomesCalculated;
     private File overlay;
     private float overlayScale = 1.0f, overlayTransparency = 0.5f;
     private int overlayOffsetX, overlayOffsetY, gridSize = 128;
@@ -1568,6 +1486,7 @@ public class Dimension extends InstanceKeeper implements TileProvider, Serializa
     private boolean bottomless;
     private Point lastViewPosition = new Point();
     private List<CustomBiome> customBiomes;
+    private boolean coverSteepTerrain = true;
     private transient List<Listener> listeners = new ArrayList<Listener>();
     private transient boolean eventsInhibited;
     private transient Set<Tile> dirtyTiles = new HashSet<Tile>();
@@ -1577,7 +1496,6 @@ public class Dimension extends InstanceKeeper implements TileProvider, Serializa
     private transient UndoManager undoManager;
     private transient PropertyChangeSupport propertyChangeSupport = new PropertyChangeSupport(this);
     private transient WPGarden garden = new WPGarden();
-    private transient boolean autoUpdateBiomes;
     private transient PerlinNoise topLayerDepthNoise;
     private transient ThreadLocal<TileCache> tileCache = new ThreadLocal<TileCache>() {
         @Override
@@ -1671,7 +1589,7 @@ public class Dimension extends InstanceKeeper implements TileProvider, Serializa
 
         @Override
         public void plantSeed(Seed seed) {
-            Point location = seed.getLocation();
+            Point3i location = seed.getLocation();
             if ((location.x < lowestX * TILE_SIZE) || (location.x > (highestX + 1) * TILE_SIZE - 1) || (location.y < lowestY * TILE_SIZE) || (location.y > (highestY + 1) * TILE_SIZE - 1)) {
                 return;
             }
@@ -1684,7 +1602,7 @@ public class Dimension extends InstanceKeeper implements TileProvider, Serializa
 
         @Override
         public void removeSeed(Seed seed) {
-            Point location = seed.getLocation();
+            Point3i location = seed.getLocation();
             if ((location.x < lowestX * TILE_SIZE) || (location.x > (highestX + 1) * TILE_SIZE - 1) || (location.y < lowestY * TILE_SIZE) || (location.y > (highestY + 1) * TILE_SIZE - 1)) {
                 return;
             }

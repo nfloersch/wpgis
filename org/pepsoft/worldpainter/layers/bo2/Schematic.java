@@ -57,7 +57,7 @@ public final class Schematic extends AbstractNBTItem implements WPObject, Bo2Obj
         } else {
             tileEntities = new ArrayList<TileEntity>(tileEntityTags.size());
             for (Tag tileEntityTag: tileEntityTags) {
-                tileEntities.add(new TileEntity((CompoundTag) tileEntityTag));
+                tileEntities.add(TileEntity.fromNBT(tileEntityTag));
             }
         }
         width = getShort("Width");
@@ -296,8 +296,6 @@ public final class Schematic extends AbstractNBTItem implements WPObject, Bo2Obj
     private Point3i dimensions;
     @Deprecated
     private Point3i origin;
-    @Deprecated
-    private final boolean solidOrigin = false;
     private Map<String, Serializable> attributes;
     private int version = 1;
     

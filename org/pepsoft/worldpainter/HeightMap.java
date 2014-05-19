@@ -18,4 +18,6 @@ public interface HeightMap extends Serializable {
     float getHeight(int x, int y);
     
     float getBaseHeight();
+    
+    HeightMap clone();
 }

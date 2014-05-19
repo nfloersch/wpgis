@@ -59,6 +59,13 @@ public final class NoiseHeightMap implements HeightMap {
     public float getBaseHeight() {
         return 0.0f;
     }
+
+    @Override
+    public NoiseHeightMap clone() {
+        NoiseHeightMap clone = new NoiseHeightMap(range, scale, octaves, seedOffset);
+        clone.setSeed(getSeed());
+        return clone;
+    }
     
     public static void main(String[] args) {
         System.out.print('{');

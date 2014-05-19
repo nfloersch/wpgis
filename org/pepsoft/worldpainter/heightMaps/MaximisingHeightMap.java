@@ -27,5 +27,12 @@ public class MaximisingHeightMap extends CombiningHeightMap {
         return Math.max(heightMap1.getBaseHeight(), heightMap2.getBaseHeight());
     }
 
+    @Override
+    public MaximisingHeightMap clone() {
+        MaximisingHeightMap clone = new MaximisingHeightMap(heightMap1.clone(), heightMap2.clone());
+        clone.setSeed(getSeed());
+        return clone;
+    }
+
     private static final long serialVersionUID = 1L;    
 }

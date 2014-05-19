@@ -53,6 +53,7 @@ public class TerrainRangesTableModel implements TableModel {
         for (TableModelListener listener: listeners) {
             listener.tableChanged(event);
         }
+        notifyChangeListener();
     }
 
     public void deleteRow(int row) {
@@ -63,6 +64,7 @@ public class TerrainRangesTableModel implements TableModel {
         for (TableModelListener listener: listeners) {
             listener.tableChanged(event);
         }
+        notifyChangeListener();
     }
 
     public SortedMap<Integer, Terrain> getTerrainRanges() {
@@ -80,6 +82,14 @@ public class TerrainRangesTableModel implements TableModel {
             }
         }
         return true;
+    }
+
+    public ChangeListener getChangeListener() {
+        return changeListener;
+    }
+
+    public void setChangeListener(ChangeListener changeListener) {
+        this.changeListener = changeListener;
     }
     
     // TableModel
@@ -151,10 +161,12 @@ public class TerrainRangesTableModel implements TableModel {
         switch (columnIndex) {
             case 0:
                 levels[rowIndex] = (Integer) aValue;
-                sortIfNeeded();
-                break;
+        sortIfNeeded();
+        notifyChangeListener();
+        break;
             case 1:
                 terrains[rowIndex] = (Terrain) aValue;
+                notifyChangeListener();
                 break;
             case 2:
                 // Do nothing
@@ -191,14 +203,32 @@ public class TerrainRangesTableModel implements TableModel {
                 for (TableModelListener listener: listeners) {
                     listener.tableChanged(event);
                 }
+                notifyChangeListener();
                 break;
             }
         }
     }
  
+    private void notifyChangeListener() {
+        if (changeListener != null) {
+            changeListener.dataChanged(this);
+        }
+    }
+
     private final JButton deleteButton = new JButton("Delete");
     private final List<TableModelListener> listeners = new ArrayList<TableModelListener>();
     private int[] levels;
     private Terrain[] terrains;
     private int rows;
+    private ChangeListener changeListener;
+    
+    public interface ChangeListener {
+        /**
+         * Indicates that the data in the specified model changed, either
+         * because of an edit by a JTable, or someone invoking the public API.
+         * 
+         * @param model The model that has changed.
+         */
+        void dataChanged(TerrainRangesTableModel model);
+    }
 }

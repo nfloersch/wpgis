@@ -200,8 +200,11 @@ public class ProgressComponent<T> extends javax.swing.JPanel implements Progress
                 lastReportedMinutes = minutes;
                 if (minutes < 1) {
                     jLabel2.setText("Less than a minute remaining");
-                } else {
+                } else if (minutes < 90) {
                     jLabel2.setText("About " + (minutes + 1) + " minutes remaining");
+                } else {
+                    int hours = (minutes + 30) / 60;
+                    jLabel2.setText("About " + hours + " hours remaining");
                 }
             }
             if (stats != null) {

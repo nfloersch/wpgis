@@ -22,9 +22,9 @@ public final class Minecraft1_3LargeBiomeScheme extends Minecraft1_2JarBiomeSche
             Field field = worldGeneratorClass.getField("d");
             largeBiomesGenerator = field.get(null);
         } catch (NoSuchFieldException e) {
-            throw new RuntimeException("Not a valid 1.6.2 (or 1.3.1 - 1.5.2) minecraft.jar", e);
+            throw new RuntimeException("Not a valid 1.5.2 (or 1.3.1 - 1.5.1) minecraft.jar", e);
         } catch (IllegalAccessException e) {
-            throw new RuntimeException("Not a valid 1.6.2 (or 1.3.1 - 1.5.2) minecraft.jar", e);
+            throw new RuntimeException("Not a valid 1.5.2 (or 1.3.1 - 1.5.1) minecraft.jar", e);
         }
     }
     
@@ -59,6 +59,5 @@ public final class Minecraft1_3LargeBiomeScheme extends Minecraft1_2JarBiomeSche
         HASHES_TO_CLASSNAMES.put(new Checksum(new byte[] {(byte) -114, (byte) -128, (byte) -5, (byte) 1, (byte) -77, (byte) 33, (byte) -58, (byte) -77, (byte) -57, (byte) -17, (byte) -54, (byte) 57, (byte) 122, (byte) 62, (byte) -22, (byte) 53}),     new String[] {"agw", "agu", "yn"}); // 1.4.7
         HASHES_TO_CLASSNAMES.put(new Checksum(new byte[] {(byte) 92, (byte) 18, (byte) 25, (byte) -40, (byte) 105, (byte) -72, (byte) 125, (byte) 35, (byte) 61, (byte) -29, (byte) 3, (byte) 54, (byte) -120, (byte) -20, (byte) 117, (byte) 103}),       new String[] {"ait", "air", "aal"}); // 1.5.1
         HASHES_TO_CLASSNAMES.put(new Checksum(new byte[] {(byte) 104, (byte) -105, (byte) -61, (byte) 40, (byte) 127, (byte) -71, (byte) 113, (byte) -55, (byte) -13, (byte) 98, (byte) -21, (byte) 58, (byte) -78, (byte) 15, (byte) 93, (byte) -35}),    new String[] {"ait", "air", "aal"}); // 1.5.2
-        HASHES_TO_CLASSNAMES.put(new Checksum(new byte[] {(byte) 29, (byte) 67, (byte) -51, (byte) -70, (byte) -117, (byte) -105, (byte) 82, (byte) -41, (byte) -11, (byte) 87, (byte) -85, (byte) 125, (byte) 62, (byte) 54, (byte) 89, (byte) 100}),     new String[] {"akn", "akl", "acf"}); // 1.6.2
     }
 }

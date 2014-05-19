@@ -11,11 +11,13 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.vecmath.Point3i;
 
 import org.jnbt.CompoundTag;
 import org.jnbt.NBTInputStream;
@@ -24,6 +26,7 @@ import org.jnbt.Tag;
 import org.pepsoft.minecraft.Chunk;
 import org.pepsoft.minecraft.ChunkImpl;
 import org.pepsoft.minecraft.ChunkImpl2;
+import org.pepsoft.minecraft.Constants;
 import org.pepsoft.minecraft.Entity;
 import org.pepsoft.minecraft.Material;
 import org.pepsoft.minecraft.RegionFile;
@@ -483,10 +486,10 @@ public class MinecraftWorldImpl implements MinecraftWorld {
         if (readOnly) {
             throw new IllegalStateException("Read only");
         }
-        Entity clone = (Entity) entity.clone();
-        clone.setPos(new double[] {x, height, y});
         Chunk chunk = getChunkForEditing(((int) x) >> 4, ((int) y) >> 4);
         if ((chunk != null) && (! chunk.isReadOnly())) {
+            Entity clone = (Entity) entity.clone();
+            clone.setPos(new double[] {x, height, y});
             chunk.getEntities().add(clone);
         }
     }
@@ -496,12 +499,13 @@ public class MinecraftWorldImpl implements MinecraftWorld {
         if (readOnly) {
             throw new IllegalStateException("Read only");
         }
-        tileEntity.setX(x);
-        tileEntity.setY(height);
-        tileEntity.setZ(y);
         Chunk chunk = getChunkForEditing(x >> 4, y >> 4);
         if ((chunk != null) && (! chunk.isReadOnly())) {
-            chunk.getTileEntities().add(tileEntity);
+            TileEntity clone = (TileEntity) tileEntity.clone();
+            clone.setX(x);
+            clone.setY(height);
+            clone.setZ(y);
+            chunk.getTileEntities().add(clone);
         }
     }
     
@@ -513,6 +517,43 @@ public class MinecraftWorldImpl implements MinecraftWorld {
 //        chunksSaved++;
 //        updateStatistics();
 //        long start = System.currentTimeMillis();
+        // Do some sanity checks first
+        // Check that all tile entities for which the chunk contains data are
+        // actually there
+        for (Iterator<TileEntity> i = chunk.getTileEntities().iterator(); i.hasNext(); ) {
+            final TileEntity tileEntity = i.next();
+            final Set<Integer> blockIds = Constants.TILE_ENTITY_MAP.get(tileEntity.getId());
+            if (blockIds == null) {
+                logger.warning("Unknown tile entity ID \"" + tileEntity.getId() + "\" encountered @ " + tileEntity.getX() + "," + tileEntity.getZ() + "," + tileEntity.getY() + "; can't check whether the corresponding block is there!");
+            } else {
+                final int existingBlockId = chunk.getBlockType(tileEntity.getX() & 0xf, tileEntity.getY(), tileEntity.getZ() & 0xf);
+                if (! blockIds.contains(existingBlockId)) {
+                    // The block at the specified location
+                    // is not a tile entity, or a different
+                    // tile entity. Remove the data
+                    i.remove();
+                    if (logger.isLoggable(Level.FINE)) {
+                        logger.fine("Removing tile entity " + tileEntity.getId() + " @ " + tileEntity.getX() + "," + tileEntity.getZ() + "," + tileEntity.getY() + " because the block at that location is a " + Constants.BLOCK_TYPE_NAMES[existingBlockId]);
+                    }
+                }
+            }
+        }
+        // Check that there aren't multiple tile entities (of the same type,
+        // otherwise they would have been removed above) in the same location
+        Set<Point3i> occupiedCoords = new HashSet<Point3i>();
+        for (Iterator<TileEntity> i = chunk.getTileEntities().iterator(); i.hasNext(); ) {
+            TileEntity tileEntity = i.next();
+            Point3i coords = new Point3i(tileEntity.getX(), tileEntity.getZ(), tileEntity.getY());
+            if (occupiedCoords.contains(coords)) {
+                // There is already tile data for that location in the chunk;
+                // remove this copy
+                i.remove();
+                logger.warning("Removing tile entity " + tileEntity.getId() + " @ " + tileEntity.getX() + "," + tileEntity.getZ() + "," + tileEntity.getY() + " because there is already a tile entity of the same type at that location");
+            } else {
+                occupiedCoords.add(coords);
+            }
+        }
+        
         try {
             int x = chunk.getxPos(), z = chunk.getzPos();
             RegionFile regionFile = getRegionFile(new Point(x >> 5, z >> 5));

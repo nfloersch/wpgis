@@ -36,14 +36,8 @@ import org.pepsoft.worldpainter.layers.Layer;
 import org.pepsoft.worldpainter.layers.Populate;
 import org.pepsoft.worldpainter.util.MinecraftUtil;
 
-import static org.pepsoft.minecraft.Constants.DEFAULT_MAX_HEIGHT_2;
-import static org.pepsoft.minecraft.Constants.GAME_TYPE_CREATIVE;
-import static org.pepsoft.minecraft.Constants.GAME_TYPE_SURVIVAL;
-import static org.pepsoft.minecraft.Constants.SUPPORTED_VERSION_1;
-import static org.pepsoft.minecraft.Constants.SUPPORTED_VERSION_2;
-import static org.pepsoft.worldpainter.Constants.DIM_END;
-import static org.pepsoft.worldpainter.Constants.DIM_NETHER;
-import static org.pepsoft.worldpainter.Constants.DIM_NORMAL;
+import static org.pepsoft.minecraft.Constants.*;
+import static org.pepsoft.worldpainter.Constants.*;
 import org.pepsoft.worldpainter.biomeschemes.CustomBiomeManager;
 
 /**
@@ -78,7 +72,7 @@ public class ExportWorldDialog extends javax.swing.JDialog {
             comboBoxMinecraftVersion.setVisible(false);
         }
 
-        if ((config != null) && (config.getExportDirectory() != null)) {
+        if (config.getExportDirectory() != null) {
             fieldDirectory.setText(config.getExportDirectory().getAbsolutePath());
         } else {
             File minecraftDir = MinecraftUtil.findMinecraftDir();
@@ -93,7 +87,6 @@ public class ExportWorldDialog extends javax.swing.JDialog {
         surfacePropertiesEditor.setColourScheme(colourScheme);
         surfacePropertiesEditor.setExportMode();
         surfacePropertiesEditor.setDimension(world.getDimension(0));
-        surfacePropertiesEditor.setBiomeScheme(biomeScheme);
         if (world.getDimension(DIM_NETHER) != null) {
             netherPropertiesEditor.setColourScheme(colourScheme);
             netherPropertiesEditor.setExportMode();
@@ -225,22 +218,6 @@ public class ExportWorldDialog extends javax.swing.JDialog {
         Generator generator = Generator.values()[comboBoxGenerator.getSelectedIndex()];
         Dimension dim0 = world.getDimension(0);
         int version = (comboBoxMinecraftVersion.getSelectedIndex() == 0) ? SUPPORTED_VERSION_2 : SUPPORTED_VERSION_1;
-        if (radioButtonExportEverything.isSelected() || (selectedDimension == DIM_NORMAL)) {
-            // Checks that only apply if the export includes the surface
-            // dimension
-            if (((world.getBiomeAlgorithm() == World2.BIOME_ALGORITHM_AUTO_BIOMES) || world.isCustomBiomes()) && (version != SUPPORTED_VERSION_2)) {
-                sb.append("<li>The biomes will not be exported, even though<br>this world has automatic or custom biomes, since<br>you have not selected the Minecraft 1.2 map format!");
-                showWarning = true;
-            }
-//            if (generator != Generator.FLAT) {
-//                int spawnHeight = dim0.getIntHeightAt(world.getSpawnPoint());
-//                int minSpawnLevel = (version == SUPPORTED_VERSION_1) ? (dim0.getMaxHeight() / 2 - 1) : 63;
-//                if (spawnHeight < minSpawnLevel) {
-//                    sb.append("<li>The spawn point is below level " + minSpawnLevel + " (namely at " + spawnHeight + ").<br>This means that you may respawn in a nearby location<br>which is at least at level " + minSpawnLevel + "!");
-//                    showWarning = true;
-//                }
-//            }
-        }
         if ((generator == Generator.FLAT) && ((generatorOptions == null) || (! generatorOptions.contains("decoration")))) {
             boolean populateInUse = dim0.isPopulate();
             if (! populateInUse) {
@@ -455,7 +432,7 @@ public class ExportWorldDialog extends javax.swing.JDialog {
         checkBoxGoodies.setText("Include chest of goodies");
         checkBoxGoodies.setToolTipText("Include a chest with tools and resources near spawn for you as the level designer");
 
-        comboBoxMinecraftVersion.setModel(new javax.swing.DefaultComboBoxModel(new String[] { "Minecraft 1.6 (and 1.2 - 1.5; \"Anvil\")", "Minecraft 1.1 (and earlier; \"McRegion\")" }));
+        comboBoxMinecraftVersion.setModel(new javax.swing.DefaultComboBoxModel(new String[] { "Minecraft 1.7 (and 1.2 - 1.6; \"Anvil\")", "Minecraft 1.1 (and earlier; \"McRegion\")" }));
         comboBoxMinecraftVersion.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 comboBoxMinecraftVersionActionPerformed(evt);

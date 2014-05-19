@@ -67,6 +67,7 @@ public class WorldPainter extends WorldPainterView implements Dimension.Listener
         FontMetrics fontMetrics = getFontMetrics(labelFont);
         labelAscent = fontMetrics.getAscent();
         labelLineHeight = fontMetrics.getHeight();
+        enableInputMethods(false);
     }
 
     public WorldPainter(Dimension dimension, ColourScheme colourScheme, BiomeScheme biomeScheme, CustomBiomeManager customBiomeManager) {
@@ -92,8 +93,10 @@ public class WorldPainter extends WorldPainterView implements Dimension.Listener
             unregisterTileListeners();
         }
         this.dimension = dimension;
-        dirtyTiles.clear();
-        dirtyTileNeighbours.clear();
+        synchronized (dirtyTiles) {
+            dirtyTiles.clear();
+            dirtyTileNeighbours.clear();
+        }
         if (dimension != null) {
             tileRenderer = new TileRenderer(dimension, colourScheme, biomeScheme, customBiomeManager);
             tileRenderer.setLightOrigin(lightOrigin);
@@ -160,7 +163,6 @@ public class WorldPainter extends WorldPainterView implements Dimension.Listener
     public void setBiomeScheme(BiomeScheme biomeScheme) {
         this.biomeScheme = biomeScheme;
         if (tileRenderer != null) {
-            tileRenderer.setBiomeScheme(biomeScheme);
             if (! hiddenLayers.contains(Biome.INSTANCE)) {
                 refreshTiles();
             }
@@ -1175,45 +1177,41 @@ public class WorldPainter extends WorldPainterView implements Dimension.Listener
     private void updateImage(Rectangle bounds) {
 //        bounds = new Rectangle((int) (bounds.x / scale), (int) (bounds.y / scale), (int) (bounds.width / scale), (int) (bounds.height / scale));
         Rectangle tileRect = new Rectangle(0, 0, TILE_SIZE, TILE_SIZE);
-        int tileCount = 0;
+        Set<Point> dirtyTilesCopy;
+        Set<Point> paintedTiles = new HashSet<Point>();
+        // Copy the set of dirty tiles to avoid deadlocks caused by having a
+        // lock on it while a background operation is changing tiles
         synchronized (dirtyTiles) {
-            for (Iterator<Point> i = dirtyTiles.iterator(); i.hasNext(); ) {
-                Point tileCoords = i.next();
-                tileRect.x = (tileCoords.x - imageX) * TILE_SIZE;
-                tileRect.y = (tileCoords.y - imageY) * TILE_SIZE;
-                if (bounds.intersects(tileRect)) {
-                    Tile tile = dimension.getTile(tileCoords);
-                    // Not sure how the tile could suddenly no longer exist, but
-                    // this has happened in practice, so check for it:
-                    if (tile != null) {
-                        paintTile(tile);
-                        tileCount++;
-                    }
-                    i.remove();
-                } else if (logger.isLoggable(Level.FINER)) {
-                    logger.finer("Tile at coordinates " + tileCoords + " outside clipping area; not repainting it");
+            dirtyTilesCopy = new HashSet<Point>(dirtyTiles);
+            dirtyTilesCopy.addAll(dirtyTileNeighbours);
+        }
+        for (Iterator<Point> i = dirtyTilesCopy.iterator(); i.hasNext(); ) {
+            Point tileCoords = i.next();
+            tileRect.x = (tileCoords.x - imageX) * TILE_SIZE;
+            tileRect.y = (tileCoords.y - imageY) * TILE_SIZE;
+            if (bounds.intersects(tileRect)) {
+                Tile tile = dimension.getTile(tileCoords);
+                // Not sure how the tile could suddenly no longer exist, but
+                // this has happened in practice, so check for it:
+                if (tile != null) {
+                    paintTile(tile);
+                    paintedTiles.add(tileCoords);
                 }
-            }
-            for (Iterator<Point> i = dirtyTileNeighbours.iterator(); i.hasNext(); ) {
-                Point tileCoords = i.next();
-                tileRect.x = (tileCoords.x - imageX) * TILE_SIZE;
-                tileRect.y = (tileCoords.y - imageY) * TILE_SIZE;
-                if (bounds.intersects(tileRect)) {
-                    Tile tile = dimension.getTile(tileCoords);
-                    // Not sure how the tile could suddenly no longer exist, but
-                    // this has happened in practice, so check for it:
-                    if (tile != null) {
-                        paintTile(tile);
-                        tileCount++;
-                    }
-                    i.remove();
-                } else if (logger.isLoggable(Level.FINER)) {
-                    logger.finer("Tile at coordinates " + tileCoords + " outside clipping area; not repainting it");
-                }
+                i.remove();
+            } else if (logger.isLoggable(Level.FINER)) {
+                logger.finer("Tile at coordinates " + tileCoords + " outside clipping area; not repainting it");
             }
         }
-        if (logger.isLoggable(Level.FINE) && (tileCount > 0)) {
-            logger.fine("Painted " + tileCount + " tiles");
+        // TODO: race condition here: a tile could have become dirty again after
+        // it was painted but before we remove it from dirtyTiles, in which case
+        // it won't be repainted. Let's see how much of a problem this is in
+        // practice
+        synchronized (dirtyTiles) {
+            dirtyTiles.removeAll(paintedTiles);
+            dirtyTileNeighbours.removeAll(paintedTiles);
+        }
+        if (logger.isLoggable(Level.FINE) && (! paintedTiles.isEmpty())) {
+            logger.fine("Painted " + paintedTiles.size() + " tiles");
         }
     }
 
@@ -1291,85 +1289,77 @@ public class WorldPainter extends WorldPainterView implements Dimension.Listener
     }
 
     private void queueDirtyTiles(final Tile tile) {
-        Runnable task = new Runnable() {
-            @Override
-            public void run() {
-                int tileX = tile.getX(), tileY = tile.getY();
-                Point tileCoords = new Point(tileX, tileY);
-                if (! dirtyTiles.contains(tileCoords)) {
-                    if (logger.isLoggable(Level.FINER)) {
-                        logger.finer("Queueing dirty tile " + tileX + ", " + tileY);
-                    }
-                    dirtyTiles.add(tileCoords);
-                    Rectangle repaintArea = new Rectangle((tileX - imageX) * TILE_SIZE, (tileY - imageY) * TILE_SIZE, TILE_SIZE, TILE_SIZE);
-                    boolean repaintAll = false;
-                    if ((tileX < imageX) || (tileX >= (imageX + imageWidth)) || (tileY < imageY) || (tileY >= (imageY + imageHeight))) {
-                        resizeImageIfNecessary();
-                        if ((tileX < imageX) || (tileY < imageY)) {
-                            repaintAll = true;
-                        }
-                    }
-                    if (dirtyTileNeighbours.contains(tileCoords)) {
-                        dirtyTileNeighbours.remove(tileCoords);
-                    }
-                    Point neighbourCoords = new Point(tileX - 1, tileY);
-                    if ((! dirtyTiles.contains(neighbourCoords)) && (! dirtyTileNeighbours.contains(neighbourCoords)) && (dimension.getTile(neighbourCoords) != null)) {
-                        if (logger.isLoggable(Level.FINER)) {
-                            logger.finer("Queueing dirty tile neighbour " + (tileX - 1) + ", " + tileY);
-                        }
-                        dirtyTileNeighbours.add(neighbourCoords);
-                        if ((tileX - 1) < imageX) {
-                            repaintAll = true;
-                        } else {
-                            repaintArea = repaintArea.union(new Rectangle((neighbourCoords.x - imageX) * TILE_SIZE, (neighbourCoords.y - imageY) * TILE_SIZE, TILE_SIZE, TILE_SIZE));
-                        }
-                    }
-                    neighbourCoords = new Point(tileX + 1, tileY);
-                    if ((! dirtyTiles.contains(neighbourCoords)) && (! dirtyTileNeighbours.contains(neighbourCoords)) && (dimension.getTile(neighbourCoords) != null)) {
-                        if (logger.isLoggable(Level.FINER)) {
-                            logger.finer("Queueing dirty tile neighbour " + (tileX + 1) + ", " + tileY);
-                        }
-                        dirtyTileNeighbours.add(neighbourCoords);
-                        repaintArea = repaintArea.union(new Rectangle((neighbourCoords.x - imageX) * TILE_SIZE, (neighbourCoords.y - imageY) * TILE_SIZE, TILE_SIZE, TILE_SIZE));
-                    }
-                    neighbourCoords = new Point(tileX, tileY - 1);
-                    if ((! dirtyTiles.contains(neighbourCoords)) && (! dirtyTileNeighbours.contains(neighbourCoords)) && (dimension.getTile(neighbourCoords) != null)) {
-                        if (logger.isLoggable(Level.FINER)) {
-                            logger.finer("Queueing dirty tile neighbour " + tileX + ", " + (tileY - 1));
-                        }
-                        dirtyTileNeighbours.add(neighbourCoords);
-                        if ((tileY - 1) < imageX) {
-                            repaintAll = true;
-                        } else {
-                            repaintArea = repaintArea.union(new Rectangle((neighbourCoords.x - imageX) * TILE_SIZE, (neighbourCoords.y - imageY) * TILE_SIZE, TILE_SIZE, TILE_SIZE));
-                        }
-                    }
-                    neighbourCoords = new Point(tileX, tileY + 1);
-                    if ((! dirtyTiles.contains(neighbourCoords)) && (! dirtyTileNeighbours.contains(neighbourCoords)) && (dimension.getTile(neighbourCoords) != null)) {
-                        if (logger.isLoggable(Level.FINER)) {
-                            logger.finer("Queueing dirty tile neighbour " + tileX + ", " + (tileY + 1));
-                        }
-                        dirtyTileNeighbours.add(neighbourCoords);
-                        repaintArea = repaintArea.union(new Rectangle((neighbourCoords.x - imageX) * TILE_SIZE, (neighbourCoords.y - imageY) * TILE_SIZE, TILE_SIZE, TILE_SIZE));
-                    }
-                    if (repaintAll) {
-                        if (logger.isLoggable(Level.FINER)) {
-                            logger.finer("Requesting repaint of entire view");
-                        }
-                        repaint();
-                    } else {
-                        if (logger.isLoggable(Level.FINER)) {
-                            logger.finer("Requesting repaint for " + repaintArea);
-                        }
-                        repaint(imageToViewCoordinates(repaintArea));
+        int tileX = tile.getX(), tileY = tile.getY();
+        Point tileCoords = new Point(tileX, tileY);
+        synchronized (dirtyTiles) {
+            if (! dirtyTiles.contains(tileCoords)) {
+                if (logger.isLoggable(Level.FINER)) {
+                    logger.finer("Queueing dirty tile " + tileX + ", " + tileY);
+                }
+                dirtyTiles.add(tileCoords);
+                Rectangle repaintArea = new Rectangle((tileX - imageX) * TILE_SIZE, (tileY - imageY) * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+                boolean repaintAll = false;
+                if ((tileX < imageX) || (tileX >= (imageX + imageWidth)) || (tileY < imageY) || (tileY >= (imageY + imageHeight))) {
+                    resizeImageIfNecessary();
+                    if ((tileX < imageX) || (tileY < imageY)) {
+                        repaintAll = true;
                     }
                 }
+                if (dirtyTileNeighbours.contains(tileCoords)) {
+                    dirtyTileNeighbours.remove(tileCoords);
+                }
+                Point neighbourCoords = new Point(tileX - 1, tileY);
+                if ((! dirtyTiles.contains(neighbourCoords)) && (! dirtyTileNeighbours.contains(neighbourCoords)) && (dimension.getTile(neighbourCoords) != null)) {
+                    if (logger.isLoggable(Level.FINER)) {
+                        logger.finer("Queueing dirty tile neighbour " + (tileX - 1) + ", " + tileY);
+                    }
+                    dirtyTileNeighbours.add(neighbourCoords);
+                    if ((tileX - 1) < imageX) {
+                        repaintAll = true;
+                    } else {
+                        repaintArea = repaintArea.union(new Rectangle((neighbourCoords.x - imageX) * TILE_SIZE, (neighbourCoords.y - imageY) * TILE_SIZE, TILE_SIZE, TILE_SIZE));
+                    }
+                }
+                neighbourCoords = new Point(tileX + 1, tileY);
+                if ((! dirtyTiles.contains(neighbourCoords)) && (! dirtyTileNeighbours.contains(neighbourCoords)) && (dimension.getTile(neighbourCoords) != null)) {
+                    if (logger.isLoggable(Level.FINER)) {
+                        logger.finer("Queueing dirty tile neighbour " + (tileX + 1) + ", " + tileY);
+                    }
+                    dirtyTileNeighbours.add(neighbourCoords);
+                    repaintArea = repaintArea.union(new Rectangle((neighbourCoords.x - imageX) * TILE_SIZE, (neighbourCoords.y - imageY) * TILE_SIZE, TILE_SIZE, TILE_SIZE));
+                }
+                neighbourCoords = new Point(tileX, tileY - 1);
+                if ((! dirtyTiles.contains(neighbourCoords)) && (! dirtyTileNeighbours.contains(neighbourCoords)) && (dimension.getTile(neighbourCoords) != null)) {
+                    if (logger.isLoggable(Level.FINER)) {
+                        logger.finer("Queueing dirty tile neighbour " + tileX + ", " + (tileY - 1));
+                    }
+                    dirtyTileNeighbours.add(neighbourCoords);
+                    if ((tileY - 1) < imageX) {
+                        repaintAll = true;
+                    } else {
+                        repaintArea = repaintArea.union(new Rectangle((neighbourCoords.x - imageX) * TILE_SIZE, (neighbourCoords.y - imageY) * TILE_SIZE, TILE_SIZE, TILE_SIZE));
+                    }
+                }
+                neighbourCoords = new Point(tileX, tileY + 1);
+                if ((! dirtyTiles.contains(neighbourCoords)) && (! dirtyTileNeighbours.contains(neighbourCoords)) && (dimension.getTile(neighbourCoords) != null)) {
+                    if (logger.isLoggable(Level.FINER)) {
+                        logger.finer("Queueing dirty tile neighbour " + tileX + ", " + (tileY + 1));
+                    }
+                    dirtyTileNeighbours.add(neighbourCoords);
+                    repaintArea = repaintArea.union(new Rectangle((neighbourCoords.x - imageX) * TILE_SIZE, (neighbourCoords.y - imageY) * TILE_SIZE, TILE_SIZE, TILE_SIZE));
+                }
+                if (repaintAll) {
+                    if (logger.isLoggable(Level.FINER)) {
+                        logger.finer("Requesting repaint of entire view");
+                    }
+                    repaint();
+                } else {
+                    if (logger.isLoggable(Level.FINER)) {
+                        logger.finer("Requesting repaint for " + repaintArea);
+                    }
+                    repaint(imageToViewCoordinates(repaintArea));
+                }
             }
-        };
-        if (SwingUtilities.isEventDispatchThread()) {
-            task.run();
-        } else {
-            SwingUtilities.invokeLater(task);
         }
     }
 

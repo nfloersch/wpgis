@@ -71,8 +71,9 @@ public class ThreeDeeRenderManager {
         }
         renderThreads = null;
         jobQueue = null;
+        results.clear();
     }
-    
+
     synchronized void tileFinished(RenderResult renderResult) {
         results.add(renderResult);
     }
