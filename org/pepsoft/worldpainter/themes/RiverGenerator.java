@@ -13,7 +13,7 @@ import org.pepsoft.worldpainter.Tile;
 import static org.pepsoft.worldpainter.Constants.*;
 import org.pepsoft.worldpainter.gardenofeden.Garden;
 import org.pepsoft.worldpainter.gardenofeden.Seed;
-
+import javax.vecmath.Point3i;
 /**
  *
  * @author pepijn
@@ -74,7 +74,7 @@ public class RiverGenerator {
         if (waterLevel > intHeight) {
             // Already flooded
         } else {
-            garden.plantSeed(new RiverNode(garden, new Point(x, y), 1));
+            garden.plantSeed(new RiverNode(garden, new Point3i(x, y, intHeight), 1));
         }
 //        while (true) {
 //            if (waterLevel > intHeight) {

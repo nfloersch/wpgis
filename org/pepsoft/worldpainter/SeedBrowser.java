@@ -111,105 +111,105 @@ public class SeedBrowser extends javax.swing.JDialog implements ChangeListener {
     }
     
     private void cancel() {
-        if (app.getBiomeScheme() != initialBiomeScheme) {
-            if (dimension.getMinecraftSeed() != initialSeed) {
-                dimension.setMinecraftSeed(initialSeed);
-            }
-            app.setBiomeScheme(initialBiomeScheme);
-            if (biomeScheme instanceof Minecraft1_7_3BiomeScheme) {
-                dimension.getWorld().setBiomeAlgorithm(World2.BIOME_ALGORITHM_1_7_3);
-            } else if (biomeScheme instanceof Minecraft1_8_1BiomeScheme) {
-                dimension.getWorld().setBiomeAlgorithm(World2.BIOME_ALGORITHM_1_8_1);
-            } else if (biomeScheme instanceof Minecraft1_9BiomeScheme) {
-                dimension.getWorld().setBiomeAlgorithm(World2.BIOME_ALGORITHM_1_9);
-            } else if (biomeScheme instanceof Minecraft1_0BiomeScheme) {
-                dimension.getWorld().setBiomeAlgorithm(World2.BIOME_ALGORITHM_1_0_0);
-            } else if (biomeScheme instanceof Minecraft1_1BiomeScheme) {
-                dimension.getWorld().setBiomeAlgorithm(World2.BIOME_ALGORITHM_1_1);
-            } else if (biomeScheme instanceof Minecraft1_2BiomeScheme) {
-                dimension.getWorld().setBiomeAlgorithm(World2.BIOME_ALGORITHM_1_2_AND_1_3_DEFAULT);
-            } else if (biomeScheme instanceof Minecraft1_3LargeBiomeScheme) {
-                dimension.getWorld().setBiomeAlgorithm(World2.BIOME_ALGORITHM_1_3_LARGE);
-            } else {
-                throw new InternalError(biomeScheme.getClass().getName());
-            }
-            if (! initiallyDirty) {
-                dimension.setDirty(false);
-            }
-        } else if (dimension.getMinecraftSeed() != initialSeed) {
-            dimension.setMinecraftSeed(initialSeed);
-            dimension.recalculateBiomes(biomeScheme, this);
-            if (! initiallyDirty) {
-                dimension.setDirty(false);
-            }
-        }
-        dispose();
+//        if (app.getBiomeScheme() != initialBiomeScheme) {
+//            if (dimension.getMinecraftSeed() != initialSeed) {
+//                dimension.setMinecraftSeed(initialSeed);
+//            }
+//            app.setBiomeScheme(initialBiomeScheme);
+//            if (biomeScheme instanceof Minecraft1_7_3BiomeScheme) {
+//                dimension.getWorld().setBiomeAlgorithm(World2.BIOME_ALGORITHM_1_7_3);
+//            } else if (biomeScheme instanceof Minecraft1_8_1BiomeScheme) {
+//                dimension.getWorld().setBiomeAlgorithm(World2.BIOME_ALGORITHM_1_8_1);
+//            } else if (biomeScheme instanceof Minecraft1_9BiomeScheme) {
+//                dimension.getWorld().setBiomeAlgorithm(World2.BIOME_ALGORITHM_1_9);
+//            } else if (biomeScheme instanceof Minecraft1_0BiomeScheme) {
+//                dimension.getWorld().setBiomeAlgorithm(World2.BIOME_ALGORITHM_1_0_0);
+//            } else if (biomeScheme instanceof Minecraft1_1BiomeScheme) {
+//                dimension.getWorld().setBiomeAlgorithm(World2.BIOME_ALGORITHM_1_1);
+//            } else if (biomeScheme instanceof Minecraft1_2BiomeScheme) {
+//                dimension.getWorld().setBiomeAlgorithm(World2.BIOME_ALGORITHM_1_2_AND_1_3_DEFAULT);
+//            } else if (biomeScheme instanceof Minecraft1_3LargeBiomeScheme) {
+//                dimension.getWorld().setBiomeAlgorithm(World2.BIOME_ALGORITHM_1_3_LARGE);
+//            } else {
+//                throw new InternalError(biomeScheme.getClass().getName());
+//            }
+//            if (! initiallyDirty) {
+//                dimension.setDirty(false);
+//            }
+//        } else if (dimension.getMinecraftSeed() != initialSeed) {
+//            dimension.setMinecraftSeed(initialSeed);
+////            dimension.recalculateBiomes(biomeScheme, this);
+//            if (! initiallyDirty) {
+//                dimension.setDirty(false);
+//            }
+//        }
+//        dispose();
     }
 
     // ChangeListener
     
     @Override
     public void stateChanged(ChangeEvent e) {
-        if (! programmaticChange) {
-            long seed= ((Number) jSpinner1.getValue()).longValue();
-            if (seed != dimension.getMinecraftSeed()) {
-                dimension.setMinecraftSeed(seed);
-                dimension.recalculateBiomes(biomeScheme, this);
-            }
-        }
+//        if (! programmaticChange) {
+//            long seed= ((Number) jSpinner1.getValue()).longValue();
+//            if (seed != dimension.getMinecraftSeed()) {
+//                dimension.setMinecraftSeed(seed);
+//                dimension.recalculateBiomes(biomeScheme, this);
+//            }
+//        }
     }
     
     private void changeBiomeScheme() {
         int selectedIndex = jComboBox1.getSelectedIndex();
         switch (selectedIndex) {
-            case 0:
-                app.selectBiomeScheme(World2.BIOME_ALGORITHM_1_3_LARGE);
-                break;
-            case 1:
-                app.selectBiomeScheme(World2.BIOME_ALGORITHM_1_2_AND_1_3_DEFAULT);
-                break;
-            case 2:
-                app.selectBiomeScheme(World2.BIOME_ALGORITHM_1_1);
-                break;
-            case 3:
-                app.selectBiomeScheme(World2.BIOME_ALGORITHM_1_0_0);
-                break;
-            case 4:
-                app.selectBiomeScheme(World2.BIOME_ALGORITHM_1_9);
-                break;
-            case 5:
-                app.selectBiomeScheme(World2.BIOME_ALGORITHM_1_8_1);
-                break;
-            case 6:
-                app.selectBiomeScheme(World2.BIOME_ALGORITHM_1_7_3);
-                break;
+//            case 0:
+//                app.selectBiomeScheme(World2.BIOME_ALGORITHM_1_3_LARGE);
+//                break;
+//            case 1:
+//                app.selectBiomeScheme(World2.BIOME_ALGORITHM_1_2_AND_1_3_DEFAULT);
+//                break;
+//            case 2:
+//                app.selectBiomeScheme(World2.BIOME_ALGORITHM_1_1);
+//                break;
+//            case 3:
+//                app.selectBiomeScheme(World2.BIOME_ALGORITHM_1_0_0);
+//                break;
+//            case 4:
+//                app.selectBiomeScheme(World2.BIOME_ALGORITHM_1_9);
+//                break;
+//            case 5:
+//                app.selectBiomeScheme(World2.BIOME_ALGORITHM_1_8_1);
+//                break;
+//            case 6:
+//                app.selectBiomeScheme(World2.BIOME_ALGORITHM_1_7_3);
+//                break;
             default:
                 throw new InternalError();
         }
-        biomeScheme = app.getBiomeScheme();
-//        dimension.recalculateBiomes(biomeScheme, this);
-        programmaticChange = true;
-        try {
-            if (biomeScheme instanceof Minecraft1_7_3BiomeScheme) {
-                jComboBox1.setSelectedIndex(6);
-            } else if (biomeScheme instanceof Minecraft1_8_1BiomeScheme) {
-                jComboBox1.setSelectedIndex(5);
-            } else if (biomeScheme instanceof Minecraft1_9BiomeScheme) {
-                jComboBox1.setSelectedIndex(4);
-            } else if (biomeScheme instanceof Minecraft1_0BiomeScheme) {
-                jComboBox1.setSelectedIndex(3);
-            } else if (biomeScheme instanceof Minecraft1_1BiomeScheme) {
-                jComboBox1.setSelectedIndex(2);
-            } else if (biomeScheme instanceof Minecraft1_2BiomeScheme) {
-                jComboBox1.setSelectedIndex(1);
-            } else if (biomeScheme instanceof Minecraft1_3LargeBiomeScheme) {
-                jComboBox1.setSelectedIndex(0);
-            } else {
-                throw new InternalError(biomeScheme.getClass().getName());
-            }
-        } finally {
-            programmaticChange = false;
-        }
+//        biomeScheme = app.getBiomeScheme();
+
+//        programmaticChange = true;
+//        try {
+//            if (biomeScheme instanceof Minecraft1_7_3BiomeScheme) {
+//                jComboBox1.setSelectedIndex(6);
+//            } else if (biomeScheme instanceof Minecraft1_8_1BiomeScheme) {
+//                jComboBox1.setSelectedIndex(5);
+//            } else if (biomeScheme instanceof Minecraft1_9BiomeScheme) {
+//                jComboBox1.setSelectedIndex(4);
+//            } else if (biomeScheme instanceof Minecraft1_0BiomeScheme) {
+//                jComboBox1.setSelectedIndex(3);
+//            } else if (biomeScheme instanceof Minecraft1_1BiomeScheme) {
+//                jComboBox1.setSelectedIndex(2);
+//            } else if (biomeScheme instanceof Minecraft1_2BiomeScheme) {
+//                jComboBox1.setSelectedIndex(1);
+//            } else if (biomeScheme instanceof Minecraft1_3LargeBiomeScheme) {
+//                jComboBox1.setSelectedIndex(0);
+//            } else {
+//                throw new InternalError(biomeScheme.getClass().getName());
+//            }
+//        } finally {
+//            programmaticChange = false;
+//        }
     }
     
     /** This method is called from within the constructor to

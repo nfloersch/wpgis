@@ -55,7 +55,7 @@ public class FloodRiver extends MouseOrTabletOperation implements AutoBiomeOpera
             return;
         }
         dimension.setEventsInhibited(true);
-        dimension.setAutoUpdateBiomes(autoBiomesEnabled);
+        //dimension.setAutoUpdateBiomes(autoBiomesEnabled);
         try {
             QueueRiverFloodFiller flooder = new QueueRiverFloodFiller(dimension, undo ? height : (height + 1), floodWithLava, undo, appView);
             Point imageCoords = worldToImageCoordinates(x, y);
@@ -67,7 +67,7 @@ public class FloodRiver extends MouseOrTabletOperation implements AutoBiomeOpera
                 }
             }
         } finally {
-            dimension.setAutoUpdateBiomes(false);
+            //dimension.setAutoUpdateBiomes(false);
             dimension.setEventsInhibited(false);
         }
     }

@@ -15,26 +15,26 @@ import org.pepsoft.worldpainter.gardenofeden.PathNode;
 import org.pepsoft.worldpainter.layers.GardenCategory;
 import org.pepsoft.worldpainter.util.GeometryUtil;
 import org.pepsoft.worldpainter.util.GeometryUtil.GeometryVisitor;
-
+import javax.vecmath.Point3i;
 /**
  *
  * @author pepijn
  */
 public class RiverNode extends PathNode {
-    public RiverNode(Garden garden, Point location, int crossSectionalArea) {
+    public RiverNode(Garden garden, Point3i location, int crossSectionalArea) {
         super(garden, 0, null, location, 1, GardenCategory.CATEGORY_WATER);
         this.crossSectionalArea = crossSectionalArea;
 //        System.out.println("River started @ " + location);
     }
 
-    public RiverNode(Garden garden, RiverNode parent, Point location) {
+    public RiverNode(Garden garden, RiverNode parent, Point3i location) {
         super(garden, 0, parent, location, 1, GardenCategory.CATEGORY_WATER);
         parent.child = this;
         crossSectionalArea = parent.crossSectionalArea;
 //        System.out.println("Extending river to " + location);
     }
     
-    public RiverNode(Garden garden, RiverNode parent, Point location, RiverNode child) {
+    public RiverNode(Garden garden, RiverNode parent, Point3i location, RiverNode child) {
         super(garden, 0, parent, location, 1, GardenCategory.CATEGORY_WATER);
         parent.child = this;
         this.child = child;
@@ -107,7 +107,7 @@ public class RiverNode extends PathNode {
                 return true;
             }
 
-            garden.plantSeed(new RiverNode(garden, this, new Point(lowestHeightCoords[0], lowestHeightCoords[1])));
+            garden.plantSeed(new RiverNode(garden, this, new Point3i(lowestHeightCoords[0], lowestHeightCoords[1],1)));
             return true;
         } else {
             // No lower point around; end the river here

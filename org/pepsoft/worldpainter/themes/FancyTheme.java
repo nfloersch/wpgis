@@ -137,6 +137,11 @@ public class FancyTheme implements Theme {
         temperatureMap.setSeed(seed);
     }
 
+    @Override
+    public final Theme clone() {
+        return null;
+    }
+    
     public final HeightMap getHumidityMap() {
         return humidityMap;
     }
