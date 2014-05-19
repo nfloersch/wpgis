@@ -18,13 +18,14 @@ import java.util.logging.Logger;
 import org.pepsoft.util.swing.TileListener;
 import org.pepsoft.worldpainter.layers.Layer;
 import static org.pepsoft.worldpainter.Constants.*;
+import org.pepsoft.worldpainter.biomeschemes.CustomBiomeManager;
 
 /**
  *
  * @author pepijn
  */
 public class WPTileProvider implements org.pepsoft.util.swing.TileProvider, Dimension.Listener, Tile.Listener {
-    public WPTileProvider(Dimension dimension, ColourScheme colourScheme, BiomeScheme biomeScheme, Collection<Layer> hiddenLayers, boolean contourLines, TileRenderer.LightOrigin lightOrigin, boolean active) {
+    public WPTileProvider(Dimension dimension, ColourScheme colourScheme, BiomeScheme biomeScheme, CustomBiomeManager customBiomeManager, Collection<Layer> hiddenLayers, boolean contourLines, TileRenderer.LightOrigin lightOrigin, boolean active) {
         tileProvider = dimension;
         this.colourScheme = colourScheme;
         this.biomeScheme = biomeScheme;
@@ -32,9 +33,10 @@ public class WPTileProvider implements org.pepsoft.util.swing.TileProvider, Dime
         this.contourLines = contourLines;
         this.lightOrigin = lightOrigin;
         this.active = active;
+        this.customBiomeManager = customBiomeManager;
     }
 
-    public WPTileProvider(TileProvider tileProvider, ColourScheme colourScheme, BiomeScheme biomeScheme, Collection<Layer> hiddenLayers, boolean contourLines, TileRenderer.LightOrigin lightOrigin) {
+    public WPTileProvider(TileProvider tileProvider, ColourScheme colourScheme, BiomeScheme biomeScheme, CustomBiomeManager customBiomeManager, Collection<Layer> hiddenLayers, boolean contourLines, TileRenderer.LightOrigin lightOrigin) {
         this.tileProvider = tileProvider;
         this.colourScheme = colourScheme;
         this.biomeScheme = biomeScheme;
@@ -42,6 +44,7 @@ public class WPTileProvider implements org.pepsoft.util.swing.TileProvider, Dime
         this.contourLines = contourLines;
         this.lightOrigin = lightOrigin;
         active = false;
+        this.customBiomeManager = customBiomeManager;
     }
     
     @Override
@@ -225,7 +228,7 @@ public class WPTileProvider implements org.pepsoft.util.swing.TileProvider, Dime
     }
     
     private TileRenderer createRenderer() {
-        TileRenderer tileRenderer = new TileRenderer(tileProvider, colourScheme, biomeScheme);
+        TileRenderer tileRenderer = new TileRenderer(tileProvider, colourScheme, biomeScheme, customBiomeManager);
         tileRenderer.addHiddenLayers(hiddenLayers);
         tileRenderer.setZoom(zoom);
         tileRenderer.setContourLines(contourLines);
@@ -240,12 +243,11 @@ public class WPTileProvider implements org.pepsoft.util.swing.TileProvider, Dime
     private final boolean contourLines;
     private final TileRenderer.LightOrigin lightOrigin;
     private final Object tileRendererRefLock = new Object();
-    private ThreadLocal<TileRenderer> tileRendererRef = new ThreadLocal<TileRenderer>();
-    private int zoom = 1;
     private final boolean active;
     private final List<TileListener> listeners = new ArrayList<TileListener>();
-    
-    private static final int[] TILE_COORDS = new int[2];
+    private final CustomBiomeManager customBiomeManager;
+    private ThreadLocal<TileRenderer> tileRendererRef = new ThreadLocal<TileRenderer>();
+    private int zoom = 1;
     
     private static final Logger logger = Logger.getLogger(WPTileProvider.class.getName());
 }

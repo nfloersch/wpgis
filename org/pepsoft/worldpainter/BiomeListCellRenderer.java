@@ -6,39 +6,41 @@ package org.pepsoft.worldpainter;
 
 import java.awt.Component;
 import javax.swing.DefaultListCellRenderer;
-import javax.swing.Icon;
-import javax.swing.ImageIcon;
 import javax.swing.JList;
-import org.pepsoft.worldpainter.biomeschemes.BiomeSchemeManager;
+import org.pepsoft.worldpainter.biomeschemes.BiomeHelper;
+import org.pepsoft.worldpainter.biomeschemes.CustomBiomeManager;
 
 /**
  *
  * @author pepijn
  */
 public class BiomeListCellRenderer extends DefaultListCellRenderer {
-    public BiomeListCellRenderer(BiomeScheme biomeScheme, ColourScheme colourScheme) {
-        this.biomeScheme = biomeScheme;
-        this.colourScheme = colourScheme;
+    public BiomeListCellRenderer(BiomeScheme biomeScheme, ColourScheme colourScheme, CustomBiomeManager customBiomeManager) {
+        this(biomeScheme, colourScheme, customBiomeManager, " ");
+    }
+    
+    public BiomeListCellRenderer(BiomeScheme biomeScheme, ColourScheme colourScheme, CustomBiomeManager customBiomeManager, String nullLabel) {
+        this.nullLabel = nullLabel;
+        biomeHelper = new BiomeHelper(biomeScheme, colourScheme, customBiomeManager);
     }
     
     @Override
     public Component getListCellRendererComponent(JList list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
         super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
-        int biome = (Integer) value;
-        setText(biomeScheme.getBiomeNames()[biome]);
-        if (iconCache == null) {
-            iconCache = new Icon[biomeScheme.getBiomeCount()];
+        if (value instanceof Integer) {
+            int biome = (Integer) value;
+            if (biome == -1) {
+                setText(nullLabel);
+            } else {
+                setText(biomeHelper.getBiomeName(biome));
+                setIcon(biomeHelper.getBiomeIcon(biome));
+            }
         }
-        if (iconCache[biome] == null) {
-            iconCache[biome] = new ImageIcon(BiomeSchemeManager.createImage(biomeScheme, biome, colourScheme));
-        }
-        setIcon(iconCache[biome]);
         return this;
     }
  
-    private final BiomeScheme biomeScheme;
-    private final ColourScheme colourScheme;
-    private Icon[] iconCache;
+    private final BiomeHelper biomeHelper;
+    private final String nullLabel;
     
     private static final long serialVersionUID = 1L;
 }

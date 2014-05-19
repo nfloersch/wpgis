@@ -24,14 +24,7 @@ import org.pepsoft.worldpainter.layers.PineForest;
 import org.pepsoft.worldpainter.layers.TreeLayer;
 import org.pepsoft.worldpainter.layers.trees.TreeType;
 
-import static org.pepsoft.minecraft.Constants.BLK_AIR;
-import static org.pepsoft.minecraft.Constants.BLK_BROWN_MUSHROOM;
-import static org.pepsoft.minecraft.Constants.BLK_LAVA;
-import static org.pepsoft.minecraft.Constants.BLK_RED_MUSHROOM;
-import static org.pepsoft.minecraft.Constants.BLK_STATIONARY_LAVA;
-import static org.pepsoft.minecraft.Constants.BLK_STATIONARY_WATER;
-import static org.pepsoft.minecraft.Constants.BLK_WATER;
-import static org.pepsoft.minecraft.Constants.BLK_WOOD;
+import static org.pepsoft.minecraft.Constants.*;
 import static org.pepsoft.worldpainter.Constants.SMALL_BLOBS;
 
 /**
@@ -72,10 +65,15 @@ public class TreesExporter<T extends TreeLayer> extends AbstractLayerExporter<T>
                             if (waterDepth > maxWaterDepth) {
                                 continue;
                             }
-                            // Don't build trees on air, or in lava or water, or where there is already a tree (from another layer)
+                            // Don't build trees on air, or in lava or water, or where there is already a solid block (from another layer)
                             int blockTypeUnderTree = minecraftWorld.getBlockTypeAt(x, y, height);
                             int blockTypeAtTree = minecraftWorld.getBlockTypeAt(x, y, height + 1);
-                            if ((blockTypeUnderTree == BLK_AIR) || (blockTypeUnderTree == BLK_WATER) || (blockTypeUnderTree == BLK_STATIONARY_WATER) || (blockTypeAtTree == BLK_LAVA) || (blockTypeAtTree == BLK_STATIONARY_LAVA) || (blockTypeAtTree == BLK_WOOD)) {
+                            if ((blockTypeUnderTree == BLK_AIR)
+                                    || (blockTypeUnderTree == BLK_WATER)
+                                    || (blockTypeUnderTree == BLK_STATIONARY_WATER)
+                                    || (blockTypeAtTree == BLK_LAVA)
+                                    || (blockTypeAtTree == BLK_STATIONARY_LAVA)
+                                    || (! VERY_INSUBSTANTIAL_BLOCKS.contains(blockTypeAtTree))) {
                                 continue;
                             }
                             // Don't build trees directly next to each other, or
@@ -106,10 +104,11 @@ public class TreesExporter<T extends TreeLayer> extends AbstractLayerExporter<T>
     }
     
     private boolean room(Dimension dimension, int x, int y, int dx, int dy, MinecraftWorld minecraftWorld) {
-        int height = dimension.getIntHeightAt(x + dx, y + dy);
-        return ((height == -1)
-                || (height >= (dimension.getMaxHeight() - 1))
-                || (minecraftWorld.getBlockTypeAt(x + dx, y + dy, height + 1) != BLK_WOOD))
+        final int height = dimension.getIntHeightAt(x + dx, y + dy);
+        return (height >= 0)
+            && (height < (dimension.getMaxHeight() - 1))
+            && (minecraftWorld.getBlockTypeAt(x + dx, y + dy, height + 1) != BLK_WOOD)
+            && (minecraftWorld.getBlockTypeAt(x + dx, y + dy, height + 1) != BLK_WOOD2)
             && (dimension.getLayerValueAt(GardenCategory.INSTANCE, x + dx, y + dy) == GardenCategory.CATEGORY_UNOCCUPIED);
     }
 

@@ -4,21 +4,19 @@
  */
 package org.pepsoft.worldpainter.layers;
 
-import java.awt.Frame;
-import javax.swing.JDialog;
+import java.awt.Window;
+import org.pepsoft.worldpainter.WorldPainterDialog;
 
 /**
  *
  * @author pepijn
  */
-public abstract class CustomLayerDialog<T extends CustomLayer> extends JDialog {
-    public CustomLayerDialog(Frame owner, boolean modal) {
-        super(owner, modal);
+public abstract class CustomLayerDialog<T extends CustomLayer> extends WorldPainterDialog {
+    public CustomLayerDialog(Window owner) {
+        super(owner);
     }
     
     public abstract T getSelectedLayer();
-    
-    public abstract boolean isCancelled();
     
     private static final long serialVersionUID = 1L;
 }

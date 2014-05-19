@@ -9,6 +9,7 @@ import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Point;
 import java.awt.Rectangle;
+import java.awt.RenderingHints;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.HierarchyEvent;
@@ -25,6 +26,7 @@ import java.util.TreeSet;
 import javax.swing.JComponent;
 import javax.swing.JViewport;
 import javax.swing.Scrollable;
+import javax.swing.SwingUtilities;
 import javax.swing.Timer;
 import org.pepsoft.util.ProgressReceiver;
 import org.pepsoft.worldpainter.BiomeScheme;
@@ -33,6 +35,7 @@ import static org.pepsoft.worldpainter.Constants.*;
 import org.pepsoft.worldpainter.Dimension;
 import org.pepsoft.worldpainter.HeightMapTileFactory;
 import org.pepsoft.worldpainter.Tile;
+import org.pepsoft.worldpainter.biomeschemes.CustomBiomeManager;
 import org.pepsoft.worldpainter.layers.Layer;
 
 /**
@@ -40,11 +43,15 @@ import org.pepsoft.worldpainter.layers.Layer;
  * @author pepijn
  */
 public class ThreeDeeView extends JComponent implements Dimension.Listener, Tile.Listener, HierarchyListener, ActionListener, Scrollable {
-    public ThreeDeeView(Dimension dimension, ColourScheme colourScheme, BiomeScheme biomeScheme, int rotation) {
+    public ThreeDeeView(Dimension dimension, ColourScheme colourScheme, BiomeScheme biomeScheme, CustomBiomeManager customBiomeManager, int rotation, int zoom) {
         this.dimension = dimension;
         this.colourScheme = colourScheme;
         this.biomeScheme = biomeScheme;
+        this.customBiomeManager = customBiomeManager;
         this.rotation = rotation;
+        this.zoom = zoom;
+        scale = (int) Math.pow(2.0, Math.abs(zoom - 1));
+//        System.out.println("Zoom " + zoom + " -> scale " + scale);
         maxHeight = dimension.getMaxHeight();
         if (dimension.getTileFactory() instanceof HeightMapTileFactory) {
             waterLevel = ((HeightMapTileFactory) dimension.getTileFactory()).getWaterHeight();
@@ -104,7 +111,7 @@ public class ThreeDeeView extends JComponent implements Dimension.Listener, Tile
                 throw new IllegalArgumentException();
         }
         zSortedTiles.addAll(dimension.getTiles());
-        threeDeeRenderManager = new ThreeDeeRenderManager(dimension, colourScheme, biomeScheme, rotation);
+        threeDeeRenderManager = new ThreeDeeRenderManager(dimension, colourScheme, biomeScheme, customBiomeManager, rotation);
 
         dimension.addDimensionListener(this);
         for (Tile tile: dimension.getTiles()) {
@@ -140,7 +147,7 @@ public class ThreeDeeView extends JComponent implements Dimension.Listener, Tile
                 throw new IllegalArgumentException();
         }
 //        System.out.println("xOffset: " + xOffset + ", yOffset: " + yOffset);
-        java.awt.Dimension preferredSize = new java.awt.Dimension(width, height);
+        java.awt.Dimension preferredSize = zoom(new java.awt.Dimension(width, height));
         setPreferredSize(preferredSize);
         setMinimumSize(preferredSize);
         setMaximumSize(preferredSize);
@@ -158,10 +165,10 @@ public class ThreeDeeView extends JComponent implements Dimension.Listener, Tile
     }
 
     public BufferedImage getImage(ProgressReceiver progressReceiver) throws ProgressReceiver.OperationCancelled {
-        Tile3DRenderer renderer = new Tile3DRenderer(dimension, colourScheme, biomeScheme, rotation);
+        Tile3DRenderer renderer = new Tile3DRenderer(dimension, colourScheme, biomeScheme, customBiomeManager, rotation);
 
         // Paint the complete image
-        java.awt.Dimension preferredSize = getPreferredSize();
+        java.awt.Dimension preferredSize = unzoom(getPreferredSize());
         BufferedImage image = new BufferedImage(preferredSize.width, preferredSize.height, BufferedImage.TYPE_INT_ARGB);
         Graphics2D g2 = image.createGraphics();
         try {
@@ -184,13 +191,13 @@ public class ThreeDeeView extends JComponent implements Dimension.Listener, Tile
 //        highlightTile = new Point(x >> 7, y >> 7);
         switch (rotation) {
             case 0:
-                return new Point(xOffset + TILE_SIZE + x - y, yOffset + maxHeight - 1 - TILE_SIZE / 2 + (y + x) / 2);
+                return zoom(new Point(xOffset + TILE_SIZE + x - y, yOffset + maxHeight - 1 - TILE_SIZE / 2 + (y + x) / 2));
             case 1:
-                return new Point(xOffset + TILE_SIZE * 2 - x - y, yOffset + maxHeight - 1 - (y - x) / 2);
+                return zoom(new Point(xOffset + TILE_SIZE * 2 - x - y, yOffset + maxHeight - 1 - (y - x) / 2));
             case 2:
-                return new Point(xOffset + TILE_SIZE - x + y, yOffset + maxHeight - 1 + TILE_SIZE / 2 - (y + x) / 2);
+                return zoom(new Point(xOffset + TILE_SIZE - x + y, yOffset + maxHeight - 1 + TILE_SIZE / 2 - (y + x) / 2));
             case 3:
-                return new Point(xOffset + x + y, yOffset + maxHeight - 1 + (y - x) / 2);
+                return zoom(new Point(xOffset + x + y, yOffset + maxHeight - 1 + (y - x) / 2));
             default:
                 throw new IllegalArgumentException();
         }
@@ -208,6 +215,24 @@ public class ThreeDeeView extends JComponent implements Dimension.Listener, Tile
         this.highlightTile = highlightTile;
         repaint();
     }
+
+    public int getZoom() {
+        return zoom;
+    }
+
+    public void setZoom(int zoom) {
+        this.zoom = zoom;
+        scale = (int) Math.pow(2.0, Math.abs(zoom - 1));
+//        System.out.println("Zoom " + zoom + " -> scale " + scale);
+        int width = dimension.getWidth() * TILE_SIZE + dimension.getHeight() * TILE_SIZE;
+        int height = width / 2 + maxHeight - 1;
+        java.awt.Dimension preferredSize = zoom(new java.awt.Dimension(width, height));
+        setPreferredSize(preferredSize);
+        setMinimumSize(preferredSize);
+        setMaximumSize(preferredSize);
+        setSize(preferredSize);
+        repaint();
+    }
     
     /**
      * Centre the view on a particular tile. Specifically, centre the view on a
@@ -217,7 +242,7 @@ public class ThreeDeeView extends JComponent implements Dimension.Listener, Tile
      * @param tileY The Y coordinate in tiles of the tile to centre the view on. 
      */
     public void moveToTile(int tileX, int tileY) {
-        Rectangle tileBounds = getTileBounds(tileX, tileY);
+        Rectangle tileBounds = zoom(getTileBounds(tileX, tileY));
         moveTo(new Point(tileBounds.x + tileBounds.width / 2, tileBounds.y + tileBounds.height - TILE_SIZE / 2));
 //        highlightTile = new Point(tileX, tileY);
     }
@@ -234,6 +259,12 @@ public class ThreeDeeView extends JComponent implements Dimension.Listener, Tile
         Point coords = worldToView(x, y);
 //        highlightPoint = coords;
         moveTo(coords);
+    }
+
+    public void refresh() {
+        threeDeeRenderManager.stop();
+        renderedTiles.clear();
+        repaint();
     }
     
     // Dimension.Listener
@@ -339,7 +370,7 @@ public class ThreeDeeView extends JComponent implements Dimension.Listener, Tile
             Tile tile = renderResult.getTile();
             int x = tile.getX(), y = tile.getY();
             renderedTiles.put(tile, renderResult.getImage());
-            Rectangle tileBounds = getTileBounds(x, y);
+            Rectangle tileBounds = zoom(getTileBounds(x, y));
             if (repaintArea == null) {
                 repaintArea = tileBounds;
             } else {
@@ -347,6 +378,7 @@ public class ThreeDeeView extends JComponent implements Dimension.Listener, Tile
             }
         }
         if (repaintArea != null) {
+//            System.out.println("Repainting " + repaintArea);
             repaint(repaintArea);
         }
     }
@@ -379,7 +411,20 @@ public class ThreeDeeView extends JComponent implements Dimension.Listener, Tile
 
     @Override
     protected void paintComponent(Graphics g) {
-        Rectangle visibleRect = getVisibleRect();
+//        System.out.println("Drawing");
+        Graphics2D g2 = (Graphics2D) g;
+        if (zoom != 1) {
+            double scaleFactor = Math.pow(2.0, zoom - 1);
+//            System.out.println("Scaling with factor " + scaleFactor);
+            g2.scale(scaleFactor, scaleFactor);
+            if (zoom > 1) {
+                g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
+            } else {
+                g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
+            }
+        }
+        Rectangle visibleRect = unzoom(getVisibleRect());
+//        System.out.println("Unzoomed visible rectangle: " + visibleRect);
         int centerX = visibleRect.x + visibleRect.width / 2;
         int centerY = visibleRect.y + visibleRect.height / 2 + waterLevel;
         Tile mostCentredTile = null;
@@ -387,7 +432,9 @@ public class ThreeDeeView extends JComponent implements Dimension.Listener, Tile
         Rectangle clipBounds = g.getClipBounds();
         for (Tile tile : zSortedTiles) {
             Rectangle tileBounds = getTileBounds(tile.getX(), tile.getY());
+//            System.out.print("Tile bounds: " + tileBounds);
             if (tileBounds.intersects(clipBounds)) {
+//                System.out.println(" intersects");
                 int dx = tileBounds.x + tileBounds.width / 2 - centerX;
                 int dy = tileBounds.y + tileBounds.height - TILE_SIZE / 2 - centerY;
                 int dist = (int) Math.sqrt((dx * dx) + (dy * dy));
@@ -401,6 +448,8 @@ public class ThreeDeeView extends JComponent implements Dimension.Listener, Tile
                 } else {
                     tilesWaitingToBeRendered.add(0, tile);
                 }
+//            } else {
+//                System.out.println(" does NOT intersect");
             }
         }
         if (mostCentredTile != null) {
@@ -428,30 +477,63 @@ public class ThreeDeeView extends JComponent implements Dimension.Listener, Tile
 //        }
     }
 
-    private void scheduleTileForRendering(Tile tile) {
-        Rectangle visibleArea = ((JViewport) getParent()).getViewRect();
-        Rectangle tileBounds = getTileBounds(tile.getX(), tile.getY());
-        if (tileBounds.intersects(visibleArea)) {
-            // The tile is (partially) visible, so it should be repainted
-            // immediately
-            switch (refreshMode) {
-                case IMMEDIATE:
-                    threeDeeRenderManager.renderTile(tile);
-                    break;
-                case DELAYED:
-                    tilesWaitingToBeRendered.add(tile);
-                    lastTileChange = System.currentTimeMillis();
-                    break;
-                case MANUAL:
-                    // Do nothing
-                    break;
-                default:
-                    throw new InternalError();
+    private void scheduleTileForRendering(final Tile tile) {
+//        System.out.println("Scheduling tile for rendering: " + tile.getX() + ", " + tile.getY());
+        if (SwingUtilities.isEventDispatchThread()) {
+            Rectangle visibleArea = ((JViewport) getParent()).getViewRect();
+            Rectangle tileBounds = zoom(getTileBounds(tile.getX(), tile.getY()));
+            if (tileBounds.intersects(visibleArea)) {
+                // The tile is (partially) visible, so it should be repainted
+                // immediately
+                switch (refreshMode) {
+                    case IMMEDIATE:
+                        threeDeeRenderManager.renderTile(tile);
+                        break;
+                    case DELAYED:
+                        tilesWaitingToBeRendered.add(tile);
+                        lastTileChange = System.currentTimeMillis();
+                        break;
+                    case MANUAL:
+                        // Do nothing
+                        break;
+                    default:
+                        throw new InternalError();
+                }
+            } else {
+                // The tile is not visible, so repaint it when it becomes visible
+                tilesWaitingToBeRendered.remove(tile);
+                renderedTiles.remove(tile);
             }
         } else {
-            // The tile is not visible, so repaint it when it becomes visible
-            tilesWaitingToBeRendered.remove(tile);
-            renderedTiles.remove(tile);
+            SwingUtilities.invokeLater(new Runnable() {
+                @Override
+                public void run() {
+                    Rectangle visibleArea = ((JViewport) getParent()).getViewRect();
+                    Rectangle tileBounds = zoom(getTileBounds(tile.getX(), tile.getY()));
+                    if (tileBounds.intersects(visibleArea)) {
+                        // The tile is (partially) visible, so it should be repainted
+                        // immediately
+                        switch (refreshMode) {
+                            case IMMEDIATE:
+                                threeDeeRenderManager.renderTile(tile);
+                                break;
+                            case DELAYED:
+                                tilesWaitingToBeRendered.add(tile);
+                                lastTileChange = System.currentTimeMillis();
+                                break;
+                            case MANUAL:
+                                // Do nothing
+                                break;
+                            default:
+                                throw new InternalError();
+                        }
+                    } else {
+                        // The tile is not visible, so repaint it when it becomes visible
+                        tilesWaitingToBeRendered.remove(tile);
+                        renderedTiles.remove(tile);
+                    }
+                }
+            });
         }
     }
 
@@ -492,21 +574,85 @@ public class ThreeDeeView extends JComponent implements Dimension.Listener, Tile
         scrollRectToVisible(new Rectangle(coords.x - visibleRect.width / 2, coords.y - visibleRect.height / 2, visibleRect.width, visibleRect.height));
     }
     
+    private java.awt.Dimension zoom(java.awt.Dimension dimension) {
+        if (zoom < 1) {
+            dimension.width /= scale;
+            dimension.height /= scale;
+        } else if (zoom > 1) {
+            dimension.width *= scale;
+            dimension.height *= scale;
+        }
+        return dimension;
+    }
+
+    private Point zoom(Point point) {
+        if (zoom < 1) {
+            point.x /= scale;
+            point.y /= scale;
+        } else if (zoom > 1) {
+            point.x *= scale;
+            point.y *= scale;
+        }
+        return point;
+    }
+    
+    private Rectangle zoom(Rectangle rectangle) {
+        if (zoom < 1) {
+            rectangle.x /= scale;
+            rectangle.y /= scale;
+            rectangle.width /= scale;
+            rectangle.height /= scale;
+        } else if (zoom > 1) {
+            rectangle.x *= scale;
+            rectangle.y *= scale;
+            rectangle.width *= scale;
+            rectangle.height *= scale;
+        }
+        return rectangle;
+    }
+
+    private Rectangle unzoom(Rectangle rectangle) {
+        if (zoom < 1) {
+            rectangle.x *= scale;
+            rectangle.y *= scale;
+            rectangle.width *= scale;
+            rectangle.height *= scale;
+        } else if (zoom > 1) {
+            rectangle.x /= scale;
+            rectangle.y /= scale;
+            rectangle.width /= scale;
+            rectangle.height /= scale;
+        }
+        return rectangle;
+    }
+    
+    private java.awt.Dimension unzoom(java.awt.Dimension dimension) {
+        if (zoom < 1) {
+            dimension.width *= scale;
+            dimension.height *= scale;
+        } else if (zoom > 1) {
+            dimension.width /= scale;
+            dimension.height /= scale;
+        }
+        return dimension;
+    }
+    
     private final Dimension dimension;
     private final Map<Tile, BufferedImage> renderedTiles = new HashMap<Tile, BufferedImage>();
     private final ThreeDeeRenderManager threeDeeRenderManager;
     private final ColourScheme colourScheme;
     private final BiomeScheme biomeScheme;
-    private Timer timer;
     private final List<Tile> tilesWaitingToBeRendered = new LinkedList<Tile>();
-    private long lastTileChange;
-    private RefreshMode refreshMode = RefreshMode.DELAYED;
     private final int maxHeight;
     private final int xOffset, yOffset, maxX, maxY;
     private final int rotation;
     private final SortedSet<Tile> zSortedTiles;
+    private final CustomBiomeManager customBiomeManager;
+    private Timer timer;
+    private long lastTileChange;
+    private RefreshMode refreshMode = RefreshMode.DELAYED;
     private Point centreTile;
-    private int waterLevel;
+    private int waterLevel, zoom = 1, scale = 1;
     private Point highlightTile, highlightPoint;
     
 //    private static final Logger logger = Logger.getLogger(ThreeDeeView.class.getName());

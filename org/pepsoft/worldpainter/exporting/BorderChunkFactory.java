@@ -7,7 +7,7 @@ package org.pepsoft.worldpainter.exporting;
 
 import java.util.Map;
 import java.util.Set;
-import org.pepsoft.minecraft.Chunk;
+import org.pepsoft.minecraft.ChunkFactory;
 import org.pepsoft.minecraft.ChunkImpl;
 import org.pepsoft.minecraft.ChunkImpl2;
 import org.pepsoft.util.PerlinNoise;
@@ -26,7 +26,7 @@ import org.pepsoft.worldpainter.layers.Layer;
  * @author pepijn
  */
 public class BorderChunkFactory {
-    public static Chunk create(int chunkX, int chunkZ, Dimension dimension, Map<Layer, LayerExporter<Layer>> exporters) {
+    public static ChunkFactory.ChunkCreationResult create(int chunkX, int chunkZ, Dimension dimension, Map<Layer, LayerExporter<Layer>> exporters) {
         final int maxHeight = dimension.getMaxHeight();
         final int version = dimension.getWorld().getVersion();
         final Border border = dimension.getBorder();
@@ -48,43 +48,50 @@ public class BorderChunkFactory {
         final int floor = Math.max(borderLevel - 20, 0);
         final int variation = Math.min(15, (borderLevel - floor) / 2);
 
-        Chunk chunk = (version == SUPPORTED_VERSION_1) ? new ChunkImpl(chunkX, chunkZ, maxHeight) : new ChunkImpl2(chunkX, chunkZ, maxHeight);
-        int maxY = maxHeight - 1;
+        final ChunkFactory.ChunkCreationResult result = new ChunkFactory.ChunkCreationResult();
+        result.chunk = (version == SUPPORTED_VERSION_1) ? new ChunkImpl(chunkX, chunkZ, maxHeight) : new ChunkImpl2(chunkX, chunkZ, maxHeight);
+        final int maxY = maxHeight - 1;
+        if (version == SUPPORTED_VERSION_2) {
+            switch(border) {
+                case VOID:
+                case LAVA:
+                    for (int x = 0; x < 16; x++) {
+                        for (int z = 0; z < 16; z++) {
+                            result.chunk.setBiome(x, z, BIOME_PLAINS);
+                        }
+                    }
+                    break;
+                case WATER:
+                    for (int x = 0; x < 16; x++) {
+                        for (int z = 0; z < 16; z++) {
+                            result.chunk.setBiome(x, z, BIOME_OCEAN);
+                        }
+                    }
+                    break;
+                default:
+                    throw new InternalError();
+            }
+        }
         for (int x = 0; x < 16; x++) {
             for (int z = 0; z < 16; z++) {
-                if (version == SUPPORTED_VERSION_2) {
-                    switch(border) {
-                        case VOID:
-                            chunk.setBiome(x, z, BIOME_PLAINS);
-                            break;
-                        case WATER:
-                            chunk.setBiome(x, z, BIOME_OCEAN);
-                            break;
-                        case LAVA:
-                            chunk.setBiome(x, z, BIOME_PLAINS);
-                            break;
-                        default:
-                            throw new InternalError();
-                    }
-                }
                 if (border != Border.VOID) {
                     final int worldX = (chunkX << 4) | x, worldZ = (chunkZ << 4) | z;
-                    int floorLevel = (int) (floor + (noiseGenerator.getPerlinNoise(worldX / MEDIUM_BLOBS, worldZ / MEDIUM_BLOBS) + 0.5f) * variation + 0.5f);
-                    int surfaceLayerLevel = floorLevel - dimension.getTopLayerDepth(worldX, worldZ, floorLevel);
+                    final int floorLevel = (int) (floor + (noiseGenerator.getPerlinNoise(worldX / MEDIUM_BLOBS, worldZ / MEDIUM_BLOBS) + 0.5f) * variation + 0.5f);
+                    final int surfaceLayerLevel = floorLevel - dimension.getTopLayerDepth(worldX, worldZ, floorLevel);
                     for (int y = 0; y <= maxY; y++) {
                         if ((y == 0) && (! bottomless)) {
-                            chunk.setBlockType(x, y, z, BLK_BEDROCK);
+                            result.chunk.setBlockType(x, y, z, BLK_BEDROCK);
                         } else if (y <= surfaceLayerLevel) {
-                            chunk.setMaterial(x, y, z, subsurfaceMaterial.getMaterial(seed, worldX, worldZ, y, floorLevel));
+                            result.chunk.setMaterial(x, y, z, subsurfaceMaterial.getMaterial(seed, worldX, worldZ, y, floorLevel));
                         } else if (y <= floorLevel) {
-                            chunk.setMaterial(x, y, z, BEACHES.getMaterial(seed, worldX, worldZ, y, floorLevel));
+                            result.chunk.setMaterial(x, y, z, BEACHES.getMaterial(seed, worldX, worldZ, y, floorLevel));
                         } else if (y <= borderLevel) {
                             switch(border) {
                                 case WATER:
-                                    chunk.setBlockType(x, y, z, BLK_STATIONARY_WATER);
+                                    result.chunk.setBlockType(x, y, z, BLK_STATIONARY_WATER);
                                     break;
                                 case LAVA:
-                                    chunk.setBlockType(x, y, z, BLK_STATIONARY_LAVA);
+                                    result.chunk.setBlockType(x, y, z, BLK_STATIONARY_LAVA);
                                     break;
                                 default:
                                     // Do nothing
@@ -93,12 +100,12 @@ public class BorderChunkFactory {
                     }
                 }
                 if (dark) {
-                    chunk.setBlockType(x, maxY, z, BLK_BEDROCK);
-                    chunk.setHeight(x, z, maxY);
+                    result.chunk.setBlockType(x, maxY, z, BLK_BEDROCK);
+                    result.chunk.setHeight(x, z, maxY);
                 } else if (border == Border.VOID) {
-                    chunk.setHeight(x, z, 0);
+                    result.chunk.setHeight(x, z, 0);
                 } else {
-                    chunk.setHeight(x, z, (borderLevel < maxY) ? (borderLevel + 1) : maxY);
+                    result.chunk.setHeight(x, z, (borderLevel < maxY) ? (borderLevel + 1) : maxY);
                 }
             }
         }
@@ -117,13 +124,17 @@ public class BorderChunkFactory {
             for (Layer layer: minimumLayers) {
                 LayerExporter layerExporter = exporters.get(layer);
                 if (layerExporter instanceof FirstPassLayerExporter) {
-                    ((FirstPassLayerExporter) layerExporter).render(dimension, virtualTile, chunk);
+                    ((FirstPassLayerExporter) layerExporter).render(dimension, virtualTile, result.chunk);
                 }
             }
         }
 
-        chunk.setTerrainPopulated(true);
-        return chunk;
+        result.chunk.setTerrainPopulated(true);
+        result.stats.surfaceArea = 256;
+        if ((border == Border.WATER) || (border == Border.LAVA)) {
+            result.stats.waterArea = 256;
+        }
+        return result;
     }
 
     private static final ThreadLocal<PerlinNoise> noiseGenerators = new ThreadLocal<PerlinNoise>();

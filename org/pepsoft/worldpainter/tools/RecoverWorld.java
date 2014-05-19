@@ -86,9 +86,7 @@ public class RecoverWorld {
                     if (world.getName() != null) {
                         newWorld.setName(worlds.get(0).getName() + " (recovered)");
                     }
-                    newWorld.setBiomeAlgorithm(world.getBiomeAlgorithm());
                     newWorld.setCreateGoodiesChest(world.isCreateGoodiesChest());
-                    newWorld.setCustomBiomes(world.isCustomBiomes());
                     try {
                         for (int i = 0; i < Terrain.CUSTOM_TERRAIN_COUNT; i++) {
                             newWorld.setMixedMaterial(i, world.getMixedMaterial(i));
@@ -129,9 +127,9 @@ public class RecoverWorld {
             TileFactory tileFactory = dimension.getTileFactory();
             if (tileFactory == null) {
                 System.err.println("Dimension " + dimension.getName() + " tile factory lost; creating default tile factory");
-                tileFactory = TileFactoryFactory.createNoiseTileFactory(Terrain.GRASS, maxHeight, 58, 62, false, true, 20, 1.0);
+                tileFactory = TileFactoryFactory.createNoiseTileFactory(dimension.getSeed(), Terrain.GRASS, maxHeight, 58, 62, false, true, 20, 1.0);
             }
-            Dimension newDimension = new Dimension(dimension.getMinecraftSeed(), dimension.getSeed(), tileFactory, dimension.getDim(), maxHeight);
+            Dimension newDimension = new Dimension(dimension.getMinecraftSeed(), tileFactory, dimension.getDim(), maxHeight);
             try {
                 for (Map.Entry<Layer, ExporterSettings> settingsEntry: dimension.getAllLayerSettings().entrySet()) {
                     if (settingsEntry.getValue() != null) {

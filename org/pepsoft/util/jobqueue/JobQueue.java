@@ -81,8 +81,16 @@ public class JobQueue<T extends Job> {
             wait();
         }
     }
+
+    /**
+     * Empty the queue.
+     */
+    public synchronized void clear() {
+        queue.clear();
+        notifyAll();
+    }
     
-    private HashList<T> queue = new HashList<T>();
+    private final HashList<T> queue = new HashList<T>();
     
     private static final Logger logger = Logger.getLogger(JobQueue.class.getName());
 }

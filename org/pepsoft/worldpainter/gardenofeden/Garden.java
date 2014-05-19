@@ -25,6 +25,10 @@ public interface Garden {
 
     boolean isOccupied(int x, int y);
 
+    boolean isWater(int x, int y);
+
+    boolean isLava(int x, int y);
+
     void plantSeed(Seed seed);
 
     void removeSeed(Seed seed);

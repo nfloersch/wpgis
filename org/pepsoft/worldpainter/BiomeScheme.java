@@ -123,4 +123,23 @@ public interface BiomeScheme {
      *     <code>null</code> if no pattern should be used.
      */
     boolean[][] getPattern(int biome);
+    
+    /**
+     * Get the name of the specified biome in this biome scheme.
+     * 
+     * @param biome The biome for which to retrieve the name.
+     * @return The name of the specified biome.
+     */
+    String getBiomeName(int biome);
+    
+    /**
+     * Indicates whether the specified biome ID is present in this biome scheme.
+     * If this returns false, the other methods may thrown an exception if
+     * invoked for that ID.
+     * 
+     * @param biome The biome ID to check.
+     * @return <code>true</code> if this biome scheme contains the specified
+     *     biome.
+     */
+    boolean isBiomePresent(int biome);
 }

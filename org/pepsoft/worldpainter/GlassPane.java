@@ -14,8 +14,6 @@ import java.awt.Graphics2D;
 import java.awt.GraphicsEnvironment;
 import java.awt.Transparency;
 import java.awt.image.BufferedImage;
-import java.beans.PropertyChangeEvent;
-import java.beans.PropertyChangeListener;
 import java.text.DecimalFormat;
 import java.text.NumberFormat;
 import java.util.HashMap;
@@ -34,7 +32,7 @@ import org.pepsoft.worldpainter.layers.Layer;
  *
  * @author pepijn
  */
-public class GlassPane extends javax.swing.JPanel implements PropertyChangeListener {
+public class GlassPane extends javax.swing.JPanel {
     /** Creates new form GlassPane */
     public GlassPane() {
         initComponents();
@@ -47,61 +45,40 @@ public class GlassPane extends javax.swing.JPanel implements PropertyChangeListe
         repaint();
     }
 
-    public WorldPainter getView() {
-        return view;
+    public void setHiddenLayers(Set<Layer> hiddenLayers) {
+        for (Layer layer: hiddenLayers) {
+            if ((! layer.equals(Biome.INSTANCE)) && (layer.getIcon() != null) && (! this.hiddenLayers.containsKey(layer))) {
+                JLabel label = createLabel(layer);
+                this.hiddenLayers.put(layer, label);
+            }
+        }
+        for (Iterator<Map.Entry<Layer, JLabel>> i = this.hiddenLayers.entrySet().iterator(); i.hasNext(); ) {
+            if (! hiddenLayers.contains(i.next().getKey())) {
+                i.remove();
+            }
+        }
+        updateIcons();
+    }
+    
+    public void setSoloLayer(Layer soloLayer) {
+        if ((soloLayer != null) && (soloLayer.getIcon() != null)) {
+            soloLayerLabel = createSoloLabel(soloLayer);
+        } else {
+            soloLayerLabel = null;
+        }
+        updateIcons();
     }
 
-    public void setView(WorldPainter view) {
-        if (this.view != null) {
-            this.view.removePropertyChangeListener("hiddenLayers", this);
-            for (Layer layer: hiddenLayers.keySet()) {
-                jPanel1.remove(hiddenLayers.get(layer));
-            }
-            hiddenLayers.clear();
-        }
-        this.view = view;
-//        miniMap.setView(view);
-        if (view != null) {
-            view.addPropertyChangeListener("hiddenLayers", this);
-            for (Layer layer: view.getHiddenLayers()) {
-                if ((! layer.equals(Biome.INSTANCE)) && (layer.getIcon() != null)) {
-                    JLabel label = createLabel(layer);
-                    hiddenLayers.put(layer, label);
-                    jPanel1.add(label);
-                }
+    private void updateIcons() {
+        jPanel1.removeAll();
+        if (soloLayerLabel != null) {
+            jPanel1.add(soloLayerLabel);
+        } else {
+            for (JLabel label: hiddenLayers.values()) {
+                jPanel1.add(label);
             }
         }
         jPanel1.revalidate();
-    }
-
-    // PropertyChangeListener
-    
-    @Override
-    @SuppressWarnings("unchecked")
-    public void propertyChange(PropertyChangeEvent evt) {
-        boolean layersChanged = false;
-        Set<Layer> newHiddenLayers = (Set<Layer>) evt.getNewValue();
-        for (Layer layer: newHiddenLayers) {
-            if ((! hiddenLayers.containsKey(layer)) && (! layer.equals(Biome.INSTANCE)) && (layer.getIcon() != null)) {
-                // New hidden layer (with icon)
-                JLabel label = createLabel(layer);
-                hiddenLayers.put(layer, label);
-                jPanel1.add(label);
-                layersChanged = true;
-            }
-        }
-        for (Iterator<Map.Entry<Layer, JLabel>> i = hiddenLayers.entrySet().iterator(); i.hasNext(); ) {
-            Map.Entry<Layer, JLabel> entry = i.next();
-            if (! newHiddenLayers.contains(entry.getKey())) {
-                JLabel label = entry.getValue();
-                jPanel1.remove(label);
-                i.remove();
-                layersChanged = true;
-            }
-        }
-        if (layersChanged) {
-            jPanel1.revalidate();
-        }
     }
     
     private JLabel createLabel(Layer layer) {
@@ -120,8 +97,22 @@ public class GlassPane extends javax.swing.JPanel implements PropertyChangeListe
         return label;
     }
     
+    private JLabel createSoloLabel(Layer layer) {
+        BufferedImage image = GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice().getDefaultConfiguration().createCompatibleImage(20, 20, Transparency.TRANSLUCENT);
+        Graphics2D g2 = image.createGraphics();
+        try {
+            g2.drawImage((layer instanceof CustomLayer) ? layer.getIcon() : invertImage(layer.getIcon()), 2, 2, null);
+        } finally {
+            g2.dispose();
+        }
+        JLabel label = new JLabel(new ImageIcon(image));
+        label.setBorder(new EmptyBorder(1, 1, 1, 1));
+        label.setToolTipText("Showing only " + layer.getName() + " layer");
+        return label;
+    }
+    
     private BufferedImage invertImage(BufferedImage in) {
-        BufferedImage out = new BufferedImage(in.getWidth(), in.getHeight(), in.getType());
+        BufferedImage out = new BufferedImage(in.getWidth(), in.getHeight(), BufferedImage.TYPE_INT_ARGB);
         for (int x = 0; x < in.getWidth(); x++) {
             for (int y = 0; y < in.getHeight(); y++) {
                 int colour = in.getRGB(x, y);
@@ -196,6 +187,7 @@ public class GlassPane extends javax.swing.JPanel implements PropertyChangeListe
     private WorldPainter view;
 //    private final MiniMap miniMap = new MiniMap();
     private final Map<Layer, JLabel> hiddenLayers = new HashMap<Layer, JLabel>();
+    private JLabel soloLayerLabel;
     
     private static final NumberFormat SCALE_FORMAT = new DecimalFormat("0.# blocks");
     private static final BufferedImage PROHIBITED_SIGN_BACKGROUND = IconUtils.loadImage("org/pepsoft/worldpainter/icons/prohibited_sign_background.png");

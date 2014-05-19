@@ -17,7 +17,7 @@ import org.pepsoft.util.Checksum;
  */
 public final class Minecraft1_3LargeBiomeScheme extends Minecraft1_2JarBiomeScheme {
     public Minecraft1_3LargeBiomeScheme(File minecraftJar, Checksum md5Sum) {
-        super(minecraftJar, md5Sum, HASHES_TO_CLASSNAMES, "1.5.2 (or 1.3.1 - 1.5.1) Large Biomes");
+        super(minecraftJar, null, md5Sum, HASHES_TO_CLASSNAMES, "1.5.2 (or 1.3.1 - 1.5.1) Large Biomes");
         try {
             Field field = worldGeneratorClass.getField("d");
             largeBiomesGenerator = field.get(null);
@@ -58,6 +58,6 @@ public final class Minecraft1_3LargeBiomeScheme extends Minecraft1_2JarBiomeSche
         HASHES_TO_CLASSNAMES.put(new Checksum(new byte[] {(byte) 119, (byte) 17, (byte) 117, (byte) -64, (byte) 23, (byte) 120, (byte) -22, (byte) 103, (byte) 57, (byte) 91, (byte) -58, (byte) -111, (byte) -102, (byte) 90, (byte) -99, (byte) -59}),   new String[] {"afu", "afs", "xp"}); // 1.4.2
         HASHES_TO_CLASSNAMES.put(new Checksum(new byte[] {(byte) -114, (byte) -128, (byte) -5, (byte) 1, (byte) -77, (byte) 33, (byte) -58, (byte) -77, (byte) -57, (byte) -17, (byte) -54, (byte) 57, (byte) 122, (byte) 62, (byte) -22, (byte) 53}),     new String[] {"agw", "agu", "yn"}); // 1.4.7
         HASHES_TO_CLASSNAMES.put(new Checksum(new byte[] {(byte) 92, (byte) 18, (byte) 25, (byte) -40, (byte) 105, (byte) -72, (byte) 125, (byte) 35, (byte) 61, (byte) -29, (byte) 3, (byte) 54, (byte) -120, (byte) -20, (byte) 117, (byte) 103}),       new String[] {"ait", "air", "aal"}); // 1.5.1
-        HASHES_TO_CLASSNAMES.put(new Checksum(new byte[] {(byte) 104, (byte) -105, (byte) -61, (byte) 40, (byte) 127, (byte) -71, (byte) 113, (byte) -55, (byte) -13, (byte) 98, (byte) -21, (byte) 58, (byte) -78, (byte) 15, (byte) 93, (byte) -35}),    new String[] {"ait", "air", "aal"}); // 1.5.2 TODO
+        HASHES_TO_CLASSNAMES.put(new Checksum(new byte[] {(byte) 104, (byte) -105, (byte) -61, (byte) 40, (byte) 127, (byte) -71, (byte) 113, (byte) -55, (byte) -13, (byte) 98, (byte) -21, (byte) 58, (byte) -78, (byte) 15, (byte) 93, (byte) -35}),    new String[] {"ait", "air", "aal"}); // 1.5.2
     }
 }

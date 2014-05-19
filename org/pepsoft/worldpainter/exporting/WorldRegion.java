@@ -12,10 +12,17 @@ import org.jnbt.CompoundTag;
 import org.jnbt.NBTInputStream;
 import java.io.File;
 import java.io.IOException;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.Set;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import javax.vecmath.Point3i;
 import org.jnbt.NBTOutputStream;
 import org.pepsoft.minecraft.Chunk;
 import org.pepsoft.minecraft.ChunkImpl;
 import org.pepsoft.minecraft.ChunkImpl2;
+import org.pepsoft.minecraft.Constants;
 import org.pepsoft.minecraft.Entity;
 import org.pepsoft.minecraft.Material;
 import org.pepsoft.minecraft.RegionFile;
@@ -163,22 +170,28 @@ public class WorldRegion implements MinecraftWorld {
 
     @Override
     public void addEntity(int x, int y, int height, Entity entity) {
-        Chunk chunk = getChunkForEditing(x >> 4, y >> 4);
-        if (chunk != null) {
-            double[] pos = new double[] {x + 0.5, height + 1.5, y + 0.5};
-            entity.setPos(pos);
-            chunk.getEntities().add(entity);
-        }
+        addEntity(x + 0.5, y + 0.5, height + 1.5, entity);
     }
 
+    @Override
+    public void addEntity(double x, double y, double height, Entity entity) {
+        Chunk chunk = getChunkForEditing(((int) x) >> 4, ((int) y) >> 4);
+        if (chunk != null) {
+            Entity clone = (Entity) entity.clone();
+            clone.setPos(new double[] {x, height, y});
+            chunk.getEntities().add(clone);
+        }
+    }
+    
     @Override
     public void addTileEntity(int x, int y, int height, TileEntity tileEntity) {
         Chunk chunk = getChunkForEditing(x >> 4, y >> 4);
         if (chunk != null) {
-            tileEntity.setX(x);
-            tileEntity.setY(height);
-            tileEntity.setZ(y);
-            chunk.getTileEntities().add(tileEntity);
+            TileEntity clone = (TileEntity) tileEntity.clone();
+            clone.setX(x);
+            clone.setY(height);
+            clone.setZ(y);
+            chunk.getTileEntities().add(clone);
         }
     }
 
@@ -283,10 +296,48 @@ public class WorldRegion implements MinecraftWorld {
             try {
                 for (int x = 0; x < CHUNKS_PER_SIDE; x++) {
                     for (int z = 0; z < CHUNKS_PER_SIDE; z++) {
-                        if (chunks[x + 1][z + 1] != null) {
+                        final Chunk chunk = chunks[x + 1][z + 1];
+                        if (chunk != null) {
+                            // Do some sanity checks first
+                            // Check that all tile entities for which the chunk
+                            // contains data are actually there
+                            for (Iterator<TileEntity> i = chunk.getTileEntities().iterator(); i.hasNext(); ) {
+                                final TileEntity tileEntity = i.next();
+                                final Set<Integer> blockIds = Constants.TILE_ENTITY_MAP.get(tileEntity.getId());
+                                if (blockIds == null) {
+                                    logger.warning("Unknown tile entity ID \"" + tileEntity.getId() + "\" encountered @ " + tileEntity.getX() + "," + tileEntity.getZ() + "," + tileEntity.getY() + "; can't check whether the corresponding block is there!");
+                                } else {
+                                    final int existingBlockId = chunk.getBlockType(tileEntity.getX() & 0xf, tileEntity.getY(), tileEntity.getZ() & 0xf);
+                                    if (! blockIds.contains(existingBlockId)) {
+                                        // The block at the specified location
+                                        // is not a tile entity, or a different
+                                        // tile entity. Remove the data
+                                        i.remove();
+                                        if (logger.isLoggable(Level.FINE)) {
+                                            logger.fine("Removing tile entity " + tileEntity.getId() + " @ " + tileEntity.getX() + "," + tileEntity.getZ() + "," + tileEntity.getY() + " because the block at that location is a " + Constants.BLOCK_TYPE_NAMES[existingBlockId]);
+                                        }
+                                    }
+                                }
+                            }
+                            // Check that there aren't multiple tile entities (of the same type,
+                            // otherwise they would have been removed above) in the same location
+                            Set<Point3i> occupiedCoords = new HashSet<Point3i>();
+                            for (Iterator<TileEntity> i = chunk.getTileEntities().iterator(); i.hasNext(); ) {
+                                TileEntity tileEntity = i.next();
+                                Point3i coords = new Point3i(tileEntity.getX(), tileEntity.getZ(), tileEntity.getY());
+                                if (occupiedCoords.contains(coords)) {
+                                    // There is already tile data for that location in the chunk;
+                                    // remove this copy
+                                    i.remove();
+                                    logger.warning("Removing tile entity " + tileEntity.getId() + " @ " + tileEntity.getX() + "," + tileEntity.getZ() + "," + tileEntity.getY() + " because there is already a tile entity of the same type at that location");
+                                } else {
+                                    occupiedCoords.add(coords);
+                                }
+                            }
+                            
                             NBTOutputStream out = new NBTOutputStream(regionFile.getChunkDataOutputStream(x, z));
                             try {
-                                out.writeTag(chunks[x + 1][z + 1].toNBT());
+                                out.writeTag(chunk.toNBT());
                             } finally {
                                 out.close();
                             }
@@ -315,4 +366,6 @@ public class WorldRegion implements MinecraftWorld {
 //    private static final Object DISK_ACCESS_MONITOR = new Object();
     
     public static final int CHUNKS_PER_SIDE = 32;
+    
+    private static final Logger logger = Logger.getLogger(WorldRegion.class.getName());
 }

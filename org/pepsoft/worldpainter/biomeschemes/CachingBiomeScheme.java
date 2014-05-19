@@ -72,6 +72,16 @@ public class CachingBiomeScheme implements BiomeScheme {
     public boolean[][] getPattern(int biome) {
         return biomeScheme.getPattern(biome);
     }
+
+    @Override
+    public String getBiomeName(int biome) {
+        return biomeScheme.getBiomeName(biome);
+    }
+
+    @Override
+    public boolean isBiomePresent(int biome) {
+        return biomeScheme.isBiomePresent(biome);
+    }
     
     public int getBiome(int x, int y) {
         if ((x < cachedBiomesX - BIOME_CACHE_RADIUS) || (x > cachedBiomesX + BIOME_CACHE_RADIUS)

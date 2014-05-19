@@ -10,7 +10,7 @@ import org.pepsoft.worldpainter.HeightMap;
  *
  * @author pepijn
  */
-public abstract class AbstractHeightMap implements HeightMap {
+public abstract class AbstractHeightMap implements HeightMap, Cloneable {
     @Override
     public long getSeed() {
         return seed;
@@ -19,6 +19,15 @@ public abstract class AbstractHeightMap implements HeightMap {
     @Override
     public void setSeed(long seed) {
         this.seed = seed;
+    }
+
+    @Override
+    public AbstractHeightMap clone() {
+        try {
+            return (AbstractHeightMap) super.clone();
+        } catch (CloneNotSupportedException e) {
+            throw new RuntimeException(e);
+        }
     }
     
     protected long seed;

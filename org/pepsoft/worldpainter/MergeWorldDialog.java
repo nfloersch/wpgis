@@ -46,6 +46,7 @@ import org.pepsoft.util.swing.ProgressTask;
 import org.pepsoft.worldpainter.merging.WorldMerger;
 import org.pepsoft.worldpainter.util.FileInUseException;
 import static org.pepsoft.worldpainter.Constants.*;
+import org.pepsoft.worldpainter.biomeschemes.CustomBiomeManager;
 import org.pepsoft.worldpainter.layers.Layer;
 
 /**
@@ -55,7 +56,7 @@ import org.pepsoft.worldpainter.layers.Layer;
 // TODO: add support for multiple dimensions
 public class MergeWorldDialog extends javax.swing.JDialog implements Listener {
     /** Creates new form ExportWorldDialog */
-    public MergeWorldDialog(java.awt.Frame parent, World2 world, BiomeScheme biomeScheme, ColourScheme colourScheme, Collection<Layer> hiddenLayers, boolean contourLines, TileRenderer.LightOrigin lightOrigin) {
+    public MergeWorldDialog(java.awt.Frame parent, World2 world, BiomeScheme biomeScheme, ColourScheme colourScheme, CustomBiomeManager customBiomeManager, Collection<Layer> hiddenLayers, boolean contourLines, TileRenderer.LightOrigin lightOrigin) {
         super(parent, true);
         this.world = world;
         this.biomeScheme = biomeScheme;
@@ -63,6 +64,7 @@ public class MergeWorldDialog extends javax.swing.JDialog implements Listener {
         this.hiddenLayers = hiddenLayers;
         this.contourLines = contourLines;
         this.lightOrigin = lightOrigin;
+        this.customBiomeManager = customBiomeManager;
         selectedTiles = world.getTilesToExport();
         selectedDimension = (selectedTiles != null) ? world.getDimensionToExport() : DIM_NORMAL;
         
@@ -82,12 +84,10 @@ public class MergeWorldDialog extends javax.swing.JDialog implements Listener {
             }
         }
         if (selectedTiles != null) {
-            radioButtonExportSelection.setText("export " + selectedTiles.size() + " selected tiles");
+            radioButtonExportSelection.setText("merge " + selectedTiles.size() + " selected tiles");
             radioButtonExportSelection.setSelected(true);
         }
         
-        biomeMergingEnabled = world.getBiomeAlgorithm() != World2.BIOME_ALGORITHM_1_7_3;
-
         DocumentListener documentListener = new DocumentListener() {
             @Override
             public void insertUpdate(DocumentEvent e) {
@@ -124,6 +124,7 @@ public class MergeWorldDialog extends javax.swing.JDialog implements Listener {
         rootPane.setDefaultButton(buttonMerge);
 
         setControlStates();
+        pack();
     }
 
     // ProgressComponent.Listener
@@ -219,7 +220,6 @@ public class MergeWorldDialog extends javax.swing.JDialog implements Listener {
         }
 
         setDefaultCloseOperation(JDialog.DO_NOTHING_ON_CLOSE);
-        merging = true;
 
         start = System.currentTimeMillis();
         progressComponent1.setTask(new ProgressTask<Void>() {
@@ -232,14 +232,14 @@ public class MergeWorldDialog extends javax.swing.JDialog implements Listener {
             public Void execute(ProgressReceiver progressReceiver) throws OperationCancelled {
                 final WorldMerger merger = new WorldMerger(world, levelDatFile);
                 try {
-                    backupDir = merger.getBackupDir(levelDatFile.getParentFile());
+                    backupDir = merger.selectBackupDir(levelDatFile.getParentFile());
                     if (biomesOnly) {
-                        merger.mergeBiomes(progressReceiver);
+                        merger.mergeBiomes(backupDir, progressReceiver);
                     } else {
                         if (replaceChunks) {
                             merger.setReplaceChunks(true);
                         }
-                        merger.merge(progressReceiver);
+                        merger.merge(backupDir, progressReceiver);
                     }
                     if (merger.getWarnings() != null) {
                         try {
@@ -281,22 +281,18 @@ public class MergeWorldDialog extends javax.swing.JDialog implements Listener {
         boolean levelDatSelected = file.isFile() && (file.getName().equalsIgnoreCase("level.dat"));
         if (levelDatSelected) {
             levelDatFile = file;
-            if (biomeMergingEnabled) {
-                try {
-                    Level level = Level.load(levelDatFile);
-                    if (level.getVersion() != org.pepsoft.minecraft.Constants.SUPPORTED_VERSION_2) {
-                        if (radioButtonBiomes.isSelected()) {
-                            radioButtonAll.setSelected(true);
-                        }
-                        radioButtonBiomes.setEnabled(false);
-                    } else {
-                        radioButtonBiomes.setEnabled(true);
+            try {
+                Level level = Level.load(levelDatFile);
+                if (level.getVersion() != org.pepsoft.minecraft.Constants.SUPPORTED_VERSION_2) {
+                    if (radioButtonBiomes.isSelected()) {
+                        radioButtonAll.setSelected(true);
                     }
-                } catch (IOException e) {
-                    throw new RuntimeException("I/O error while loading level.dat", e);
+                    radioButtonBiomes.setEnabled(false);
+                } else {
+                    radioButtonBiomes.setEnabled(true);
                 }
-            } else {
-                radioButtonBiomes.setEnabled(false);
+            } catch (IOException e) {
+                throw new RuntimeException("I/O error while loading level.dat", e);
             }
         }
         buttonMerge.setEnabled(levelDatSelected);
@@ -336,7 +332,7 @@ public class MergeWorldDialog extends javax.swing.JDialog implements Listener {
 
     private void selectTiles() {
         if (radioButtonExportSelection.isSelected()) {
-            ExportTileSelectionDialog dialog = new ExportTileSelectionDialog(this, world, selectedDimension, selectedTiles, colourScheme, biomeScheme, hiddenLayers, contourLines, lightOrigin);
+            ExportTileSelectionDialog dialog = new ExportTileSelectionDialog(this, world, selectedDimension, selectedTiles, colourScheme, biomeScheme, customBiomeManager, hiddenLayers, contourLines, lightOrigin);
             dialog.setVisible(true);
             selectedDimension = dialog.getSelectedDimension();
             selectedTiles = dialog.getSelectedTiles();
@@ -554,10 +550,9 @@ public class MergeWorldDialog extends javax.swing.JDialog implements Listener {
     private final Collection<Layer> hiddenLayers;
     private final boolean contourLines;
     private final TileRenderer.LightOrigin lightOrigin;
+    private final CustomBiomeManager customBiomeManager;
     private File levelDatFile;
     private volatile File backupDir;
-    private boolean merging, biomeMergingEnabled;
-    private volatile boolean cancelled;
     private long start;
     private int selectedDimension;
     private Set<Point> selectedTiles;

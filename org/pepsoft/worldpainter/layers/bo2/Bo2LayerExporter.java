@@ -38,30 +38,31 @@ public class Bo2LayerExporter extends WPObjectExporter<Bo2Layer> implements Seco
     
     @Override
     public List<Fixup> render(final Dimension dimension, Rectangle area, Rectangle exportedArea, MinecraftWorld minecraftWorld) {
-        Bo2ObjectProvider objectProvider = layer.getObjectProvider();
-        int maxHeight = dimension.getMaxHeight() - 1;
-        List<Fixup> fixups = new ArrayList<Fixup>();
+        final Bo2ObjectProvider objectProvider = layer.getObjectProvider();
+        final int maxHeight = dimension.getMaxHeight();
+        final int maxZ = maxHeight - 1;
+        final List<Fixup> fixups = new ArrayList<Fixup>();
         for (int chunkX = area.x; chunkX < area.x + area.width; chunkX += 16) {
             for (int chunkY = area.y; chunkY < area.y + area.height; chunkY += 16) {
                 // Set the seed and randomizer according to the chunk
                 // coordinates to make sure the chunk is always rendered the
                 // same, no matter how often it is rendered
-                long seed = dimension.getSeed() + (chunkX >> 4) * 65537 + (chunkY >> 4) * 4099;
-                Random random = new Random(seed);
+                final long seed = dimension.getSeed() + (chunkX >> 4) * 65537 + (chunkY >> 4) * 4099;
+                final Random random = new Random(seed);
                 if (objectProvider instanceof Bo2ObjectTube) {
                     ((Bo2ObjectTube) objectProvider).setSeed(seed);
                 }
                 for (int x = chunkX; x < chunkX + 16; x++) {
 objectLoop:         for (int y = chunkY; y < chunkY + 16; y++) {
-                        int height = dimension.getIntHeightAt(x, y);
-                        if ((height == -1) || (height >= maxHeight)) {
+                        final int height = dimension.getIntHeightAt(x, y);
+                        if ((height == -1) || (height >= maxZ)) {
                             // height == -1 means no tile present
                             continue;
                         }
-                        int strength = dimension.getLayerValueAt(layer, x, y);
+                        final int strength = dimension.getLayerValueAt(layer, x, y);
                         if ((strength > 0) && (random.nextInt(1280) <= strength * strength)) {
                             WPObject object = objectProvider.getObject();
-                            Placement placement = getPlacement(minecraftWorld, dimension, x, y, height + 1, object, random);
+                            final Placement placement = getPlacement(minecraftWorld, dimension, x, y, height + 1, object, random);
                             if (placement == Placement.NONE) {
                                 continue;
                             }
@@ -86,8 +87,8 @@ objectLoop:         for (int y = chunkY; y < chunkY + 16; y++) {
                                     object = new RotatedObject(object, rotateSteps);
                                 }
                             }
-                            int z = (placement == Placement.ON_LAND) ? height + 1 : dimension.getWaterLevelAt(x, y) + 1;
-                            if (! isRoom(minecraftWorld, dimension, object, x, y, z, placement)) {
+                            final int z = (placement == Placement.ON_LAND) ? height + 1 : dimension.getWaterLevelAt(x, y) + 1;
+                            if ((! isSane(object, x, y, z, maxHeight)) || (! isRoom(minecraftWorld, dimension, object, x, y, z, placement))) {
                                 continue;
                             }
                             if (! fitsInExportedArea(exportedArea, object, x, y)) {

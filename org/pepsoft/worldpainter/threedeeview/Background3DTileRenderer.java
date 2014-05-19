@@ -12,17 +12,18 @@ import org.pepsoft.worldpainter.BiomeScheme;
 import org.pepsoft.worldpainter.ColourScheme;
 import org.pepsoft.worldpainter.Dimension;
 import org.pepsoft.worldpainter.Tile;
+import org.pepsoft.worldpainter.biomeschemes.CustomBiomeManager;
 
 /**
  *
  * @author pepijn
  */
 public class Background3DTileRenderer extends Thread {
-    public Background3DTileRenderer(Dimension dimension, ColourScheme colourScheme, BiomeScheme biomeScheme, int rotation, JobQueue<Tile3DRenderJob> jobQueue, ThreeDeeRenderManager threeDeeRenderManager) {
+    public Background3DTileRenderer(Dimension dimension, ColourScheme colourScheme, BiomeScheme biomeScheme, CustomBiomeManager customBiomeManager, int rotation, JobQueue<Tile3DRenderJob> jobQueue, ThreeDeeRenderManager threeDeeRenderManager) {
         super("Background 3D renderer");
         this.jobQueue = jobQueue;
         this.threeDeeRenderManager = threeDeeRenderManager;
-        renderer = new Tile3DRenderer(dimension, colourScheme, biomeScheme, rotation);
+        renderer = new Tile3DRenderer(dimension, colourScheme, biomeScheme, customBiomeManager, rotation);
         setDaemon(true);
     }
 
@@ -66,7 +67,9 @@ public class Background3DTileRenderer extends Thread {
             logger.fine("Rendering 3D view of tile " + tile);
         }
         BufferedImage image = renderer.render(tile);
-        threeDeeRenderManager.tileFinished(new RenderResult(tile, image));
+        if (running) {
+            threeDeeRenderManager.tileFinished(new RenderResult(tile, image));
+        }
     }
     
     private final JobQueue<Tile3DRenderJob> jobQueue;

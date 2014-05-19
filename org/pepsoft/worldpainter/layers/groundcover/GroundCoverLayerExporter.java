@@ -15,29 +15,56 @@ import org.pepsoft.worldpainter.exporting.FirstPassLayerExporter;
 import static org.pepsoft.minecraft.Constants.BLK_AIR;
 import static org.pepsoft.minecraft.Constants.INSUBSTANTIAL_BLOCKS;
 import static org.pepsoft.minecraft.Constants.VERY_INSUBSTANTIAL_BLOCKS;
-import org.pepsoft.util.MathUtils;
+import org.pepsoft.worldpainter.MixedMaterial;
+import org.pepsoft.worldpainter.NoiseSettings;
+import org.pepsoft.worldpainter.heightMaps.NoiseHeightMap;
 
 /**
- *
+ * Algorithm:
+ * 
+ * The layers are rendered in order from the lowest thickness to the highest
+ * thickness (which implies that layers digging into the ground are rendered
+ * first).
+ * 
+ * 1. If the layer has a negative thickness (it digs down into the ground), the
+ *    blocks is always placed, except if the existing block is air
+ * 2. If the layer has positive thickness, and:
+ *    a. it is insubstantial (including water), the block is only placed if the
+ *       existing block is insubstantial (excluding water)
+ *    b. it is substantial, the block is always placed
+ * 
  * @author pepijn
  */
 public class GroundCoverLayerExporter extends AbstractLayerExporter<GroundCoverLayer> implements FirstPassLayerExporter<GroundCoverLayer> {
     public GroundCoverLayerExporter(GroundCoverLayer layer) {
         super(layer);
+        NoiseSettings noiseSettings = layer.getNoiseSettings();
+        if (noiseSettings != null) {
+            noiseHeightMap = new NoiseHeightMap(noiseSettings.getRange() * 2, noiseSettings.getScale() / 5, noiseSettings.getRoughness() + 1, NOISE_SEED_OFFSET);
+            noiseOffset = noiseSettings.getRange();
+        } else {
+            noiseHeightMap = null;
+            noiseOffset = 0;
+        }
     }
     
     @Override
     public void render(Dimension dimension, Tile tile, Chunk chunk) {
+        if (noiseHeightMap != null) {
+            noiseHeightMap.setSeed(dimension.getSeed());
+        }
         final int xOffset = (chunk.getxPos() & 7) << 4;
         final int zOffset = (chunk.getzPos() & 7) << 4;
         final int minY = dimension.isBottomless() ? 0 : 1;
         final int maxY = dimension.getMaxHeight() - 1;
-        final Material material = layer.getMaterial();
-        final int thickness = layer.getThickness();
-//        final boolean taperedEdge = layer.isTaperedEdge() && (thickness > 1);
-//        final int edgeWidth = layer.getEdgeWidth();
-//        final boolean variedEdge = layer.isVariedEdge();
-//        final Random random = new Random(dimension.getSeed() + tile.getX() * 65537 + tile.getY());
+        final MixedMaterial mixedMaterial = layer.getMaterial();
+        final int thickness = layer.getThickness(), edgeThickness = Math.abs(thickness) - 2;
+        final GroundCoverLayer.EdgeShape edgeShape = layer.getEdgeShape();
+        final boolean taperedEdge = (edgeShape != GroundCoverLayer.EdgeShape.SHEER) && (Math.abs(thickness) > 1);
+        final int edgeWidth = layer.getEdgeWidth(), edgeWidthPlusOne = edgeWidth + 1, edgeWidthMinusOne = edgeWidth - 1;
+        final double edgeFactor = edgeThickness / 2.0, edgeOffset = 1.5 + edgeFactor;
+        final long seed = dimension.getSeed();
+        final boolean smooth = layer.isSmooth();
         for (int x = 0; x < 16; x++) {
             final int localX = xOffset + x;
             final int worldX = (chunk.getxPos() << 4) + x;
@@ -48,40 +75,84 @@ public class GroundCoverLayerExporter extends AbstractLayerExporter<GroundCoverL
                     final int blockBelow = chunk.getBlockType(x, terrainheight, z);
                     if ((blockBelow != BLK_AIR)
                             && (! INSUBSTANTIAL_BLOCKS.contains(blockBelow))) {
-                        int effectiveThickness = thickness;
-                        if (effectiveThickness > 1) {
-                            int worldY = (chunk.getzPos() << 4) + z;
-                            int surroundingBlockCount = dimension.getBitLayerCount(layer, worldX, worldY, 1) - 1;
-//                                System.out.println("Surrounding block count @ " + worldX + "," + worldY + ": " + surroundingBlockCount);
-                            if (surroundingBlockCount < 8) {
-                                effectiveThickness = Math.min(MathUtils.pow(2, surroundingBlockCount), thickness);
+                        int effectiveThickness = Math.abs(thickness);
+                        final int worldY = (chunk.getzPos() << 4) + z;
+                        if (taperedEdge) {
+                            float distanceToEdge = dimension.getDistanceToEdge(layer, worldX, worldY, edgeWidthPlusOne);
+                            if (distanceToEdge < edgeWidthPlusOne) {
+                                final double normalisedDistance = (distanceToEdge - 1) / edgeWidthMinusOne;
+                                switch (edgeShape) {
+                                    case LINEAR:
+                                        effectiveThickness = (int) (1.5 + normalisedDistance * edgeThickness);
+                                        break;
+                                    case SMOOTH:
+                                        effectiveThickness = (int) (edgeOffset + -Math.cos(normalisedDistance * Math.PI) * edgeFactor);
+                                        break;
+                                    case ROUNDED:
+                                        double reversedNormalisedDistance = 1 - (distanceToEdge - 0.5) / edgeWidth;
+                                        effectiveThickness = (int) (1.5 + Math.sqrt(1 - reversedNormalisedDistance * reversedNormalisedDistance) * edgeThickness);
+                                        break;
+                                }
                             }
                         }
-//                        if (taperedEdge) {
-//                            float distanceToEdge = dimension.getDistanceToEdge(layer, worldX, (chunk.getzPos() << 4) + z, edgeWidth + 1);
-//                            if (variedEdge) {
-//                                distanceToEdge = Math.max(Math.min(distanceToEdge / 2 + random.nextFloat() * edgeWidth / 2, edgeWidth), 0.0f);
-//                            }
-//                            if (distanceToEdge < (edgeWidth + 1)) {
-//                                double normalisedDistance = distanceToEdge / (edgeWidth + 1) * Math.PI;
-//                                effectiveThickness = (int) ((-Math.cos(normalisedDistance) / 2 + 0.5) * (thickness - 1) + 1.5);
-//                            }
-//                        }
-                        if (effectiveThickness > 0) {
+                        if (noiseHeightMap != null) {
+                            effectiveThickness += noiseHeightMap.getHeight(worldX, worldY) - noiseOffset;
+                        }
+                        if (thickness > 0) {
                             for (int dy = 0; dy < effectiveThickness; dy++) {
-                                if (terrainheight + dy + 1 > maxY) {
+                                final int y = terrainheight + dy + 1;
+                                if (y > maxY) {
                                     break;
                                 }
-                                if (VERY_INSUBSTANTIAL_BLOCKS.contains(chunk.getBlockType(x, terrainheight + dy + 1, z))) {
-                                    chunk.setMaterial(x, terrainheight + dy + 1, z, material);
+                                final int existingBlockType = chunk.getBlockType(x, y, z);
+                                final Material material = mixedMaterial.getMaterial(seed, worldX, worldY, y);
+                                if ((material != Material.AIR)
+                                        && ((! VERY_INSUBSTANTIAL_BLOCKS.contains(material.getBlockType()))
+                                            || (existingBlockType == BLK_AIR)
+                                            || INSUBSTANTIAL_BLOCKS.contains(existingBlockType))) {
+                                    if (smooth && (dy == (effectiveThickness - 1))) {
+                                        // Top layer, smooth enabled
+                                        int layerHeight;
+                                        final float diff = dimension.getHeightAt(worldX, worldY) + 0.5f - dimension.getIntHeightAt(worldX, worldY);
+                                        if (diff > 0.125f) {
+                                            if        (diff > 0.875f) {
+                                                layerHeight = 7;
+                                            } else if (diff > 0.750f) {
+                                                layerHeight = 6;
+                                            } else if (diff > 0.625f) {
+                                                layerHeight = 5;
+                                            } else if (diff > 0.500f) {
+                                                layerHeight = 4;
+                                            } else if (diff > 0.375f) {
+                                                layerHeight = 3;
+                                            } else if (diff > 0.250f) {
+                                                layerHeight = 2;
+                                            } else {
+                                                layerHeight = 1;
+                                            }
+                                        } else {
+                                            layerHeight = 0;
+                                        }
+                                        if (layerHeight > 0) {
+                                            layerHeight = Math.max(Math.min(layerHeight, dimension.getBitLayerCount(layer, worldX, worldY, 1) - 2), 0);
+                                        }
+                                        chunk.setBlockType(x, y, z, material.getBlockType());
+                                        chunk.setDataValue(x, y, z, layerHeight);
+                                    } else {
+                                        chunk.setMaterial(x, y, z, material);
+                                    }
                                 }
                             }
                         } else {
-                            for (int dy = 0; dy > effectiveThickness; dy--) {
-                                if (terrainheight + dy < minY) {
+                            for (int dy = 0; dy < effectiveThickness; dy++) {
+                                final int y = terrainheight - dy;
+                                if (y < minY) {
                                     break;
                                 }
-                                chunk.setMaterial(x, terrainheight + dy, z, material);
+                                int existingBlockType = chunk.getBlockType(x, y, z);
+                                if (existingBlockType != BLK_AIR) {
+                                    chunk.setMaterial(x, y, z, mixedMaterial.getMaterial(seed, worldX, worldY, y));
+                                }
                             }
                         }
                     }
@@ -89,4 +160,10 @@ public class GroundCoverLayerExporter extends AbstractLayerExporter<GroundCoverL
             }
         }
     }
+    
+    private final NoiseHeightMap noiseHeightMap;
+    private final int noiseOffset;
+    
+    private static final double HALF_PI = Math.PI / 2;
+    private static final long NOISE_SEED_OFFSET = 135101785L;
 }

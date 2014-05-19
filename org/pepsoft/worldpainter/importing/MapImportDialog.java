@@ -395,6 +395,8 @@ public class MapImportDialog extends javax.swing.JDialog {
             readOnlyOption = MapImporter.ReadOnlyOption.ALL;
         } else if (radioButtonReadOnlyManMade.isSelected()) {
             readOnlyOption = MapImporter.ReadOnlyOption.MAN_MADE;
+        } else if (radioButtonReadOnlyManMadeAboveGround.isSelected()) {
+            readOnlyOption = MapImporter.ReadOnlyOption.MAN_MADE_ABOVE_GROUND;
         } else {
             readOnlyOption = MapImporter.ReadOnlyOption.NONE;
         }
@@ -417,7 +419,7 @@ public class MapImportDialog extends javax.swing.JDialog {
                         waterLevel = 62;
                     }
                     int terrainLevel = waterLevel - 4;
-                    TileFactory tileFactory = TileFactoryFactory.createNoiseTileFactory(Terrain.GRASS, maxHeight, terrainLevel, waterLevel, false, true, 20, 1.0);
+                    TileFactory tileFactory = TileFactoryFactory.createNoiseTileFactory(0, Terrain.GRASS, maxHeight, terrainLevel, waterLevel, false, true, 20, 1.0);
                     final MapImporter importer = new MapImporter(tileFactory, levelDatFile, false, chunksToSkip, readOnlyOption);
                     World2 world = importer.doImport(progressReceiver);
                     if (importer.getWarnings() != null) {
@@ -496,6 +498,7 @@ public class MapImportDialog extends javax.swing.JDialog {
         radioButtonReadOnlyNone = new javax.swing.JRadioButton();
         radioButtonReadOnlyManMade = new javax.swing.JRadioButton();
         radioButtonReadOnlyAll = new javax.swing.JRadioButton();
+        radioButtonReadOnlyManMadeAboveGround = new javax.swing.JRadioButton();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
         setTitle("Import Existing Minecraft Map");
@@ -564,11 +567,14 @@ public class MapImportDialog extends javax.swing.JDialog {
         radioButtonReadOnlyNone.setText("do not mark any chunks read-only");
 
         buttonGroup1.add(radioButtonReadOnlyManMade);
-        radioButtonReadOnlyManMade.setSelected(true);
         radioButtonReadOnlyManMade.setText("mark chunks containing man-made blocks read-only");
 
         buttonGroup1.add(radioButtonReadOnlyAll);
         radioButtonReadOnlyAll.setText("mark all chunks read-only");
+
+        buttonGroup1.add(radioButtonReadOnlyManMadeAboveGround);
+        radioButtonReadOnlyManMadeAboveGround.setSelected(true);
+        radioButtonReadOnlyManMadeAboveGround.setText("<html>mark chunks containing man-made blocks <i>above ground</i> read-only</html>");
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
         getContentPane().setLayout(layout);
@@ -589,6 +595,7 @@ public class MapImportDialog extends javax.swing.JDialog {
                         .addComponent(buttonCancel))
                     .addGroup(layout.createSequentialGroup()
                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addComponent(radioButtonReadOnlyManMadeAboveGround, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                             .addComponent(radioButtonReadOnlyAll)
                             .addComponent(radioButtonReadOnlyManMade)
                             .addComponent(radioButtonReadOnlyNone)
@@ -666,6 +673,8 @@ public class MapImportDialog extends javax.swing.JDialog {
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(radioButtonReadOnlyNone)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(radioButtonReadOnlyManMadeAboveGround, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(radioButtonReadOnlyManMade)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(radioButtonReadOnlyAll)
@@ -718,6 +727,7 @@ public class MapImportDialog extends javax.swing.JDialog {
     private javax.swing.JLabel labelWidthWithOutliers;
     private javax.swing.JRadioButton radioButtonReadOnlyAll;
     private javax.swing.JRadioButton radioButtonReadOnlyManMade;
+    private javax.swing.JRadioButton radioButtonReadOnlyManMadeAboveGround;
     private javax.swing.JRadioButton radioButtonReadOnlyNone;
     // End of variables declaration//GEN-END:variables
 

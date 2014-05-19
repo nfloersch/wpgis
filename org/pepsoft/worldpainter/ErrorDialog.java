@@ -20,12 +20,9 @@ import java.awt.datatransfer.Clipboard;
 import java.awt.datatransfer.StringSelection;
 import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
-import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.net.URL;
-import java.net.URLClassLoader;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.logging.Level;
@@ -174,8 +171,6 @@ public class ErrorDialog extends javax.swing.JDialog {
                 HeightMapTileFactory heightMapTileFactory = (HeightMapTileFactory) tileFactory;
                 sb.append("Water height: " + heightMapTileFactory.getWaterHeight() + eol);
             }
-            sb.append("Biome scheme: " + ((world.getBiomeAlgorithm() >= 0) ? World2.BIOME_ALGORITHM_NAMES[world.getBiomeAlgorithm()] : "None") + eol);
-            sb.append("Custom biomes " + (world.isCustomBiomes() ? "" : "not ") + "enabled" + eol);
             if (world.getImportedFrom() != null) {
                 sb.append("World imported from " + world.getImportedFrom() + eol);
             }
@@ -254,22 +249,6 @@ public class ErrorDialog extends javax.swing.JDialog {
         ErrorDialog dialog = new ErrorDialog((Frame) null);
         dialog.setException(new OutOfMemoryError("test"));
         dialog.setVisible(true);
-    }
-
-    private File findInstallDir() {
-        ClassLoader classLoader = ErrorDialog.class.getClassLoader();
-        if (classLoader instanceof URLClassLoader) {
-            for (URL url: ((URLClassLoader) classLoader).getURLs()) {
-                if (url.getPath().endsWith("WorldPainter.jar")) {
-                    try {
-                        return new File(url.toURI()).getParentFile();
-                    } catch (URISyntaxException e) {
-                        return null;
-                    }
-                }
-            }
-        }
-        return null;
     }
 
     /** This method is called from within the constructor to

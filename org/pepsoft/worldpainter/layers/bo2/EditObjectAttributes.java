@@ -17,12 +17,14 @@ import java.util.HashMap;
 import java.util.Map;
 import javax.swing.AbstractAction;
 import javax.swing.ActionMap;
+import javax.swing.DefaultComboBoxModel;
 import javax.swing.InputMap;
 import javax.swing.JComponent;
 import javax.swing.JOptionPane;
 import javax.swing.JSpinner.NumberEditor;
 import javax.swing.KeyStroke;
 import javax.vecmath.Point3i;
+import static org.pepsoft.minecraft.Constants.BLOCK_TYPE_NAMES;
 import org.pepsoft.worldpainter.ColourScheme;
 import org.pepsoft.worldpainter.objects.WPObject;
 import static org.pepsoft.worldpainter.objects.WPObject.*;
@@ -32,16 +34,10 @@ import static org.pepsoft.worldpainter.objects.WPObject.*;
  * @author pepijn
  */
 public class EditObjectAttributes extends javax.swing.JDialog {
-    /**
-     * Creates new form EditObjectAttributes
-     */
     public EditObjectAttributes(Window parent, WPObject object, ColourScheme colourScheme) {
         this(parent, Collections.singleton(object), colourScheme);
     }
     
-    /**
-     * Creates new form EditObjectAttributes
-     */
     public EditObjectAttributes(Window parent, Collection<WPObject> objects, ColourScheme colourScheme) {
         super(parent, ModalityType.DOCUMENT_MODAL);
         this.objects = objects;
@@ -89,10 +85,23 @@ public class EditObjectAttributes extends javax.swing.JDialog {
             checkBoxOnWater.setTristateMode(false);
             checkBoxOnLava.setSelected(object.getAttribute(ATTRIBUTE_SPAWN_ON_LAVA, false));
             checkBoxOnLava.setTristateMode(false);
-            comboBoxCollisionMode.setSelectedIndex(object.getAttribute(ATTRIBUTE_COLLISION_MODE, 2));
-            comboBoxUndergroundMode.setSelectedIndex(object.getAttribute(ATTRIBUTE_UNDERGROUND_MODE, 1));
-            collisionModeChanged = undergroundModeChanged = false;
+            // Remove "no change" choices
+            ((DefaultComboBoxModel) comboBoxCollisionMode.getModel()).removeElementAt(0);
+            ((DefaultComboBoxModel) comboBoxUndergroundMode.getModel()).removeElementAt(0);
+            ((DefaultComboBoxModel) comboBoxLeafDecayMode.getModel()).removeElementAt(0);
+            comboBoxCollisionMode.setSelectedIndex(object.getAttribute(ATTRIBUTE_COLLISION_MODE, COLLISION_MODE_SOLID) - 1);
+            comboBoxUndergroundMode.setSelectedIndex(object.getAttribute(ATTRIBUTE_UNDERGROUND_MODE, COLLISION_MODE_ALL) - 1);
+            comboBoxLeafDecayMode.setSelectedIndex(object.getAttribute(ATTRIBUTE_LEAF_DECAY_MODE, LEAF_DECAY_NO_CHANGE) - 1);
             spinnerFrequency.setValue(object.getAttribute(ATTRIBUTE_FREQUENCY, 100));
+            if (object.getAttribute(ATTRIBUTE_REPLACE_WITH_AIR, null) != null) {
+                int[] replaceWithBlock = object.getAttribute(ATTRIBUTE_REPLACE_WITH_AIR, null);
+                checkBoxReplace.setSelected(true);
+                comboBoxReplaceBlockId.setSelectedIndex(replaceWithBlock[0]);
+                spinnerReplaceData.setValue(replaceWithBlock[1]);
+            } else {
+                // Magenta wool by default
+                comboBoxReplaceBlockId.setSelectedIndex(35);
+            }
             Previewer previewer = new Previewer(colourScheme);
             previewer.setObject(object);
             jPanel1.add(previewer, BorderLayout.CENTER);
@@ -101,22 +110,40 @@ public class EditObjectAttributes extends javax.swing.JDialog {
             fieldName.setText("multiple");
             fieldName.setEnabled(false);
             file = null;
+            long frequencyTotal = 0;
+            int firstFrequency = -1;
+            boolean allFrequenciesIdentical = true;
             for (WPObject object: objects) {
                 if (object.getAttribute(ATTRIBUTE_OFFSET, null) != null) {
                     offsets.put(object, object.getAttribute(ATTRIBUTE_OFFSET, (Point3i) null));
                 }
+                int frequency = object.getAttribute(ATTRIBUTE_FREQUENCY, 100);
+                frequencyTotal += frequency;
+                if (firstFrequency == -1) {
+                    firstFrequency = frequency;
+                } else if (frequency != firstFrequency) {
+                    allFrequenciesIdentical = false;
+                }
             }
             labelOffset.setText("multiple");
-            checkBoxRandomRotation.setIndeterminate();
-            checkBoxOnAir.setIndeterminate();
-            checkBoxUnderLava.setIndeterminate();
-            checkBoxUnderWater.setIndeterminate();
-            checkBoxOnSolidLand.setIndeterminate();
-            checkBoxOnWater.setIndeterminate();
-            checkBoxOnLava.setIndeterminate();
-            spinnerFrequency.setEnabled(false);
+            checkBoxRandomRotation.setMixed(true);
+            checkBoxOnAir.setMixed(true);
+            checkBoxUnderLava.setMixed(true);
+            checkBoxUnderWater.setMixed(true);
+            checkBoxOnSolidLand.setMixed(true);
+            checkBoxOnWater.setMixed(true);
+            checkBoxOnLava.setMixed(true);
             labelOffset.setCursor(null);
             labelOffset.setForeground(null);
+            int averageFrequency = (int) (frequencyTotal / objects.size());
+            spinnerFrequency.setValue(averageFrequency);
+            if (! allFrequenciesIdentical) {
+                checkBoxFrequencyActive.setSelected(false);
+                checkBoxFrequencyActive.setToolTipText("<html>The relative frequencies of the selected objects are not all the same.<br>Check the checkbox if you want to set them all to the same value.</html>");
+                checkBoxFrequencyActive.setEnabled(true);
+                spinnerFrequency.setEnabled(false);
+            }
+            checkBoxReplace.setEnabled(false);
         }
         pack();
         
@@ -136,6 +163,8 @@ public class EditObjectAttributes extends javax.swing.JDialog {
         getRootPane().setDefaultButton(buttonOK);
         
         setLocationRelativeTo(parent);
+        
+        setControlStates();
     }
 
     public boolean isCancelled() {
@@ -168,7 +197,7 @@ public class EditObjectAttributes extends javax.swing.JDialog {
             if (attributes == null) {
                 attributes = new HashMap<String, Serializable>();
             }
-            if (singleSelection) {
+            if (checkBoxFrequencyActive.isSelected()) {
                 int frequency = (Integer) spinnerFrequency.getValue();
                 if (frequency != 100) {
                     attributes.put(ATTRIBUTE_FREQUENCY, frequency);
@@ -182,32 +211,42 @@ public class EditObjectAttributes extends javax.swing.JDialog {
             } else {
                 attributes.remove(ATTRIBUTE_OFFSET);
             }
-            if (randomRotationChanged) {
+            if (! checkBoxRandomRotation.isMixed()) {
                 attributes.put(ATTRIBUTE_RANDOM_ROTATION, checkBoxRandomRotation.isSelected());
             }
-            if (spawnOnAirChanged) {
+            if (! checkBoxOnAir.isMixed()) {
                 attributes.put(ATTRIBUTE_NEEDS_FOUNDATION, ! checkBoxOnAir.isSelected());
             }
-            if (spawnInLavaChanged) {
+            if (! checkBoxUnderLava.isMixed()) {
                 attributes.put(ATTRIBUTE_SPAWN_IN_LAVA, checkBoxUnderLava.isSelected());
             }
-            if (spawnInWaterChanged) {
+            if (! checkBoxUnderWater.isMixed()) {
                 attributes.put(ATTRIBUTE_SPAWN_IN_WATER, checkBoxUnderWater.isSelected());
             }
-            if (spawnSolidLandChanged) {
+            if (! checkBoxOnSolidLand.isMixed()) {
                 attributes.put(ATTRIBUTE_SPAWN_ON_LAND, checkBoxOnSolidLand.isSelected());
             }
-            if (spawnOnWaterChanged) {
+            if (! checkBoxOnWater.isMixed()) {
                 attributes.put(ATTRIBUTE_SPAWN_ON_WATER, checkBoxOnWater.isSelected());
             }
-            if (spawnOnLavaChanged) {
+            if (! checkBoxOnLava.isMixed()) {
                 attributes.put(ATTRIBUTE_SPAWN_ON_LAVA, checkBoxOnLava.isSelected());
             }
-            if (collisionModeChanged && comboBoxCollisionMode.getSelectedIndex() > 0) {
-                attributes.put(ATTRIBUTE_COLLISION_MODE, comboBoxCollisionMode.getSelectedIndex());
+            if (singleSelection || comboBoxCollisionMode.getSelectedIndex() > 0) {
+                attributes.put(ATTRIBUTE_COLLISION_MODE, comboBoxCollisionMode.getSelectedIndex() + (singleSelection ? 1 : 0));
             }
-            if (undergroundModeChanged && comboBoxUndergroundMode.getSelectedIndex() > 0) {
-                attributes.put(ATTRIBUTE_UNDERGROUND_MODE, comboBoxUndergroundMode.getSelectedIndex());
+            if (singleSelection || comboBoxUndergroundMode.getSelectedIndex() > 0) {
+                attributes.put(ATTRIBUTE_UNDERGROUND_MODE, comboBoxUndergroundMode.getSelectedIndex() + (singleSelection ? 1 : 0));
+            }
+            if (singleSelection || comboBoxLeafDecayMode.getSelectedIndex() > 0) {
+                attributes.put(ATTRIBUTE_LEAF_DECAY_MODE, comboBoxLeafDecayMode.getSelectedIndex() + (singleSelection ? 1 : 0));
+            }
+            if (singleSelection) {
+                if (checkBoxReplace.isSelected()) {
+                    attributes.put(ATTRIBUTE_REPLACE_WITH_AIR, new int[] {comboBoxReplaceBlockId.getSelectedIndex(), (Integer) spinnerReplaceData.getValue()});
+                } else {
+                    attributes.remove(ATTRIBUTE_REPLACE_WITH_AIR);
+                }
             }
             if (! attributes.isEmpty()) {
                 object.setAttributes(attributes);
@@ -277,9 +316,11 @@ public class EditObjectAttributes extends javax.swing.JDialog {
             JOptionPane.showMessageDialog(this, objects.size() + " offsets reset");
         }
     }
-
-    private void reload() {
-        throw new UnsupportedOperationException("Not yet implemented");
+    
+    private void setControlStates() {
+        boolean replaceBlocks = checkBoxReplace.isSelected();
+        comboBoxReplaceBlockId.setEnabled(replaceBlocks);
+        spinnerReplaceData.setEnabled(replaceBlocks);
     }
     
     /**
@@ -317,6 +358,14 @@ public class EditObjectAttributes extends javax.swing.JDialog {
         checkBoxUnderWater = new org.pepsoft.worldpainter.util.TristateCheckBox();
         checkBoxUnderLava = new org.pepsoft.worldpainter.util.TristateCheckBox();
         checkBoxOnLava = new org.pepsoft.worldpainter.util.TristateCheckBox();
+        checkBoxFrequencyActive = new javax.swing.JCheckBox();
+        jLabel9 = new javax.swing.JLabel();
+        comboBoxLeafDecayMode = new javax.swing.JComboBox();
+        checkBoxReplace = new javax.swing.JCheckBox();
+        jLabel10 = new javax.swing.JLabel();
+        comboBoxReplaceBlockId = new javax.swing.JComboBox();
+        jLabel11 = new javax.swing.JLabel();
+        spinnerReplaceData = new javax.swing.JSpinner();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
         setTitle("Edit Object Attributes");
@@ -388,73 +437,59 @@ public class EditObjectAttributes extends javax.swing.JDialog {
 
         comboBoxCollisionMode.setModel(new javax.swing.DefaultComboBoxModel(new String[] { "no change", "any blocks", "solid blocks", "nothing" }));
         comboBoxCollisionMode.setToolTipText("<html>Determines which existing blocks an object will collide with (and therefore not be rendered).<br>\n<strong>Note</strong> that only above ground blocks are considered!</html>");
-        comboBoxCollisionMode.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                comboBoxCollisionModeActionPerformed(evt);
-            }
-        });
 
         jLabel7.setText("Replace underground blocks:");
         jLabel7.setToolTipText("Determines whether existing underground blocks should be replaced by blocks from the object.");
 
         comboBoxUndergroundMode.setModel(new javax.swing.DefaultComboBoxModel(new String[] { "no change", "always", "if object block is solid", "if existing block is air" }));
         comboBoxUndergroundMode.setToolTipText("Determines whether existing underground blocks should be replaced by blocks from the object.");
-        comboBoxUndergroundMode.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                comboBoxUndergroundModeActionPerformed(evt);
-            }
-        });
 
         jLabel8.setText("Spawn:");
 
         checkBoxRandomRotation.setText("random rotation and mirroring");
-        checkBoxRandomRotation.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                checkBoxRandomRotationActionPerformed(evt);
-            }
-        });
 
         checkBoxOnSolidLand.setText("on solid land");
-        checkBoxOnSolidLand.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                checkBoxOnSolidLandActionPerformed(evt);
-            }
-        });
 
         checkBoxOnAir.setText("on air");
-        checkBoxOnAir.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                checkBoxOnAirActionPerformed(evt);
-            }
-        });
 
         checkBoxOnWater.setText("on water");
-        checkBoxOnWater.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                checkBoxOnWaterActionPerformed(evt);
-            }
-        });
 
         checkBoxUnderWater.setText("under water");
-        checkBoxUnderWater.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                checkBoxUnderWaterActionPerformed(evt);
-            }
-        });
 
         checkBoxUnderLava.setText("under lava");
-        checkBoxUnderLava.addActionListener(new java.awt.event.ActionListener() {
+
+        checkBoxOnLava.setText("on lava");
+
+        checkBoxFrequencyActive.setSelected(true);
+        checkBoxFrequencyActive.setText(" ");
+        checkBoxFrequencyActive.setEnabled(false);
+        checkBoxFrequencyActive.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
-                checkBoxUnderLavaActionPerformed(evt);
+                checkBoxFrequencyActiveActionPerformed(evt);
             }
         });
 
-        checkBoxOnLava.setText("on lava");
-        checkBoxOnLava.addActionListener(new java.awt.event.ActionListener() {
+        jLabel9.setText("Leaf blocks should:");
+
+        comboBoxLeafDecayMode.setModel(new javax.swing.DefaultComboBoxModel(new String[] { "no change", "behave as exported", "decay", "not decay" }));
+
+        checkBoxReplace.setText("replace with air:");
+        checkBoxReplace.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
-                checkBoxOnLavaActionPerformed(evt);
+                checkBoxReplaceActionPerformed(evt);
             }
         });
+
+        jLabel10.setText("block ID:");
+
+        comboBoxReplaceBlockId.setModel(new DefaultComboBoxModel(BLOCK_TYPES)
+        );
+        comboBoxReplaceBlockId.setEnabled(false);
+
+        jLabel11.setText(", data:");
+
+        spinnerReplaceData.setModel(new javax.swing.SpinnerNumberModel(2, 0, 15, 1));
+        spinnerReplaceData.setEnabled(false);
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
         getContentPane().setLayout(layout);
@@ -479,22 +514,24 @@ public class EditObjectAttributes extends javax.swing.JDialog {
                                 .addComponent(buttonOffsetReset))
                             .addGroup(layout.createSequentialGroup()
                                 .addComponent(jLabel4)
-                                .addGap(18, 18, 18)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                .addComponent(checkBoxFrequencyActive)
+                                .addGap(0, 0, 0)
                                 .addComponent(spinnerFrequency, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                                 .addGap(0, 0, 0)
                                 .addComponent(jLabel5))
                             .addGroup(layout.createSequentialGroup()
                                 .addComponent(jLabel6)
-                                .addGap(18, 18, 18)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                                 .addComponent(comboBoxCollisionMode, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
                             .addGroup(layout.createSequentialGroup()
                                 .addComponent(jLabel7)
-                                .addGap(18, 18, 18)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                                 .addComponent(comboBoxUndergroundMode, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
                             .addComponent(checkBoxRandomRotation, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                             .addGroup(layout.createSequentialGroup()
                                 .addComponent(jLabel8)
-                                .addGap(18, 18, 18)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                                     .addComponent(checkBoxOnSolidLand, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                                     .addComponent(checkBoxUnderWater, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
@@ -503,20 +540,35 @@ public class EditObjectAttributes extends javax.swing.JDialog {
                                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                                     .addComponent(checkBoxOnAir, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                                     .addComponent(checkBoxOnWater, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                    .addComponent(checkBoxOnLava, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))))
+                                    .addComponent(checkBoxOnLava, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                            .addGroup(layout.createSequentialGroup()
+                                .addComponent(jLabel9)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                .addComponent(comboBoxLeafDecayMode, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)))
                         .addGap(18, 18, 18)
                         .addComponent(jPanel1, javax.swing.GroupLayout.DEFAULT_SIZE, 200, Short.MAX_VALUE))
+                    .addGroup(layout.createSequentialGroup()
+                        .addComponent(checkBoxReplace)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(jLabel10)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(comboBoxReplaceBlockId, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addGap(0, 0, 0)
+                        .addComponent(jLabel11)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(spinnerReplaceData, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addGap(0, 0, Short.MAX_VALUE))
                     .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
                         .addGap(0, 0, Short.MAX_VALUE)
                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                             .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
-                                .addComponent(buttonOK)
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                .addComponent(buttonCancel))
-                            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
                                 .addComponent(jLabel2)
                                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                .addComponent(labelFile)))))
+                                .addComponent(labelFile))
+                            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
+                                .addComponent(buttonOK)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                .addComponent(buttonCancel)))))
                 .addContainerGap())
         );
         layout.setVerticalGroup(
@@ -527,7 +579,7 @@ public class EditObjectAttributes extends javax.swing.JDialog {
                     .addComponent(jLabel2)
                     .addComponent(labelFile))
                 .addGap(18, 18, 18)
-                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
                     .addGroup(layout.createSequentialGroup()
                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                             .addComponent(jLabel1)
@@ -542,10 +594,11 @@ public class EditObjectAttributes extends javax.swing.JDialog {
                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                             .addComponent(jLabel4)
                             .addComponent(spinnerFrequency, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                            .addComponent(jLabel5))
+                            .addComponent(jLabel5)
+                            .addComponent(checkBoxFrequencyActive))
                         .addGap(18, 18, 18)
                         .addComponent(checkBoxRandomRotation, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addGap(18, 18, 18)
                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                             .addComponent(jLabel8)
                             .addComponent(checkBoxOnSolidLand, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
@@ -558,7 +611,7 @@ public class EditObjectAttributes extends javax.swing.JDialog {
                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                             .addComponent(checkBoxUnderLava, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                             .addComponent(checkBoxOnLava, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addGap(18, 18, 18)
                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                             .addComponent(jLabel6)
                             .addComponent(comboBoxCollisionMode, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
@@ -566,9 +619,19 @@ public class EditObjectAttributes extends javax.swing.JDialog {
                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                             .addComponent(jLabel7)
                             .addComponent(comboBoxUndergroundMode, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-                        .addGap(0, 0, Short.MAX_VALUE))
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                            .addComponent(jLabel9)
+                            .addComponent(comboBoxLeafDecayMode, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)))
                     .addComponent(jPanel1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addGap(18, 18, 18)
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(checkBoxReplace)
+                    .addComponent(jLabel10)
+                    .addComponent(comboBoxReplaceBlockId, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(jLabel11)
+                    .addComponent(spinnerReplaceData, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(buttonCancel)
                     .addComponent(buttonOK))
@@ -598,58 +661,36 @@ public class EditObjectAttributes extends javax.swing.JDialog {
         ok();
     }//GEN-LAST:event_buttonOKActionPerformed
 
-    private void checkBoxOnSolidLandActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_checkBoxOnSolidLandActionPerformed
-        spawnSolidLandChanged = true;
-    }//GEN-LAST:event_checkBoxOnSolidLandActionPerformed
+    private void checkBoxFrequencyActiveActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_checkBoxFrequencyActiveActionPerformed
+        spinnerFrequency.setEnabled(checkBoxFrequencyActive.isSelected());
+    }//GEN-LAST:event_checkBoxFrequencyActiveActionPerformed
 
-    private void comboBoxCollisionModeActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_comboBoxCollisionModeActionPerformed
-        collisionModeChanged = true;
-    }//GEN-LAST:event_comboBoxCollisionModeActionPerformed
-
-    private void checkBoxRandomRotationActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_checkBoxRandomRotationActionPerformed
-        randomRotationChanged = true;
-    }//GEN-LAST:event_checkBoxRandomRotationActionPerformed
-
-    private void checkBoxOnAirActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_checkBoxOnAirActionPerformed
-        spawnOnAirChanged = true;
-    }//GEN-LAST:event_checkBoxOnAirActionPerformed
-
-    private void checkBoxUnderWaterActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_checkBoxUnderWaterActionPerformed
-        spawnInWaterChanged = true;
-    }//GEN-LAST:event_checkBoxUnderWaterActionPerformed
-
-    private void checkBoxOnWaterActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_checkBoxOnWaterActionPerformed
-        spawnOnWaterChanged = true;
-    }//GEN-LAST:event_checkBoxOnWaterActionPerformed
-
-    private void checkBoxUnderLavaActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_checkBoxUnderLavaActionPerformed
-        spawnInLavaChanged = true;
-    }//GEN-LAST:event_checkBoxUnderLavaActionPerformed
-
-    private void checkBoxOnLavaActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_checkBoxOnLavaActionPerformed
-        spawnOnLavaChanged = true;
-    }//GEN-LAST:event_checkBoxOnLavaActionPerformed
-
-    private void comboBoxUndergroundModeActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_comboBoxUndergroundModeActionPerformed
-        undergroundModeChanged = true;
-    }//GEN-LAST:event_comboBoxUndergroundModeActionPerformed
+    private void checkBoxReplaceActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_checkBoxReplaceActionPerformed
+        setControlStates();
+    }//GEN-LAST:event_checkBoxReplaceActionPerformed
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JButton buttonCancel;
     private javax.swing.JButton buttonOK;
     private javax.swing.JButton buttonOffsetAuto;
     private javax.swing.JButton buttonOffsetReset;
+    private javax.swing.JCheckBox checkBoxFrequencyActive;
     private org.pepsoft.worldpainter.util.TristateCheckBox checkBoxOnAir;
     private org.pepsoft.worldpainter.util.TristateCheckBox checkBoxOnLava;
     private org.pepsoft.worldpainter.util.TristateCheckBox checkBoxOnSolidLand;
     private org.pepsoft.worldpainter.util.TristateCheckBox checkBoxOnWater;
     private org.pepsoft.worldpainter.util.TristateCheckBox checkBoxRandomRotation;
+    private javax.swing.JCheckBox checkBoxReplace;
     private org.pepsoft.worldpainter.util.TristateCheckBox checkBoxUnderLava;
     private org.pepsoft.worldpainter.util.TristateCheckBox checkBoxUnderWater;
     private javax.swing.JComboBox comboBoxCollisionMode;
+    private javax.swing.JComboBox comboBoxLeafDecayMode;
+    private javax.swing.JComboBox comboBoxReplaceBlockId;
     private javax.swing.JComboBox comboBoxUndergroundMode;
     private javax.swing.JTextField fieldName;
     private javax.swing.JLabel jLabel1;
+    private javax.swing.JLabel jLabel10;
+    private javax.swing.JLabel jLabel11;
     private javax.swing.JLabel jLabel2;
     private javax.swing.JLabel jLabel3;
     private javax.swing.JLabel jLabel4;
@@ -657,17 +698,31 @@ public class EditObjectAttributes extends javax.swing.JDialog {
     private javax.swing.JLabel jLabel6;
     private javax.swing.JLabel jLabel7;
     private javax.swing.JLabel jLabel8;
+    private javax.swing.JLabel jLabel9;
     private javax.swing.JPanel jPanel1;
     private javax.swing.JLabel labelFile;
     private javax.swing.JLabel labelOffset;
     private javax.swing.JSpinner spinnerFrequency;
+    private javax.swing.JSpinner spinnerReplaceData;
     // End of variables declaration//GEN-END:variables
 
     private final Collection<WPObject> objects;
     private final File file;
     private final Map<WPObject, Point3i> offsets = new HashMap<WPObject, Point3i>();
     private final ColourScheme colourScheme;
-    private boolean cancelled = true, randomRotationChanged, spawnOnAirChanged, spawnInWaterChanged, spawnInLavaChanged, spawnSolidLandChanged, spawnOnWaterChanged, spawnOnLavaChanged, collisionModeChanged, undergroundModeChanged;
+    private boolean cancelled = true;
+    
+    private static final String[] BLOCK_TYPES = new String[256];
+    
+    static {
+        for (int i = 0; i < 256; i++) {
+            if ((i >= BLOCK_TYPE_NAMES.length) || (BLOCK_TYPE_NAMES[i] == null)) {
+                BLOCK_TYPES[i] = Integer.toString(i);
+            } else {
+                BLOCK_TYPES[i] = i + " " + BLOCK_TYPE_NAMES[i];
+            }
+        }
+    }
     
     private static final long serialVersionUID = 1L;
 }

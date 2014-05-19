@@ -5,18 +5,12 @@
 package org.pepsoft.worldpainter.layers.pockets;
 
 import java.awt.Color;
-import java.awt.event.ActionEvent;
-import java.awt.event.KeyEvent;
+import java.awt.Window;
 import java.net.MalformedURLException;
 import java.net.URL;
-import javax.swing.AbstractAction;
-import javax.swing.ActionMap;
 import javax.swing.DefaultComboBoxModel;
-import javax.swing.InputMap;
 import javax.swing.JColorChooser;
-import javax.swing.JComponent;
 import javax.swing.JSpinner;
-import javax.swing.KeyStroke;
 import javax.swing.SpinnerNumberModel;
 import org.pepsoft.minecraft.Material;
 import org.pepsoft.worldpainter.ColourScheme;
@@ -32,22 +26,22 @@ public class UndergroundPocketsDialog extends CustomLayerDialog<UndergroundPocke
     /**
      * Creates new form UndergroundPocketsDialog
      */
-    public UndergroundPocketsDialog(java.awt.Frame parent, Material material, ColourScheme colourScheme, int maxHeight, boolean extendedBlockIds) {
+    public UndergroundPocketsDialog(Window parent, Material material, ColourScheme colourScheme, int maxHeight, boolean extendedBlockIds) {
         this(parent, material, null, colourScheme, maxHeight, extendedBlockIds);
     }
     
     /**
      * Creates new form UndergroundPocketsDialog
      */
-    public UndergroundPocketsDialog(java.awt.Frame parent, UndergroundPocketsLayer existingLayer, ColourScheme colourScheme, int maxHeight, boolean extendedBlockIds) {
+    public UndergroundPocketsDialog(Window parent, UndergroundPocketsLayer existingLayer, ColourScheme colourScheme, int maxHeight, boolean extendedBlockIds) {
         this(parent, null, existingLayer, colourScheme, maxHeight, extendedBlockIds);
     }
     
     /**
      * Creates new form UndergroundPocketsDialog
      */
-    private UndergroundPocketsDialog(java.awt.Frame parent, Material material, UndergroundPocketsLayer existingLayer, ColourScheme colourScheme, int maxHeight, boolean extendedBlockIds) {
-        super(parent, true);
+    private UndergroundPocketsDialog(Window parent, Material material, UndergroundPocketsLayer existingLayer, ColourScheme colourScheme, int maxHeight, boolean extendedBlockIds) {
+        super(parent);
         this.colourScheme = colourScheme;
         BLOCK_TYPES = new String[extendedBlockIds ? 4096 : 256];
         for (int i = 0; i < BLOCK_TYPES.length; i++) {
@@ -87,27 +81,9 @@ public class UndergroundPocketsDialog extends CustomLayerDialog<UndergroundPocke
         
         setLabelColour();
         
-        ActionMap actionMap = rootPane.getActionMap();
-        actionMap.put("cancel", new AbstractAction("cancel") {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                cancel();
-            }
-
-            private static final long serialVersionUID = 1L;
-        });
-
-        InputMap inputMap = rootPane.getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT);
-        inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "cancel");
-
         rootPane.setDefaultButton(buttonOK);
-        
+        pack();
         setLocationRelativeTo(parent);
-    }
-
-    @Override
-    public boolean isCancelled() {
-        return cancelled;
     }
 
     @Override
@@ -115,7 +91,8 @@ public class UndergroundPocketsDialog extends CustomLayerDialog<UndergroundPocke
         return layer;
     }
 
-    private void ok() {
+    @Override
+    protected void ok() {
         String name = fieldName.getText();
         Material material = Material.get(comboBoxBlockId.getSelectedIndex(), (Integer) spinnerDataValue.getValue());
         int occurrence = (Integer) spinnerOccurrence.getValue();
@@ -133,12 +110,7 @@ public class UndergroundPocketsDialog extends CustomLayerDialog<UndergroundPocke
             layer.setMaxLevel(maxLevel);
             layer.setScale(scale);
         }
-        cancelled = false;
-        dispose();
-    }
-    
-    private void cancel() {
-        dispose();
+        super.ok();
     }
     
     private void pickColour() {
@@ -454,7 +426,6 @@ public class UndergroundPocketsDialog extends CustomLayerDialog<UndergroundPocke
     
     private final ColourScheme colourScheme;
     private UndergroundPocketsLayer layer;
-    private boolean cancelled = true;
     private int selectedColour = Color.ORANGE.getRGB();
     private final String[] BLOCK_TYPES;
 

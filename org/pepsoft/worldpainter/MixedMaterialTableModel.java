@@ -140,7 +140,7 @@ public class MixedMaterialTableModel implements TableModel {
                 row = new Row(row.material, (Integer) aValue, row.scale);
                 break;
             case COLUMN_SCALE:
-                row = new Row(row.material, row.occurrence, (Integer) aValue);
+                row = new Row(row.material, row.occurrence, (Integer) aValue / 100f);
                 break;
             default:
                 throw new IndexOutOfBoundsException("columnIndex " + columnIndex);

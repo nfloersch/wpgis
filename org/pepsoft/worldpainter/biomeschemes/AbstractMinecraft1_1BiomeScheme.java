@@ -102,6 +102,16 @@ public abstract class AbstractMinecraft1_1BiomeScheme extends AbstractBiomeSchem
     public final boolean[][] getPattern(int biome) {
         return BIOME_PATTERNS[biome];
     }
+
+    @Override
+    public boolean isBiomePresent(int biome) {
+        return biome <= BIOME_EXTREME_HILLS_EDGE;
+    }
+
+    @Override
+    public String getBiomeName(int biome) {
+        return BIOME_NAMES[biome];
+    }
     
     public static final int BIOME_OCEAN = 0;
     public static final int BIOME_PLAINS = 1;

@@ -132,11 +132,10 @@ public class ChangeHeightDialog extends javax.swing.JDialog {
                         if (tileFactory instanceof HeightMapTileFactory) {
                             HeightMapTileFactory heightMapTileFactory = (HeightMapTileFactory) tileFactory;
                             heightMapTileFactory.setMaxHeight(newMaxHeight, transform);
-                            heightMapTileFactory.setWaterHeight(transform.transformHeight(heightMapTileFactory.getWaterHeight()));
                             float baseHeight = heightMapTileFactory.getBaseHeight();
                             float transposeAmount = transform.transformHeight(baseHeight) - baseHeight;
                             heightMapTileFactory.setHeightMap(HeightMapUtils.transposeHeightMap(heightMapTileFactory.getHeightMap(), transposeAmount));
-                            }
+                        }
                         ResourcesExporterSettings resourcesSettings = (ResourcesExporterSettings) dim.getLayerSettings(Resources.INSTANCE);
                         if (resourcesSettings != null) {
                             for (int blockType: resourcesSettings.getBlockTypes()) {

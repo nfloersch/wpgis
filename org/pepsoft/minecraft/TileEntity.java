@@ -59,8 +59,10 @@ public class TileEntity extends AbstractNBTItem {
     public static TileEntity fromNBT(Tag tileEntityTag) {
         CompoundTag tag = (CompoundTag) tileEntityTag;
         String id = ((StringTag) tag.getTag(TAG_ID)).getValue();
-        if (id.equals("Chest")) {
+        if (id.equals(ID_CHEST)) {
             return new Chest(tag);
+        } else if (id.equals(ID_SIGN)) {
+            return new WallSign(tag);
         } else {
             return new TileEntity(tag);
         }

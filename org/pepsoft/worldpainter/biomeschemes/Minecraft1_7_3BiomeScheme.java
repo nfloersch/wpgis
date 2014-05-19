@@ -110,6 +110,16 @@ public final class Minecraft1_7_3BiomeScheme extends AbstractBiomeScheme {
         return BIOME_PATTERNS[biome];
     }
     
+    @Override
+    public boolean isBiomePresent(int biome) {
+        return biome <= BIOME_RAINFOREST;
+    }
+
+    @Override
+    public String getBiomeName(int biome) {
+        return BIOME_NAMES[biome];
+    }
+    
     public static final int BIOME_SWAMPLAND       =  1;
     public static final int BIOME_SEASONAL_FOREST =  2;
     public static final int BIOME_FOREST          =  3;

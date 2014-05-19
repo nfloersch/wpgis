@@ -5,7 +5,9 @@
 
 package org.pepsoft.worldpainter;
 
-/* im port com.install4j.api.launcher.ApplicationLauncher; */
+import com.install4j.api.launcher.ApplicationLauncher;
+import com.jidesoft.plaf.LookAndFeelFactory;
+import com.jidesoft.utils.Lm;
 import java.awt.Frame;
 import java.io.File;
 import java.io.IOException;
@@ -24,10 +26,9 @@ import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
-import java.util.Map;
+import java.util.Locale;
+import java.util.Properties;
 import java.util.Random;
-import java.util.ResourceBundle;
-import java.util.TreeMap;
 import java.util.logging.FileHandler;
 import java.util.logging.Formatter;
 import java.util.logging.Handler;
@@ -42,11 +43,7 @@ import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 import javax.swing.UnsupportedLookAndFeelException;
-import org.pepsoft.util.MathUtils;
-import org.pepsoft.worldpainter.Dimension.Border;
 import org.pepsoft.worldpainter.browser.WPTrustManager;
-import org.pepsoft.worldpainter.layers.Layer;
-import org.pepsoft.worldpainter.layers.exporters.ExporterSettings;
 import org.pepsoft.worldpainter.plugins.WPPluginManager;
 import org.pepsoft.worldpainter.util.WPLogManager;
 import static org.pepsoft.worldpainter.Constants.*;
@@ -63,7 +60,11 @@ public class Main {
     /**
      * @param args the command line arguments
      */
-    public static void main(String[] args) {
+    public static void main(String[] args) throws IOException {
+        // Force language to English for now. TODO: remove this once the first
+        // translations are implemented
+        Locale.setDefault(Locale.US);
+        
         if (processCommandLine(args)) {
             return;
         }
@@ -137,6 +138,8 @@ public class Main {
             configError(e);
         } catch (ClassNotFoundException e) {
             configError(e);
+        } catch (NullPointerException e) {
+            configError(e);
         }
         if (config == null) {
             config = new Configuration();
@@ -170,47 +173,31 @@ public class Main {
         }
         WPPluginManager.initialise(config.getUuid());
         
-        // Use the system look and feel
-        try {
-            UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
-        } catch (ClassNotFoundException e) {
-            // We tried...
-        } catch (InstantiationException e) {
-            // We tried...
-        } catch (IllegalAccessException e) {
-            // We tried...
-        } catch (UnsupportedLookAndFeelException e) {
-            // We tried...
-        }
-        
-        // Don't paint values above sliders in GTK look and feel
-        UIManager.put("Slider.paintValue", Boolean.FALSE);
-        
         String httpAgent = "WorldPainter " + Version.VERSION + "; " + System.getProperty("os.name") + " " + System.getProperty("os.version") + " " + System.getProperty("os.arch") + ";";
-        //        System.out.println(httpAgent);
+//        System.out.println(httpAgent);
         System.setProperty("http.agent", httpAgent);
         
         // This will return immediately if you call it from the EDT,
         // otherwise it will block until the installer application exits
-//        if ((! "true".equals(System.getProperty("org.pepsoft.worldpainter.devMode"))) && config.isCheckForUpdates()) {
-//            logger.info("Checking for updates");
-//            ApplicationLauncher.launchApplicationInProcess("217", null, new ApplicationLauncher.Callback() {
-//                    @Override
-//                    public void exited(int exitValue) {
-//                        // Do nothing
-//                    }
-//
-//                    @Override
-//                    public void prepareShutdown() {
-//                        // Do nothing
-//                    }
-//                }, ApplicationLauncher.WindowMode.FRAME, null
-//            );
-//            // Install4j overrides the default uncaught exception handler, so restore it:
-//            Thread.setDefaultUncaughtExceptionHandler(new ExceptionHandler());
-//        } else {
-//            logger.info("Update check disabled in preferences or by system property");
-//        }
+        if ((! "true".equals(System.getProperty("org.pepsoft.worldpainter.devMode"))) && config.isCheckForUpdates()) {
+            logger.info("Checking for updates");
+            ApplicationLauncher.launchApplicationInProcess("217", null, new ApplicationLauncher.Callback() {
+                    @Override
+                    public void exited(int exitValue) {
+                        // Do nothing
+                    }
+
+                    @Override
+                    public void prepareShutdown() {
+                        // Do nothing
+                    }
+                }, ApplicationLauncher.WindowMode.FRAME, null
+            );
+            // Install4j overrides the default uncaught exception handler, so restore it:
+            Thread.setDefaultUncaughtExceptionHandler(new ExceptionHandler());
+        } else {
+            logger.info("Update check disabled in preferences or by system property");
+        }
 
         final long start = System.currentTimeMillis();
         config.setLaunchCount(config.getLaunchCount() + 1);
@@ -249,11 +236,18 @@ public class Main {
             }
         });
         
-        // Make the "action:" URLs used in various places work:
+        // Make the "action:" and "bitcoin:" URLs used in various places work:
         URL.setURLStreamHandlerFactory(new URLStreamHandlerFactory() {
             @Override
             public URLStreamHandler createURLStreamHandler(String protocol) {
                 if (protocol.equals("action")) {
+                    return new URLStreamHandler() {
+                        @Override
+                        protected URLConnection openConnection(URL u) throws IOException {
+                            throw new UnsupportedOperationException("Not supported");
+                        }
+                    };
+                } else if (protocol.equals("bitcoin")) {
                     return new URLStreamHandler() {
                         @Override
                         protected URLConnection openConnection(URL u) throws IOException {
@@ -273,105 +267,41 @@ public class Main {
             world = null;
         } else {
             file = null;
-//            final HeightMapTileFactory tileFactory = new ExperimentalTileFactory(config.getDefaultMaxHeight());
-            final HeightMapTileFactory tileFactory;
-            if (config.isHilly()) {
-                tileFactory = TileFactoryFactory.createNoiseTileFactory(config.getSurface(), config.getDefaultMaxHeight(), config.getLevel(), config.getWaterLevel(), config.isLava(), config.isBeaches(), config.getDefaultRange(), config.getDefaultScale());
-            } else {
-                tileFactory = TileFactoryFactory.createFlatTileFactory(config.getSurface(), config.getDefaultMaxHeight(), config.getLevel(), config.getWaterLevel(), config.isLava(), config.isBeaches());
-            }
-            Dimension defaults = config.getDefaultTerrainAndLayerSettings();
-            if ((defaults.getTileFactory() instanceof HeightMapTileFactory) && (((HeightMapTileFactory) defaults.getTileFactory()).getTerrainRanges() != null)) {
-                HeightMapTileFactory defaultTileFactory = (HeightMapTileFactory) defaults.getTileFactory();
-                tileFactory.setTerrainRanges(new TreeMap<Integer, Terrain>(defaultTileFactory.getTerrainRanges()));
-                tileFactory.setRandomise(defaultTileFactory.isRandomise());
-            }
-            world = new World2(World2.DEFAULT_OCEAN_SEED, new Random().nextLong(), tileFactory, tileFactory.getMaxHeight());
-            ResourceBundle strings = ResourceBundle.getBundle("org.pepsoft.worldpainter.resources.strings");
-            world.setName(strings.getString("generated.world"));
-            Dimension dim0 = world.getDimension(0);
-            dim0.setEventsInhibited(true);
-            try {
-                if (config.isDefaultCircularWorld()) {
-                    int radius = config.getDefaultWidth() * 64;
-                    int tileRadius = (radius + 127) / 128;
-                    for (int x = -tileRadius; x < tileRadius; x++) {
-                        for (int y = -tileRadius; y < tileRadius; y++) {
-                            if (org.pepsoft.worldpainter.util.MathUtils.getSmallestDistanceFromOrigin(x, y) < radius) {
-                                // At least one corner is inside the circle; include
-                                // the tile. Note that this is always correct in
-                                // this case only because the centre of the circle
-                                // is always at a tile intersection so the circle
-                                // can never "bulge" into a tile without any of the
-                                // the tile's corners being inside the circle
-                                Tile tile = tileFactory.createTile(dim0.getSeed(), x, y);
-                                dim0.addTile(tile);
-                                if (org.pepsoft.worldpainter.util.MathUtils.getLargestDistanceFromOrigin(x, y) >= radius) {
-                                    // The tile is not completely inside the circle,
-                                    // so use the Void layer to create the shape of
-                                    // the edge
-                                    for (int xx = 0; xx < TILE_SIZE; xx++) {
-                                        for (int yy = 0; yy < TILE_SIZE; yy++) {
-                                            float distance = MathUtils.getDistance(x * TILE_SIZE + xx + 0.5f, y * TILE_SIZE + yy + 0.5f);
-                                            if (distance > radius) {
-                                                tile.setBitLayerValue(org.pepsoft.worldpainter.layers.Void.INSTANCE, xx, yy, true);
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    // Assume the user will want a void border by default; override
-                    // the preferences
-                    dim0.setBorder(Border.VOID);
-                    dim0.setBorderSize(2);
-                } else {
-                    int width = config.getDefaultWidth(), height = config.getDefaultHeight();
-                    int startX = -width / 2;
-                    int startY = -height / 2;
-                    for (int x = startX; x < startX + width; x++) {
-                        for (int y = startY; y < startY + height; y++) {
-                            Tile tile = tileFactory.createTile(dim0.getSeed(), x, y);
-                            dim0.addTile(tile);
-                        }
-                    }
-
-                    dim0.setBorder(defaults.getBorder());
-                    dim0.setBorderSize(defaults.getBorderSize());
-                    dim0.setBedrockWall(defaults.isBedrockWall());
-                }
-                dim0.setBorderLevel(defaults.getBorderLevel());
-                dim0.setSubsurfaceMaterial(defaults.getSubsurfaceMaterial());
-                dim0.setPopulate(defaults.isPopulate());
-                for (Map.Entry<Layer, ExporterSettings> entry: defaults.getAllLayerSettings().entrySet()) {
-                    dim0.setLayerSettings(entry.getKey(), entry.getValue().clone());
-                }
-                dim0.setGridEnabled(config.isDefaultGridEnabled());
-                dim0.setGridSize(config.getDefaultGridSize());
-                dim0.setContoursEnabled(config.isDefaultContoursEnabled());
-                dim0.setContourSeparation(config.getDefaultContourSeparation());
-            } finally {
-                dim0.setEventsInhibited(false);
-            }
-            if (tileFactory.getMaxHeight() == org.pepsoft.minecraft.Constants.DEFAULT_MAX_HEIGHT_2) {
-                world.setBiomeAlgorithm(config.isDefaultAutomaticBiomesEnabled() ? World2.BIOME_ALGORITHM_AUTO_BIOMES : World2.BIOME_ALGORITHM_NONE);
-                world.setCustomBiomes(config.isDefaultCustomBiomesEnabled());
-            } else {
-                world.setBiomeAlgorithm(World2.BIOME_ALGORITHM_NONE);
-                world.setCustomBiomes(false);
-            }
-            world.setDirty(false);
+            world = WorldFactory.createDefaultWorld(config, new Random().nextLong());
+//            world = WorldFactory.createFancyWorld(config, new Random().nextLong());
         }
 
+        // Install JIDE licence
+        Properties jideLicenceProps = new Properties();
+        jideLicenceProps.load(ClassLoader.getSystemResourceAsStream("jide_licence.properties"));
+        Lm.verifyLicense(jideLicenceProps.getProperty("companyName"), jideLicenceProps.getProperty("projectName"), jideLicenceProps.getProperty("licenceKey"));
+        
         SwingUtilities.invokeLater(new Runnable() {
             @Override
             public void run() {
+                // Use the system look and feel
+                try {
+                    String laf = UIManager.getSystemLookAndFeelClassName();
+                    logger.fine("Installing look and feel: " + laf);
+                    UIManager.setLookAndFeel(laf);
+                    LookAndFeelFactory.installJideExtension();
+                } catch (ClassNotFoundException e) {
+                    // We tried...
+                } catch (InstantiationException e) {
+                    // We tried...
+                } catch (IllegalAccessException e) {
+                    // We tried...
+                } catch (UnsupportedLookAndFeelException e) {
+                    // We tried...
+                }
+
+                // Don't paint values above sliders in GTK look and feel
+                UIManager.put("Slider.paintValue", Boolean.FALSE);
+
                 App app = App.getInstance();
                 app.setVisible(true);
                 // Swing quirk:
-                if (Configuration.getInstance().isMaximised()) {
+                if (Configuration.getInstance().isMaximised() && (System.getProperty("org.pepsoft.worldpainter.size") == null)) {
                     app.setExtendedState(Frame.MAXIMIZED_BOTH);
                 }
                 if (world != null) {
@@ -379,16 +309,6 @@ public class Main {
                     // may be opening a .world file, but it has proven difficult
                     // to detect that. TODO
                     app.setWorld(world);
-                    if (world.isCustomBiomes() && (app.getBiomeScheme() != null)) {
-                        Dimension dimension = world.getDimension(0);
-                        
-                        // Initialise the custom biomes
-                        dimension.recalculateBiomes(app.getBiomeScheme(), null);
-                        
-                        // Throw away the undo information generated by initialising the biomes
-                        dimension.clearUndo();
-                        dimension.armSavePoint();
-                    }
                 } else {
                     app.open(file);
                 }
@@ -403,6 +323,7 @@ public class Main {
     
     private static boolean processCommandLine(String[] args) {
         for (int i = 0; i < args.length; i++) {
+            // TODO: finish
         }
         return false;
     }

@@ -24,7 +24,7 @@ public class DumpBiomes {
         BiomeScheme biomeScheme = new Minecraft1_9BiomeScheme(new File("/home/pepijn/.minecraft/bin/minecraft.jar"), null);
         biomeScheme.setSeed(1L);
         int[] biomes = biomeScheme.getBiomes(-500, -500, 1001, 1001);
-        ColourScheme colourScheme = new DynMapColourScheme("default");
+        ColourScheme colourScheme = new DynMapColourScheme("default", true);
         int[] colours = new int[] {
             colourScheme.getColour(BLK_WATER),
             colourScheme.getColour(BLK_GRASS),

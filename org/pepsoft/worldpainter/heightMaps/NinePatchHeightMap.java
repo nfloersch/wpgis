@@ -4,6 +4,8 @@
  */
 package org.pepsoft.worldpainter.heightMaps;
 
+import org.pepsoft.util.MathUtils;
+
 /**
  *
  * @author pepijn
@@ -20,6 +22,7 @@ public final class NinePatchHeightMap extends AbstractHeightMap {
         this.borderSize = borderSize;
         this.coastSize = coastSize;
         this.height = height;
+        halfHeight = height / 2;
         borderTotal = innerSize + borderSize;
         coastTotal = borderTotal + coastSize;
     }
@@ -37,12 +40,55 @@ public final class NinePatchHeightMap extends AbstractHeightMap {
                 return height;
             } else if (y < coastTotal) {
                 // Coast
-                return (float) (Math.cos((y - borderTotal) / coastSize * Math.PI) * height);
+                return (float) (Math.cos((double) (y - borderTotal) / coastSize * Math.PI) * halfHeight) + halfHeight;
+            } else {
+                // Outside the continent
+                return 0;
+            }
+        } else if (x < borderTotal) {
+            if (y < innerSize) {
+                // Border
+                return height;
+            } else if (y < coastTotal) {
+                // Corner
+                float distanceFromCorner = MathUtils.getDistance(x - innerSize, y - innerSize);
+                if (distanceFromCorner < borderSize) {
+                    // Border
+                    return height;
+                } else if (distanceFromCorner - borderSize < coastSize) {
+                    return (float) (Math.cos((double) (distanceFromCorner - borderSize) / coastSize * Math.PI) * halfHeight) + halfHeight;
+                    // Coast
+                } else {
+                    // Outside the continent
+                    return 0;
+                }
+            } else {
+                // Outside the continent
+                return 0;
+            }
+        } else if (x < coastTotal) {
+            if (y < innerSize) {
+                // Coast
+                return (float) (Math.cos((double) (x - borderTotal) / coastSize * Math.PI) * halfHeight) + halfHeight;
+            } else if (y < coastTotal) {
+                // Corner
+                float distanceFromCorner = MathUtils.getDistance(x - innerSize, y - innerSize);
+                if (distanceFromCorner < borderSize) {
+                    // Border
+                    return height;
+                } else if (distanceFromCorner - borderSize < coastSize) {
+                    return (float) (Math.cos((double) (distanceFromCorner - borderSize) / coastSize * Math.PI) * halfHeight) + halfHeight;
+                    // Coast
+                } else {
+                    // Outside the continent
+                    return 0;
+                }
             } else {
                 // Outside the continent
                 return 0;
             }
         } else {
+            // Outside the continent
             return 0;
         }
     }
@@ -54,7 +100,7 @@ public final class NinePatchHeightMap extends AbstractHeightMap {
     
     private final int innerSize, borderSize, coastSize;
     private final int borderTotal, coastTotal;
-    private final float height;
+    private final float height, halfHeight;
     
     private static final long serialVersionUID = 1L;
 }

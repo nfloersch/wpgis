@@ -15,6 +15,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.logging.Logger;
 import org.pepsoft.util.ColourUtils;
 import org.pepsoft.worldpainter.layers.Biome;
 import org.pepsoft.worldpainter.layers.FloodWithLava;
@@ -28,6 +29,8 @@ import org.pepsoft.worldpainter.layers.renderers.LayerRenderer;
 import org.pepsoft.worldpainter.layers.renderers.NibbleLayerRenderer;
 import static org.pepsoft.worldpainter.Constants.*;
 import static org.pepsoft.minecraft.Constants.*;
+import org.pepsoft.worldpainter.biomeschemes.CustomBiomeManager;
+import org.pepsoft.worldpainter.layers.renderers.DimensionAwareRenderer;
 
 /**
  * This class is <strong>not</strong> thread-safe!
@@ -35,14 +38,14 @@ import static org.pepsoft.minecraft.Constants.*;
  * @author pepijn
  */
 public final class TileRenderer {
-    public TileRenderer(TileProvider tileProvider, ColourScheme colourScheme, BiomeScheme biomeScheme) {
-        this(tileProvider, colourScheme, biomeScheme, false);
+    public TileRenderer(TileProvider tileProvider, ColourScheme colourScheme, BiomeScheme biomeScheme, CustomBiomeManager customBiomeManager) {
+        this(tileProvider, colourScheme, biomeScheme, customBiomeManager, false);
     }
 
-    public TileRenderer(TileProvider tileProvider, ColourScheme colourScheme, BiomeScheme biomeScheme, boolean dry) {
+    public TileRenderer(TileProvider tileProvider, ColourScheme colourScheme, BiomeScheme biomeScheme, CustomBiomeManager customBiomeManager, boolean dry) {
+        biomeRenderer = new BiomeRenderer(biomeScheme, customBiomeManager);
         setTileProvider(tileProvider);
         setColourScheme(colourScheme);
-        setBiomeScheme(biomeScheme);
         this.dry = dry;
     }
 
@@ -54,6 +57,7 @@ public final class TileRenderer {
         this.tileProvider = tileProvider;
         if (tileProvider instanceof Dimension) {
             seed = ((Dimension) tileProvider).getSeed();
+            bottomless = ((Dimension) tileProvider).isBottomless();
         }
     }
 
@@ -63,38 +67,30 @@ public final class TileRenderer {
 
     public final void setColourScheme(ColourScheme colourScheme) {
         this.colourScheme = colourScheme;
-    }
-
-    public final BiomeScheme getBiomeScheme() {
-        return biomeScheme;
-    }
-
-    public final void setBiomeScheme(BiomeScheme biomeScheme) {
-        this.biomeScheme = biomeScheme;
-        biomeRenderer.setBiomeScheme(biomeScheme);
+        waterColour = colourScheme.getColour(BLK_WATER);
+        lavaColour = colourScheme.getColour(BLK_LAVA);
+        bedrockColour = colourScheme.getColour(BLK_BEDROCK);
     }
 
     public void addHiddenLayers(Collection<Layer> hiddenLayers) {
-        for (Layer hiddenLayer: hiddenLayers) {
-            addHiddenLayer(hiddenLayer);
-        }
+        this.hiddenLayers.addAll(hiddenLayers);
     }
     
     public void addHiddenLayer(Layer hiddenLayer) {
         hiddenLayers.add(hiddenLayer);
     }
 
-    public void addHiddenLayers(Set<Layer> hiddenLayers) {
-        hiddenLayers.addAll(hiddenLayers);
-    }
-    
-    public void removeHiddenLayer(Layer layer) {
-        hiddenLayers.remove(layer);
+    public void removeHiddenLayer(Layer hiddenLayer) {
+        // The FloodWithLava layer should *always* remain hidden
+        if (! hiddenLayer.equals(FloodWithLava.INSTANCE)) {
+            hiddenLayers.remove(hiddenLayer);
+        }
     }
 
     public Set<Layer> getHiddenLayers() {
         return Collections.unmodifiableSet(hiddenLayers);
     }
+
     public Tile getTile() {
         return tile;
     }
@@ -103,7 +99,9 @@ public final class TileRenderer {
         this.tile = tile;
         for (int x = 0; x < TILE_SIZE; x++) {
             for (int y = 0; y < TILE_SIZE; y++) {
-                intHeightCache[x + y * TILE_SIZE] = tile.getIntHeight(x, y);
+                final float height = tile.getHeight(x, y);
+                floatHeightCache[x + y * TILE_SIZE] = height;
+                intHeightCache[x + y * TILE_SIZE] = (int) (height + 0.5f);
             }
         }
     }
@@ -133,14 +131,16 @@ public final class TileRenderer {
     }
 
     public void renderTile(BufferedImage image, int dx, int dy) {
-        List<Layer> layerList = new ArrayList<Layer>(tile.getLayers());
+        // TODO this deadlocks background painting. Find out why:
+//        synchronized (tile) {
+        final List<Layer> layerList = new ArrayList<Layer>(tile.getLayers());
         if (! layerList.contains(Biome.INSTANCE)) {
             layerList.add(Biome.INSTANCE);
         }
         layerList.removeAll(hiddenLayers);
-        boolean _void = layerList.contains(org.pepsoft.worldpainter.layers.Void.INSTANCE);
-        Layer[] layers = layerList.toArray(new Layer[layerList.size()]);
-        LayerRenderer[] renderers = new LayerRenderer[layers.length];
+        final boolean _void = layerList.contains(org.pepsoft.worldpainter.layers.Void.INSTANCE);
+        final Layer[] layers = layerList.toArray(new Layer[layerList.size()]);
+        final LayerRenderer[] renderers = new LayerRenderer[layers.length];
         boolean renderBiomes = false;
         for (int i = 0; i < layers.length; i++) {
             if (layers[i] instanceof Biome) {
@@ -151,6 +151,9 @@ public final class TileRenderer {
             }
             if (renderers[i] instanceof ColourSchemeRenderer) {
                 ((ColourSchemeRenderer) renderers[i]).setColourScheme(colourScheme);
+            }
+            if ((renderers[i] instanceof DimensionAwareRenderer) && (tileProvider instanceof Dimension)) {
+                ((DimensionAwareRenderer) renderers[i]).setDimension((Dimension) tileProvider);
             }
         }
         LayerRenderer[] voidRenderers = null;
@@ -164,8 +167,8 @@ public final class TileRenderer {
                 voidRenderers = new LayerRenderer[] {org.pepsoft.worldpainter.layers.Void.INSTANCE.getRenderer()};
             }
         }
-        
-        int tileX = tile.getX() * TILE_SIZE, tileY = tile.getY() * TILE_SIZE;
+
+        final int tileX = tile.getX() * TILE_SIZE, tileY = tile.getY() * TILE_SIZE;
         if (zoom == 1) {
             for (int x = 0; x < TILE_SIZE; x++) {
                 for (int y = 0; y < TILE_SIZE; y++) {
@@ -179,7 +182,7 @@ public final class TileRenderer {
                 }
             }
         } else {
-            int zoomSquared = zoom * zoom;
+            final int zoomSquared = zoom * zoom;
             for (int x = 0; x < TILE_SIZE; x += zoom) {
                 for (int y = 0; y < TILE_SIZE; y += zoom) {
                     if (_void && tile.getBitLayerValue(org.pepsoft.worldpainter.layers.Void.INSTANCE, x, y)) {
@@ -192,8 +195,9 @@ public final class TileRenderer {
                 }
             }
         }
+//        }
         
-        WritableRaster raster = image.getRaster();
+        final WritableRaster raster = image.getRaster();
         int transferType = raster.getTransferType();
         if (transferType == DataBuffer.TYPE_INT) {
             // TODO: this is a bit dodgy. The pixel format might be different,
@@ -236,24 +240,24 @@ public final class TileRenderer {
         }
         this.lightOrigin = lightOrigin;
     }
-    
+
     private int getPixelColour(int tileX, int tileY, int x, int y, Layer[] layers, LayerRenderer[] renderers, boolean contourLines) {
         final int offset = x + y * TILE_SIZE;
-        final int height = intHeightCache[offset];
+        final int intHeight = intHeightCache[offset];
 //        heights[0][0] = getNeighbourHeight(x, y, -1, -1);
 //        deltas [0][0] = heights[0][0] - height;
         heights[1][0] = getNeighbourHeight(x, y,  0, -1);
-        deltas [1][0] = heights[1][0] - height;
+        deltas [1][0] = heights[1][0] - intHeight;
 //        heights[2][0] = getNeighbourHeight(x, y,  1, -1);
 //        deltas [2][0] = heights[2][0] - height;
         heights[0][1] = getNeighbourHeight(x, y, -1,  0);
-        deltas [0][1] = heights[0][1] - height;
+        deltas [0][1] = heights[0][1] - intHeight;
         heights[2][1] = getNeighbourHeight(x, y,  1,  0);
-        deltas [2][1] = heights[2][1] - height;
+        deltas [2][1] = heights[2][1] - intHeight;
 //        heights[0][2] = getNeighbourHeight(x, y, -1,  1);
 //        deltas [0][2] = heights[0][2] - height;
         heights[1][2] = getNeighbourHeight(x, y,  0,  1);
-        deltas [1][2] = heights[1][2] - height;
+        deltas [1][2] = heights[1][2] - intHeight;
 //        heights[2][2] = getNeighbourHeight(x, y,  1,  1);
 //        deltas [2][2] = heights[2][2] - height;
 //        if (       (deltas[0][0] >= 0) || (deltas[0][0] < -1)
@@ -272,26 +276,28 @@ public final class TileRenderer {
 //            }
 //            return RED;
 //        }
-        if (contourLines && ((height % contourSeparation) == 0)
+        if (contourLines && ((intHeight % contourSeparation) == 0)
                 && ((deltas[0][1] < 0)
                     || (deltas[2][1] < 0)
                     || (deltas[1][0] < 0)
                     || (deltas[1][2] < 0))) {
             return BLACK;
         }
-        int waterLevel = tile.getWaterLevel(x, y);
+        final int waterLevel = tile.getWaterLevel(x, y);
         int colour;
-        if ((! dry) && (waterLevel > height)) {
+        final int worldX = tileX | x, worldY = tileY | y;
+        if ((! dry) && (waterLevel > intHeight)) {
             if (tile.getBitLayerValue(FloodWithLava.INSTANCE, x, y)) {
-                colour = colourScheme.getColour(BLK_LAVA);
+                colour = lavaColour;
             } else {
-                colour = colourScheme.getColour(BLK_WATER);
+                colour = waterColour;
             }
         } else {
-            colour = tile.getTerrain(x, y).getColour(seed, tileX + x, tileY + y, height, height, colourScheme);
+            final float height = floatHeightCache[offset];
+            colour = ((! bottomless) && (intHeight == 0)) ? bedrockColour : tile.getTerrain(x, y).getColour(seed, worldX, worldY, height, intHeight, colourScheme);
         }
         for (int i = 0; i < layers.length; i++) {
-            Layer layer = layers[i];
+            final Layer layer = layers[i];
             switch (layer.getDataSize()) {
                 case BIT:
                 case BIT_PER_CHUNK:
@@ -300,17 +306,47 @@ public final class TileRenderer {
                     }
                     boolean bitLayerValue = tile.getBitLayerValue(layer, x, y);
                     if (bitLayerValue) {
-                        colour = ((BitLayerRenderer) renderers[i]).getPixelColour(x, y, colour, bitLayerValue);
+                        final BitLayerRenderer renderer = (BitLayerRenderer) renderers[i];
+                        if (renderer == null) {
+                            logger.severe("Missing renderer for layer " + layer + " (type: " + layer.getClass().getSimpleName() + ")");
+                            if (! missingRendererReportedFor.contains(layer)) {
+                                missingRendererReportedFor.add(layer);
+                                throw new IllegalStateException("Missing renderer for layer " + layer + " (type: " + layer.getClass().getSimpleName() + ")");
+                            } else {
+                                continue;
+                            }
+                        }
+                        colour = renderer.getPixelColour(worldX, worldY, colour, bitLayerValue);
                     }
                     break;
                 case NIBBLE:
                     int layerValue = tile.getLayerValue(layer, x, y);
                     if (layerValue > 0) {
-                        colour = ((NibbleLayerRenderer) renderers[i]).getPixelColour(x, y, colour, layerValue);
+                        final NibbleLayerRenderer renderer = (NibbleLayerRenderer) renderers[i];
+                        if (renderer == null) {
+                            logger.severe("Missing renderer for layer " + layer + " (type: " + layer.getClass().getSimpleName() + ")");
+                            if (! missingRendererReportedFor.contains(layer)) {
+                                missingRendererReportedFor.add(layer);
+                                throw new IllegalStateException("Missing renderer for layer " + layer + " (type: " + layer.getClass().getSimpleName() + ")");
+                            } else {
+                                continue;
+                            }
+                        }
+                        colour = renderer.getPixelColour(worldX, worldY, colour, layerValue);
                     }
                     break;
                 case BYTE:
-                    colour = ((ByteLayerRenderer) renderers[i]).getPixelColour(x, y, colour, tile.getLayerValue(layer, x, y));
+                    final ByteLayerRenderer renderer = (ByteLayerRenderer) renderers[i];
+                    if (renderer == null) {
+                        logger.severe("Missing renderer for layer " + layer + " (type: " + layer.getClass().getSimpleName() + ")");
+                        if (! missingRendererReportedFor.contains(layer)) {
+                            missingRendererReportedFor.add(layer);
+                            throw new IllegalStateException("Missing renderer for layer " + layer + " (type: " + layer.getClass().getSimpleName() + ")");
+                        } else {
+                            continue;
+                        }
+                    }
+                    colour = renderer.getPixelColour(worldX, worldY, colour, tile.getLayerValue(layer, x, y));
                     break;
                 default:
                     throw new UnsupportedOperationException("Don't know how to render " + layer.getClass().getSimpleName());
@@ -346,23 +382,25 @@ public final class TileRenderer {
         }
     }
 
+    private final BiomeRenderer biomeRenderer;
+    private final Set<Layer> hiddenLayers = new HashSet<Layer>(Arrays.asList(FloodWithLava.INSTANCE));
+    private final int[] intHeightCache = new int[TILE_SIZE * TILE_SIZE];
+    private final float[] floatHeightCache = new float[TILE_SIZE * TILE_SIZE];
+    private final int[] renderBuffer = new int[TILE_SIZE * TILE_SIZE];
+    private final boolean dry;
+    private final int[][] heights = new int[3][3], deltas = new int[3][3];
+    private final Set<Layer> missingRendererReportedFor = new HashSet<Layer>(); // TODO remove when no longer necessary!
     private TileProvider tileProvider;
     private long seed;
     private Tile tile;
-    private final BiomeRenderer biomeRenderer = new BiomeRenderer();
-    private Set<Layer> hiddenLayers = new HashSet<Layer>(Arrays.asList(FloodWithLava.INSTANCE));
     private ColourScheme colourScheme;
-    private final int[] intHeightCache = new int[TILE_SIZE * TILE_SIZE];
-    private BiomeScheme biomeScheme;
-    private final int[] renderBuffer = new int[TILE_SIZE * TILE_SIZE];
-    private final boolean dry;
     private int zoom = 1;
-    private boolean contourLines = true;
-    private int contourSeparation = 10;
+    private boolean contourLines = true, bottomless;
+    private int contourSeparation = 10, waterColour, lavaColour, bedrockColour;
     private LightOrigin lightOrigin = LightOrigin.NORTHWEST;
-    private final int[][] heights = new int[3][3], deltas = new int[3][3];
     
     private static final int BLACK = 0x000000, RED = 0xFF0000;
+    private static final Logger logger = Logger.getLogger(TileRenderer.class.getName());
 
     public enum LightOrigin {
         NORTHWEST {

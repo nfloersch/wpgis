@@ -11,20 +11,13 @@
 package org.pepsoft.worldpainter;
 
 import java.awt.Color;
-import java.awt.Frame;
-import java.awt.event.ActionEvent;
-import java.awt.event.KeyEvent;
+import java.awt.Window;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Arrays;
 import java.util.Comparator;
 
-import javax.swing.AbstractAction;
-import javax.swing.ActionMap;
-import javax.swing.InputMap;
 import javax.swing.JColorChooser;
-import javax.swing.JComponent;
-import javax.swing.KeyStroke;
 import javax.swing.SpinnerModel;
 import javax.swing.SpinnerNumberModel;
 import javax.swing.event.DocumentEvent;
@@ -39,7 +32,7 @@ import org.pepsoft.minecraft.Material;
 import org.pepsoft.util.DesktopUtils;
 import org.pepsoft.worldpainter.MixedMaterial.Row;
 
-import org.pepsoft.worldpainter.terrainRanges.JSpinnerTableCellEditor;
+import org.pepsoft.worldpainter.themes.JSpinnerTableCellEditor;
 import static org.pepsoft.worldpainter.MixedMaterialTableModel.*;
 import static org.pepsoft.minecraft.Constants.*;
 
@@ -47,10 +40,10 @@ import static org.pepsoft.minecraft.Constants.*;
  *
  * @author pepijn
  */
-public class CustomMaterialDialog extends javax.swing.JDialog {
+public class CustomMaterialDialog extends WorldPainterDialog {
     /** Creates new form CustomMaterialDialog */
-    public CustomMaterialDialog(Frame parent, MixedMaterial mixedMaterial, boolean extendedBlockIds) {
-        super(parent, true);
+    public CustomMaterialDialog(Window parent, MixedMaterial mixedMaterial, boolean extendedBlockIds) {
+        super(parent);
         this.extendedBlockIds = extendedBlockIds;
         this.biome = mixedMaterial.getBiome();
         
@@ -106,43 +99,22 @@ public class CustomMaterialDialog extends javax.swing.JDialog {
         checkBoxColour.setSelected(mixedMaterial.getColour() != null);
         
         setControlStates();
-        
-        ActionMap actionMap = rootPane.getActionMap();
-        actionMap.put("cancel", new AbstractAction("cancel") {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                cancel();
-            }
-
-            private static final long serialVersionUID = 1L;
-        });
-
-        InputMap inputMap = rootPane.getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT);
-        inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "cancel");
 
         rootPane.setDefaultButton(buttonOK);
         
         setLocationRelativeTo(parent);
     }
     
-    public boolean isCancelled() {
-        return cancelled;
-    }
-    
     public MixedMaterial getMaterial() {
         return new MixedMaterial(fieldName.getText(), tableModel.getRows(), biome, radioButtonNoise.isSelected(), (Integer) spinnerScale.getValue() / 100.0f, checkBoxColour.isSelected() ? selectedColour : null);
     }
     
-    private void ok() {
+    @Override
+    protected void ok() {
         if (tableMaterialRows.isEditing()) {
             tableMaterialRows.getCellEditor().stopCellEditing();
         }
-        cancelled = false;
-        dispose();
-    }
-    
-    private void cancel() {
-        dispose();
+        super.ok();
     }
     
     private void addMaterial() {
@@ -172,7 +144,10 @@ public class CustomMaterialDialog extends javax.swing.JDialog {
             }
         }
         buttonRemoveMaterial.setEnabled(validRowsSelected);
-        spinnerScale.setEnabled(radioButtonBlobs.isSelected());
+        boolean oneMaterial = tableModel.getRowCount() < 2;
+        radioButtonBlobs.setEnabled(! oneMaterial);
+        radioButtonNoise.setEnabled(! oneMaterial);
+        spinnerScale.setEnabled((! oneMaterial) && radioButtonBlobs.isSelected());
         tableModel.setScaleEnabled(radioButtonBlobs.isSelected());
         if (checkBoxColour.isSelected()) {
             setLabelColour();
@@ -232,6 +207,21 @@ public class CustomMaterialDialog extends javax.swing.JDialog {
 
     private void setLabelColour() {
         labelColour.setBackground(new Color(selectedColour));
+    }
+    
+    private void configureTable() {
+        tableMaterialRows.setModel(tableModel);
+        TableColumn blockIDColumn = tableMaterialRows.getColumnModel().getColumn(COLUMN_BLOCK_ID);
+        blockIDColumn.setCellEditor(new BlockIDTableCellEditor(extendedBlockIds));
+        blockIDColumn.setCellRenderer(new BlockIDTableCellRenderer());
+        SpinnerModel dataValueSpinnerModel = new SpinnerNumberModel(0, 0, 15, 1);
+        tableMaterialRows.getColumnModel().getColumn(COLUMN_DATA_VALUE).setCellEditor(new JSpinnerTableCellEditor(dataValueSpinnerModel));
+        SpinnerModel occurrenceSpinnerModel = new SpinnerNumberModel(1000, 0, 1000, 1);
+        tableMaterialRows.getColumnModel().getColumn(COLUMN_OCCURRENCE).setCellEditor(new JSpinnerTableCellEditor(occurrenceSpinnerModel));
+        if (tableModel.isScaleEnabled()) {
+            SpinnerModel scaleSpinnerModel = new SpinnerNumberModel(100, 1, 9999, 1);
+            tableMaterialRows.getColumnModel().getColumn(COLUMN_SCALE).setCellEditor(new JSpinnerTableCellEditor(scaleSpinnerModel));
+        }
     }
     
     /** This method is called from within the constructor to
@@ -521,25 +511,9 @@ public class CustomMaterialDialog extends javax.swing.JDialog {
 
     private final MixedMaterialTableModel tableModel;
     private final boolean extendedBlockIds;
-    private boolean cancelled = true;
     private int biome;
     private String previousCalculatedName;
     private int selectedColour = Color.ORANGE.getRGB();
     
     private static final long serialVersionUID = 1L;
-
-    private void configureTable() {
-        tableMaterialRows.setModel(tableModel);
-        TableColumn blockIDColumn = tableMaterialRows.getColumnModel().getColumn(COLUMN_BLOCK_ID);
-        blockIDColumn.setCellEditor(new BlockIDTableCellEditor(extendedBlockIds));
-        blockIDColumn.setCellRenderer(new BlockIDTableCellRenderer());
-        SpinnerModel dataValueSpinnerModel = new SpinnerNumberModel(0, 0, 15, 1);
-        tableMaterialRows.getColumnModel().getColumn(COLUMN_DATA_VALUE).setCellEditor(new JSpinnerTableCellEditor(dataValueSpinnerModel));
-        SpinnerModel occurrenceSpinnerModel = new SpinnerNumberModel(1000, 0, 1000, 1);
-        tableMaterialRows.getColumnModel().getColumn(COLUMN_OCCURRENCE).setCellEditor(new JSpinnerTableCellEditor(occurrenceSpinnerModel));
-        if (tableModel.isScaleEnabled()) {
-            SpinnerModel scaleSpinnerModel = new SpinnerNumberModel(100, 1, 9999, 1);
-            tableMaterialRows.getColumnModel().getColumn(COLUMN_SCALE).setCellEditor(new JSpinnerTableCellEditor(scaleSpinnerModel));
-        }
-    }
 }

@@ -29,7 +29,7 @@ import org.pepsoft.util.ProgressReceiver;
  *
  * @author pepijn
  */
-public class ProgressComponent extends javax.swing.JPanel implements ProgressReceiver, ActionListener {
+public class ProgressComponent<T> extends javax.swing.JPanel implements ProgressReceiver, ActionListener {
     /** Creates new form ProgressComponent */
     public ProgressComponent() {
         initComponents();
@@ -43,7 +43,7 @@ public class ProgressComponent extends javax.swing.JPanel implements ProgressRec
         return listener;
     }
 
-    public void setTask(ProgressTask<?> task) {
+    public void setTask(ProgressTask<T> task) {
         this.task = task;
         jLabel1.setText(task.getName());
     }
@@ -134,7 +134,7 @@ public class ProgressComponent extends javax.swing.JPanel implements ProgressRec
         });
     }
 
-    @Override @SuppressWarnings("unchecked")
+    @Override
     public synchronized void done() {
         doOnEventThread(new Runnable() {
             @Override
@@ -200,8 +200,11 @@ public class ProgressComponent extends javax.swing.JPanel implements ProgressRec
                 lastReportedMinutes = minutes;
                 if (minutes < 1) {
                     jLabel2.setText("Less than a minute remaining");
-                } else {
+                } else if (minutes < 90) {
                     jLabel2.setText("About " + (minutes + 1) + " minutes remaining");
+                } else {
+                    int hours = (minutes + 30) / 60;
+                    jLabel2.setText("About " + hours + " hours remaining");
                 }
             }
             if (stats != null) {
@@ -282,24 +285,24 @@ public class ProgressComponent extends javax.swing.JPanel implements ProgressRec
     private javax.swing.JProgressBar jProgressBar1;
     // End of variables declaration//GEN-END:variables
 
-    private ProgressTask<?> task;
+    private ProgressTask<T> task;
     private volatile boolean cancelRequested;
-    private volatile Object result;
+    private volatile T result;
     private Thread thread;
     private long start, remaining, lastUpdate;
     private int progressReports, lastReportedMinutes = Integer.MAX_VALUE;
     private Timer timer;
-    private Listener listener;
+    private Listener<T> listener;
     private boolean timeEstimatesActivated, inhibitDone, cancelable = true;
     private List<int[]> stats;
  
     private static final Logger logger = Logger.getLogger(ProgressComponent.class.getName());
     private static final long serialVersionUID = 1L;
     
-    public interface Listener {
+    public interface Listener<T> {
         void exceptionThrown(Throwable exception);
         
-        void done(Object result);
+        void done(T result);
         
         void cancelled();
     }

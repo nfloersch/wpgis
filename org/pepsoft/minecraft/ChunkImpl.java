@@ -15,7 +15,8 @@ import org.jnbt.Tag;
 import static org.pepsoft.minecraft.Constants.*;
 
 /**
- *
+ * An "MCRegion" chunk.
+ * 
  * @author pepijn
  */
 public final class ChunkImpl extends AbstractNBTItem implements Chunk {

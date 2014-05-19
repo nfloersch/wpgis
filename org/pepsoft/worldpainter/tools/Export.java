@@ -11,6 +11,8 @@ import java.io.ObjectInputStream;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.zip.GZIPInputStream;
+import org.pepsoft.minecraft.Constants;
+import org.pepsoft.util.FileUtils;
 import org.pepsoft.util.ProgressReceiver;
 import org.pepsoft.util.ProgressReceiver.OperationCancelled;
 import org.pepsoft.worldpainter.MixedMaterial;
@@ -41,6 +43,13 @@ public class Export {
             MixedMaterial material = world.getMixedMaterial(i);
             Terrain.setCustomMaterial(i, material);
         }
+        if (world.getVersion() == 0) {
+            if (world.getMaxHeight() == Constants.DEFAULT_MAX_HEIGHT_2) {
+                world.setVersion(Constants.SUPPORTED_VERSION_2);
+            } else {
+                world.setVersion(Constants.SUPPORTED_VERSION_1);
+            }
+        }
         
         File exportDir;
         if (args.length > 1) {
@@ -52,7 +61,7 @@ public class Export {
         System.out.println("Exporting to " + exportDir);
         System.out.println("+---------+---------+---------+---------+---------+");
         WorldExporter exporter = new WorldExporter(world);
-        exporter.export(exportDir, world.getName(), new ProgressReceiver() {
+        exporter.export(exportDir, world.getName(), exporter.selectBackupDir(new File(exportDir, FileUtils.sanitiseName(world.getName()))), new ProgressReceiver() {
             @Override
             public void setProgress(float progressFraction) throws OperationCancelled {
                 int progress = (int) (progressFraction * 50);

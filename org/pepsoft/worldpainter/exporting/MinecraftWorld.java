@@ -50,8 +50,10 @@ public interface MinecraftWorld extends ChunkProvider {
 
     void addEntity(int x, int y, int height, Entity entity);
 
-    void addTileEntity(int x, int y, int height, TileEntity tileEntity);
+    void addEntity(double x, double y, double height, Entity entity);
 
+    void addTileEntity(int x, int y, int height, TileEntity tileEntity);
+    
     /**
      * Returns {@code 0} if {@code height} is too large.
      */

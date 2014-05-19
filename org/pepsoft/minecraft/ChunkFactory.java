@@ -18,9 +18,10 @@ public interface ChunkFactory {
      *     to generate.
      * @param z The Z coordinate in the Minecraft coordinate space of the chunk
      *     to generate.
-     * @return The generated chunk.
+     * @return The generated chunk, in a data structure along with some
+     *     statistics about it.
      */
-    Chunk createChunk(int x, int z);
+    ChunkCreationResult createChunk(int x, int z);
     
     /**
      * Get the height of the chunks this chunk factory will create.
@@ -28,4 +29,13 @@ public interface ChunkFactory {
      * @return The height of the chunks this factory will create.
      */
     int getMaxHeight();
+
+    class ChunkCreationResult {
+        public Chunk chunk;
+        public final Stats stats = new Stats();
+    }
+    
+    class Stats {
+        public long surfaceArea, landArea, waterArea, size, time;
+    }
 }

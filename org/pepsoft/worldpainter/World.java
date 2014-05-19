@@ -7,7 +7,6 @@ package org.pepsoft.worldpainter;
 
 import java.awt.Point;
 import java.beans.PropertyChangeListener;
-import java.beans.PropertyChangeSupport;
 import java.io.File;
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -17,12 +16,9 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import net.minecraft.v1_7_3.BiomeGenerator;
 import org.pepsoft.util.undo.UndoManager;
-import org.pepsoft.worldpainter.layers.Biome;
 import static org.pepsoft.worldpainter.Constants.*;
 import org.pepsoft.worldpainter.layers.*;
 import org.pepsoft.worldpainter.layers.exporters.CavernsExporter.CavernsSettings;
@@ -44,11 +40,11 @@ public class World implements TileProvider, Serializable, Tile.Listener {
     }
 
     public boolean isDirty() {
-        return dirty;
+        return false;
     }
 
     public void setDirty(boolean dirty) {
-        this.dirty = dirty;
+        throw new UnsupportedOperationException("Deprecated");
     }
 
     public long getSeed() {
@@ -60,12 +56,7 @@ public class World implements TileProvider, Serializable, Tile.Listener {
     }
 
     public void setName(String name) {
-        if (! (name.equals(this.name))) {
-            String oldName = this.name;
-            this.name = name;
-            dirty = true;
-            propertyChangeSupport.firePropertyChange("name", oldName, name);
-        }
+        throw new UnsupportedOperationException("Deprecated");
     }
 
     public Terrain getSubsurfaceMaterial() {
@@ -73,12 +64,7 @@ public class World implements TileProvider, Serializable, Tile.Listener {
     }
 
     public void setSubsurfaceMaterial(Terrain subsurfaceMaterial) {
-        if (subsurfaceMaterial != this.subsurfaceMaterial) {
-            Terrain oldSubsurfaceMaterial = this.subsurfaceMaterial;
-            this.subsurfaceMaterial = subsurfaceMaterial;
-            dirty = true;
-            propertyChangeSupport.firePropertyChange("subsurfaceMaterial", oldSubsurfaceMaterial, subsurfaceMaterial);
-        }
+        throw new UnsupportedOperationException("Deprecated");
     }
 
     public boolean isCreateGoodiesChest() {
@@ -86,11 +72,7 @@ public class World implements TileProvider, Serializable, Tile.Listener {
     }
 
     public void setCreateGoodiesChest(boolean createGoodiesChest) {
-        if (createGoodiesChest != this.createGoodiesChest) {
-            this.createGoodiesChest = createGoodiesChest;
-            dirty = true;
-            propertyChangeSupport.firePropertyChange("createGoodiesChest", ! createGoodiesChest, createGoodiesChest);
-        }
+        throw new UnsupportedOperationException("Deprecated");
     }
 
     public boolean isPopulate() {
@@ -98,11 +80,7 @@ public class World implements TileProvider, Serializable, Tile.Listener {
     }
 
     public void setPopulate(boolean populate) {
-        if (populate != this.populate) {
-            this.populate = populate;
-            dirty = true;
-            propertyChangeSupport.firePropertyChange("populate", ! populate, populate);
-        }
+        throw new UnsupportedOperationException("Deprecated");
     }
 
     public Border getBorder() {
@@ -110,12 +88,7 @@ public class World implements TileProvider, Serializable, Tile.Listener {
     }
 
     public void setBorder(Border border) {
-        if (border != this.border) {
-            Border oldBorder = this.border;
-            this.border = border;
-            dirty = true;
-            propertyChangeSupport.firePropertyChange("border", oldBorder, border);
-        }
+        throw new UnsupportedOperationException("Deprecated");
     }
 
     public int getBorderLevel() {
@@ -123,12 +96,7 @@ public class World implements TileProvider, Serializable, Tile.Listener {
     }
 
     public void setBorderLevel(int borderLevel) {
-        if (borderLevel != this.borderLevel) {
-            int oldBorderLevel = this.borderLevel;
-            this.borderLevel = borderLevel;
-            dirty = true;
-            propertyChangeSupport.firePropertyChange("borderLevel", oldBorderLevel, borderLevel);
-        }
+        throw new UnsupportedOperationException("Deprecated");
     }
 
     public boolean isDarkLevel() {
@@ -136,11 +104,7 @@ public class World implements TileProvider, Serializable, Tile.Listener {
     }
 
     public void setDarkLevel(boolean darkLevel) {
-        if (darkLevel != this.darkLevel) {
-            this.darkLevel = darkLevel;
-            dirty = true;
-            propertyChangeSupport.firePropertyChange("darkLevel", ! darkLevel, darkLevel);
-        }
+        throw new UnsupportedOperationException("Deprecated");
     }
 
     public boolean isBedrockWall() {
@@ -148,11 +112,7 @@ public class World implements TileProvider, Serializable, Tile.Listener {
     }
 
     public void setBedrockWall(boolean bedrockWall) {
-        if (bedrockWall != this.bedrockWall) {
-            this.bedrockWall = bedrockWall;
-            dirty = true;
-            propertyChangeSupport.firePropertyChange("bedrockWall", ! bedrockWall, bedrockWall);
-        }
+        throw new UnsupportedOperationException("Deprecated");
     }
 
     public TileFactory getTileFactory() {
@@ -173,72 +133,11 @@ public class World implements TileProvider, Serializable, Tile.Listener {
     }
 
     public void addTile(Tile tile) {
-        int x = tile.getX();
-        int y = tile.getY();
-        Point key = new Point(x, y);
-        if (tiles.containsKey(key)) {
-            throw new IllegalStateException("Tile already set");
-        }
-        tile.addListener(this);
-        if (undoManager != null) {
-            tile.register(undoManager);
-        }
-        tiles.put(key, tile);
-        if (x < lowestX) {
-            lowestX = x;
-        }
-        if (x > highestX) {
-            highestX = x;
-        }
-        if (y < lowestY) {
-            lowestY = y;
-        }
-        if (y > highestY) {
-            highestY = y;
-        }
-        BiomeGenerator biomeGenerator = new BiomeGenerator(minecraftSeed);
-        recalculateBiomes(tile, biomeGenerator);
-        fireTileAdded(tile);
-        dirty = true;
+        throw new UnsupportedOperationException("Deprecated");
     }
     
     public void removeTile(Tile tile) {
-        int x = tile.getX();
-        int y = tile.getY();
-        Point key = new Point(x, y);
-        if (! tiles.containsKey(key)) {
-            throw new IllegalStateException("Tile not set");
-        }
-        tile = tiles.remove(key);
-        if (undoManager != null) {
-            tile.unregister();
-        }
-        tile.removeListener(this);
-        // If the tile lies at the edge of the world it's possible the low and
-        // high coordinate marks should change; so recalculate them in that case
-        if ((x == lowestX) || (x == highestX) || (y == lowestY) || (y == highestY)) {
-            lowestX = Integer.MAX_VALUE;
-            highestY = Integer.MIN_VALUE;
-            lowestY = Integer.MAX_VALUE;
-            highestY = Integer.MIN_VALUE;
-            for (Tile myTile: tiles.values()) {
-                int tileX = myTile.getX(), tileY = myTile.getY();
-                if (tileX < lowestX) {
-                    lowestX = tileX;
-                }
-                if (tileX > highestX) {
-                    highestX = tileX;
-                }
-                if (tileY < lowestY) {
-                    lowestY = tileY;
-                }
-                if (tileY > highestY) {
-                    highestY = tileY;
-                }
-            }
-        }
-        fireTileRemoved(tile);
-        dirty = true;
+        throw new UnsupportedOperationException("Deprecated");
     }
 
     public int getHighestX() {
@@ -298,19 +197,11 @@ public class World implements TileProvider, Serializable, Tile.Listener {
     }
 
     public void setHeightAt(int x, int y, float height) {
-        Point tileCoords = getTileCoordinates(x, y);
-        Tile tile = getTile(tileCoords);
-        if (tile != null) {
-            if (eventsInhibited && (! dirtyTiles.contains(tile))) {
-                tile.setEventsInhibited(true);
-                dirtyTiles.add(tile);
-            }
-            tile.setHeight(x & (TILE_SIZE - 1), y & (TILE_SIZE - 1), height);
-        }
+        throw new UnsupportedOperationException("Deprecated");
     }
 
     public void setHeightAt(Point coords, int height) {
-        setHeightAt(coords.x, coords.y, height);
+        throw new UnsupportedOperationException("Deprecated");
     }
 
     public Terrain getTerrainAt(int x, int y) {
@@ -324,31 +215,15 @@ public class World implements TileProvider, Serializable, Tile.Listener {
     }
 
     public void setTerrainAt(int x, int y, Terrain terrain) {
-        Point tileCoords = getTileCoordinates(x, y);
-        Tile tile = getTile(tileCoords);
-        if (tile != null) {
-            if (eventsInhibited && (! dirtyTiles.contains(tile))) {
-                tile.setEventsInhibited(true);
-                dirtyTiles.add(tile);
-            }
-            tile.setTerrain(x & (TILE_SIZE - 1), y & (TILE_SIZE - 1), terrain);
-        }
+        throw new UnsupportedOperationException("Deprecated");
     }
 
     public void setTerrainAt(Point coords, Terrain terrain) {
-        setTerrainAt(coords.x, coords.y, terrain);
+        throw new UnsupportedOperationException("Deprecated");
     }
 
     public void applyTheme(int x, int y) {
-        Point tileCoords = getTileCoordinates(x, y);
-        Tile tile = getTile(tileCoords);
-        if (tile != null) {
-            if (eventsInhibited && (! dirtyTiles.contains(tile))) {
-                tile.setEventsInhibited(true);
-                dirtyTiles.add(tile);
-            }
-            tileFactory.applyTheme(seed, tile, x & (TILE_SIZE - 1), y & (TILE_SIZE - 1));
-        }
+        throw new UnsupportedOperationException("Deprecated");
     }
 
     public int getWaterLevelAt(int x, int y) {
@@ -366,15 +241,7 @@ public class World implements TileProvider, Serializable, Tile.Listener {
     }
 
     public void setWaterLevelAt(int x, int y, int waterLevel) {
-        Point tileCoords = getTileCoordinates(x, y);
-        Tile tile = getTile(tileCoords);
-        if (tile != null) {
-            if (eventsInhibited && (! dirtyTiles.contains(tile))) {
-                tile.setEventsInhibited(true);
-                dirtyTiles.add(tile);
-            }
-            tile.setWaterLevel(x & (TILE_SIZE - 1), y & (TILE_SIZE - 1), waterLevel);
-        }
+        throw new UnsupportedOperationException("Deprecated");
     }
 
     public int getLayerValueAt(Layer layer, int x, int y) {
@@ -388,15 +255,7 @@ public class World implements TileProvider, Serializable, Tile.Listener {
     }
 
     public void setLayerValueAt(Layer layer, int x, int y, int value) {
-        Point tileCoords = getTileCoordinates(x, y);
-        Tile tile = getTile(tileCoords);
-        if (tile != null) {
-            if (eventsInhibited && (! dirtyTiles.contains(tile))) {
-                tile.setEventsInhibited(true);
-                dirtyTiles.add(tile);
-            }
-            tile.setLayerValue(layer, x & (TILE_SIZE - 1), y & (TILE_SIZE - 1), value);
-        }
+        throw new UnsupportedOperationException("Deprecated");
     }
 
     public boolean getBitLayerValueAt(Layer layer, int x, int y) {
@@ -410,37 +269,15 @@ public class World implements TileProvider, Serializable, Tile.Listener {
     }
 
     public void setBitLayerValueAt(Layer layer, int x, int y, boolean value) {
-        Point tileCoords = getTileCoordinates(x, y);
-        Tile tile = getTile(tileCoords);
-        if (tile != null) {
-            if (eventsInhibited && (! dirtyTiles.contains(tile))) {
-                tile.setEventsInhibited(true);
-                dirtyTiles.add(tile);
-            }
-            tile.setBitLayerValue(layer, x & (TILE_SIZE - 1), y & (TILE_SIZE - 1), value);
-        }
+        throw new UnsupportedOperationException("Deprecated");
     }
 
     public void setEventsInhibited(boolean eventsInhibited) {
-        this.eventsInhibited = eventsInhibited;
-        if (eventsInhibited == false) {
-            for (Tile addedTile: addedTiles) {
-                fireTileAdded(addedTile);
-            }
-            addedTiles.clear();
-            for (Tile removedTile: removedTiles) {
-                fireTileRemoved(removedTile);
-            }
-            removedTiles.clear();
-            for (Tile dirtyTile: dirtyTiles) {
-                dirtyTile.setEventsInhibited(false);
-            }
-            dirtyTiles.clear();
-        }
+        throw new UnsupportedOperationException("Deprecated");
     }
 
     public boolean isEventsInhibited() {
-        return eventsInhibited;
+        return false;
     }
 
     public Point getSpawnPoint() {
@@ -448,12 +285,7 @@ public class World implements TileProvider, Serializable, Tile.Listener {
     }
 
     public void setSpawnPoint(Point spawnPoint) {
-        if (! spawnPoint.equals(this.spawnPoint)) {
-            Point oldSpawnPoint = this.spawnPoint;
-            this.spawnPoint = spawnPoint;
-            dirty = true;
-            propertyChangeSupport.firePropertyChange("spawnPoint", oldSpawnPoint, spawnPoint);
-        }
+        throw new UnsupportedOperationException("Deprecated");
     }
 
     public File getImportedFrom() {
@@ -461,11 +293,7 @@ public class World implements TileProvider, Serializable, Tile.Listener {
     }
 
     public void setImportedFrom(File importedFrom) {
-        if ((importedFrom == null) ? (this.importedFrom != null) : (! importedFrom.equals(this.importedFrom))) {
-            File oldImportedFrom = this.importedFrom;
-            this.importedFrom = importedFrom;
-            propertyChangeSupport.firePropertyChange("importedFrom", oldImportedFrom, importedFrom);
-        }
+        throw new UnsupportedOperationException("Deprecated");
     }
 
     public Map<Layer, ExporterSettings> getAllLayerSettings() {
@@ -477,10 +305,7 @@ public class World implements TileProvider, Serializable, Tile.Listener {
     }
     
     public void setLayerSettings(Layer layer, ExporterSettings settings) {
-        if ((! layerSettings.containsKey(layer)) || (! settings.equals(layerSettings.get(layer)))) {
-            layerSettings.put(layer, settings);
-            dirty = true;
-        }
+        throw new UnsupportedOperationException("Deprecated");
     }
     
     /**
@@ -519,26 +344,15 @@ public class World implements TileProvider, Serializable, Tile.Listener {
     }
 
     public void setMinecraftSeed(long minecraftSeed) {
-        if (minecraftSeed != this.minecraftSeed) {
-            long oldMinecraftSeed = this.minecraftSeed;
-            if (undoManager != null) {
-                undoManager.clear();
-            }
-            this.minecraftSeed = minecraftSeed;
-            recalculateBiomes();
-            propertyChangeSupport.firePropertyChange("minecraftSeed", oldMinecraftSeed, minecraftSeed);
-        }
+        throw new UnsupportedOperationException("Deprecated");
     }
 
     public void applyTheme(Point coords) {
-        applyTheme(coords.x, coords.y);
+        throw new UnsupportedOperationException("Deprecated");
     }
 
     public void register(UndoManager undoManager) {
-        this.undoManager = undoManager;
-        for (Tile tile: tiles.values()) {
-            tile.register(undoManager);
-        }
+        throw new UnsupportedOperationException("Deprecated");
     }
 
     public void destroy() {
@@ -549,114 +363,41 @@ public class World implements TileProvider, Serializable, Tile.Listener {
     }
 
     public void addWorldListener(Listener listener) {
-        listeners.add(listener);
+        // Do nothing
     }
 
     public void removeWorldListener(Listener listener) {
-        listeners.remove(listener);
+        // Do nothing
     }
     
     public void addPropertyChangeListener(PropertyChangeListener listener) {
-        propertyChangeSupport.addPropertyChangeListener(listener);
+        // Do nothing
     }
 
     public void addPropertyChangeListener(String propertyName, PropertyChangeListener listener) {
-        propertyChangeSupport.addPropertyChangeListener(propertyName, listener);
+        // Do nothing
     }
     
     public void removePropertyChangeListener(PropertyChangeListener listener) {
-        propertyChangeSupport.removePropertyChangeListener(listener);
+        // Do nothing
     }
 
     public void removePropertyChangeListener(String propertyName, PropertyChangeListener listener) {
-        propertyChangeSupport.removePropertyChangeListener(propertyName, listener);
+        // Do nothing
     }
     
     // Tile.Listener
 
-    @Override
-    public void heightMapChanged(Tile tile) {
-        dirty = true;
-    }
-
-    @Override
-    public void terrainChanged(Tile tile) {
-        dirty = true;
-    }
-
-    @Override
-    public void waterLevelChanged(Tile tile) {
-        dirty = true;
-    }
-
-    @Override
-    public void seedsChanged(Tile tile) {
-        dirty = true;
-    }
-
-    @Override
-    public void layerDataChanged(Tile tile, Set<Layer> changedLayers) {
-        dirty = true;
-    }
-
-    @Override
-    public void allBitLayerDataChanged(Tile tile) {
-        dirty = true;
-    }
-
-    @Override
-    public void allNonBitlayerDataChanged(Tile tile) {
-        dirty = true;
-    }
-
-    private void fireTileAdded(Tile tile) {
-        if (eventsInhibited) {
-            addedTiles.add(tile);
-        } else {
-            for (Listener listener: listeners) {
-                listener.tileAdded(this, tile);
-            }
-        }
-    }
-
-    private void fireTileRemoved(Tile tile) {
-        if (eventsInhibited) {
-            removedTiles.add(tile);
-        } else {
-            for (Listener listener: listeners) {
-                listener.tileRemoved(this, tile);
-            }
-        }
-    }
-    
-    private void recalculateBiomes() {
-        BiomeGenerator biomeGenerator = new BiomeGenerator(minecraftSeed);
-        for (Tile tile: tiles.values()) {
-            recalculateBiomes(tile, biomeGenerator);
-        }
-    }
-    
-    private void recalculateBiomes(Tile tile, BiomeGenerator biomeGenerator) {
-        int[] biomes = biomeGenerator.getBiomes(null, tile.getX() << TILE_SIZE_BITS, tile.getY() << TILE_SIZE_BITS, TILE_SIZE, TILE_SIZE);
-        tile.setEventsInhibited(true);
-        try {
-            for (int x = 0; x < TILE_SIZE; x++) {
-                for (int y = 0; y < TILE_SIZE; y++) {
-                    tile.setLayerValue(Biome.INSTANCE, TILE_SIZE - y - 1, x, biomes[x * TILE_SIZE + y]);
-                }
-            }
-        } finally {
-            tile.setEventsInhibited(false);
-        }
-    }
+    @Override public void heightMapChanged(Tile tile) {}
+    @Override public void terrainChanged(Tile tile) {}
+    @Override public void waterLevelChanged(Tile tile) {}
+    @Override public void seedsChanged(Tile tile) {}
+    @Override public void layerDataChanged(Tile tile, Set<Layer> changedLayers) {}
+    @Override public void allBitLayerDataChanged(Tile tile) {}
+    @Override public void allNonBitlayerDataChanged(Tile tile) {}
     
     private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
         in.defaultReadObject();
-        listeners = new ArrayList<Listener>();
-        dirtyTiles = new HashSet<Tile>();
-        addedTiles = new HashSet<Tile>();
-        removedTiles = new HashSet<Tile>();
-        propertyChangeSupport = new PropertyChangeSupport(this);
 
         for (Tile tile: tiles.values()) {
             tile.addListener(this);
@@ -680,10 +421,10 @@ public class World implements TileProvider, Serializable, Tile.Listener {
     }
 
     private final long seed;
-    private Map<Point, Tile> tiles = new HashMap<Point, Tile>();
+    private final Map<Point, Tile> tiles = new HashMap<Point, Tile>();
     private final TileFactory tileFactory;
-    private int lowestX = Integer.MAX_VALUE, highestX = Integer.MIN_VALUE, lowestY = Integer.MAX_VALUE, highestY = Integer.MIN_VALUE;
-    private String name = "Generated World";
+    private final int lowestX = Integer.MAX_VALUE, highestX = Integer.MIN_VALUE, lowestY = Integer.MAX_VALUE, highestY = Integer.MIN_VALUE;
+    private final String name = "Generated World";
     private Terrain subsurfaceMaterial = Terrain.RESOURCES;
     private boolean createGoodiesChest = true, populate;
     private Border border;
@@ -693,14 +434,6 @@ public class World implements TileProvider, Serializable, Tile.Listener {
     private File importedFrom;
     private Map<Layer, ExporterSettings> layerSettings = new HashMap<Layer, ExporterSettings>();
     private long minecraftSeed = Long.MIN_VALUE;
-    private transient List<Listener> listeners = new ArrayList<Listener>();
-    private transient boolean eventsInhibited;
-    private transient Set<Tile> dirtyTiles = new HashSet<Tile>();
-    private transient Set<Tile> addedTiles = new HashSet<Tile>();
-    private transient Set<Tile> removedTiles = new HashSet<Tile>();
-    private transient boolean dirty;
-    private transient UndoManager undoManager;
-    private transient PropertyChangeSupport propertyChangeSupport = new PropertyChangeSupport(this);
 
     private static final long serialVersionUID = 2011032801L;
 

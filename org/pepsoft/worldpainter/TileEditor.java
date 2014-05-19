@@ -32,6 +32,7 @@ import javax.swing.text.html.HTMLDocument;
 import org.pepsoft.worldpainter.layers.Layer;
 
 import static org.pepsoft.worldpainter.Constants.TILE_SIZE;
+import org.pepsoft.worldpainter.biomeschemes.CustomBiomeManager;
 
 /**
  *
@@ -39,10 +40,9 @@ import static org.pepsoft.worldpainter.Constants.TILE_SIZE;
  */
 public class TileEditor extends javax.swing.JDialog implements WindowListener, TileSelector.Listener {
     /** Creates new form TileEditor */
-    public TileEditor(java.awt.Frame parent, Dimension dimension, ColourScheme colourScheme, BiomeScheme biomeScheme, Collection<Layer> hiddenLayers, boolean contourLines, TileRenderer.LightOrigin lightOrigin) {
+    public TileEditor(java.awt.Frame parent, Dimension dimension, ColourScheme colourScheme, BiomeScheme biomeScheme, CustomBiomeManager customBiomeManager, Collection<Layer> hiddenLayers, boolean contourLines, TileRenderer.LightOrigin lightOrigin) {
         super(parent, true);
         this.dimension = dimension;
-        this.biomeScheme = biomeScheme;
         initComponents();
         
         // Fix the incredibly ugly default font of the JTextPane
@@ -66,6 +66,7 @@ public class TileEditor extends javax.swing.JDialog implements WindowListener, T
         tileSelector1.setContourLines(contourLines);
         tileSelector1.setLightOrigin(lightOrigin);
         tileSelector1.setDimension(dimension);
+        tileSelector1.setCustomBiomeManager(customBiomeManager);
         tileSelector1.addListener(this);
 
         InputMap inputMap = rootPane.getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT);
@@ -175,11 +176,8 @@ public class TileEditor extends javax.swing.JDialog implements WindowListener, T
         dimension.clearUndo();
         try {
             for (Point newTileCoords: tilesToAdd) {
-                Tile newTile = dimension.getTileFactory().createTile(dimension.getSeed(), newTileCoords.x, newTileCoords.y);
+                Tile newTile = dimension.getTileFactory().createTile(newTileCoords.x, newTileCoords.y);
                 dimension.addTile(newTile);
-                if (biomeScheme != null) {
-                    dimension.recalculateBiomes(newTile, biomeScheme);
-                }
             }
         } finally {
             dimension.setEventsInhibited(false);
@@ -324,7 +322,6 @@ public class TileEditor extends javax.swing.JDialog implements WindowListener, T
     // End of variables declaration//GEN-END:variables
 
     private final Dimension dimension;
-    private final BiomeScheme biomeScheme;
     
     private static final long serialVersionUID = 1L;
 }
