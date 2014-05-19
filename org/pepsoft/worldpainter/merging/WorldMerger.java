@@ -875,7 +875,11 @@ public class WorldMerger extends WorldExporter {
                 for (int z = maxZ; z >= 0; z--) {
                     int existingBlockType = existingChunk.getBlockType(x, z, y);
                     if (aboveGround) {
-                        if (clearTrees && ((existingBlockType == BLK_WOOD) || (existingBlockType == BLK_LEAVES))) {
+                        if (clearTrees
+                                && ((existingBlockType == BLK_WOOD)
+                                    || (existingBlockType == BLK_WOOD2)
+                                    || (existingBlockType == BLK_LEAVES)
+                                    || (existingBlockType == BLK_WOOD2))) {
                             setToAir(existingChunk, x, y, z);
                         } else if (MapImporter.TERRAIN_MAPPING.containsKey(existingBlockType)) {
                             aboveGround = false;
@@ -1017,7 +1021,7 @@ public class WorldMerger extends WorldExporter {
                     int oldHeight = 0;
                     for (int y = maxY; y >= 0; y--) {
                         int oldBlockType = existingChunk.getBlockType(x, y, z);
-                        if (MapImporter.TERRAIN_MAPPING.containsKey(oldBlockType)) {
+                        if (TERRAIN_BLOCKS.contains(oldBlockType)) {
                             // Terrain found
                             oldHeight = y;
                             break;
@@ -1208,4 +1212,12 @@ public class WorldMerger extends WorldExporter {
     private static final Object TIMING_FILE_LOCK = new Object();
     private static final String EOL = System.getProperty("line.separator");
     private static final Set<Integer> RESOURCES = new HashSet<Integer>(Arrays.asList(BLK_COAL, BLK_IRON_ORE, BLK_GOLD_ORE, BLK_REDSTONE_ORE, BLK_LAPIS_LAZULI_ORE, BLK_DIAMOND_ORE, BLK_EMERALD_ORE));
+    private static final Set<Integer> TERRAIN_BLOCKS = new HashSet<Integer>();
+    
+    static {
+        TERRAIN_BLOCKS.addAll(MapImporter.TERRAIN_MAPPING.keySet());
+        for (Material material: MapImporter.SPECIAL_TERRAIN_MAPPING.keySet()) {
+            TERRAIN_BLOCKS.add(material.getBlockType());
+        }
+    }
 }

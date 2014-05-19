@@ -19,18 +19,18 @@ public class RaisePyramid extends MouseOrTabletOperation {
     }
 
     @Override
-    protected void tick(int x, int y, boolean undo, boolean first, float dynamicLevel) {
+    protected void tick(int centreX, int centreY, boolean inverse, boolean first, float dynamicLevel) {
         Dimension dimension = getDimension();
-        float height = dimension.getHeightAt(x, y);
+        float height = dimension.getHeightAt(centreX, centreY);
         dimension.setEventsInhibited(true);
         try {
             if (height < (dimension.getMaxHeight() - 1.5f)) {
-                dimension.setHeightAt(x, y, height + 1);
+                dimension.setHeightAt(centreX, centreY, height + 1);
             }
-            dimension.setTerrainAt(x, y, Terrain.SANDSTONE);
+            dimension.setTerrainAt(centreX, centreY, Terrain.SANDSTONE);
             int maxR = dimension.getMaxHeight();
             for (int r = 1; r < maxR; r++) {
-                if (! raiseRing(dimension, x, y, r, height--)) {
+                if (! raiseRing(dimension, centreX, centreY, r, height--)) {
                     break;
                 }
             }

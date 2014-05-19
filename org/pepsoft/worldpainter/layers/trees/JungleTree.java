@@ -66,13 +66,7 @@ public class JungleTree extends TreeType {
 
     private void renderRoot(int x, int y, int height, int size, float angle, MinecraftWorld world, Random random) {
         int h = (int) (size / 5f + 0.5f);
-        Material capMaterial;
-        if (trunkMaterial.getBlockType() == BLK_WOOD) {
-            capMaterial = Material.get(trunkMaterial.getBlockType(), (trunkMaterial.getData() & 0x3) | 0xC);
-        } else {
-            capMaterial = trunkMaterial;
-        }
-        float slope = random.nextFloat() / 10 - 0.5f;
+        Material capMaterial = getCapMaterial();
         int i = 1, maxDepth = -1;
         int previousDx = Integer.MIN_VALUE, previousDy = Integer.MIN_VALUE;
         while (h > 0) {
@@ -121,13 +115,13 @@ public class JungleTree extends TreeType {
                 minecraftWorld.setMaterialAt(blockInWorldX,     blockInWorldY + 1, height + i, trunkMaterial);
                 minecraftWorld.setMaterialAt(blockInWorldX + 1, blockInWorldY + 1, height + i, trunkMaterial);
             }
-            Material capMaterial = (trunkMaterial.getBlockType() == BLK_WOOD) ? Material.get(trunkMaterial.getBlockType(), (trunkMaterial.getData() & 0x3) | 0xC) : trunkMaterial;
+            Material capMaterial = getCapMaterial();
             minecraftWorld.setMaterialAt(blockInWorldX,     blockInWorldY,     height + size, capMaterial);
             minecraftWorld.setMaterialAt(blockInWorldX + 1, blockInWorldY,     height + size, capMaterial);
             minecraftWorld.setMaterialAt(blockInWorldX,     blockInWorldY + 1, height + size, capMaterial);
             minecraftWorld.setMaterialAt(blockInWorldX + 1, blockInWorldY + 1, height + size, capMaterial);
         } else {
-            Material capMaterial = (trunkMaterial.getBlockType() == BLK_WOOD) ? Material.get(trunkMaterial.getBlockType(), (trunkMaterial.getData() & 0x3) | 0xC) : trunkMaterial;
+            Material capMaterial = getCapMaterial();
             for (int dx = -1; dx < 3; dx++) {
                 for (int dy = -1; dy < 3; dy++) {
                     if (((dx == -1) || (dx == 2)) && ((dy == -1) || (dy == 2))) {
@@ -177,11 +171,11 @@ public class JungleTree extends TreeType {
     protected void renderBranch(int x, int y, int height, int size, float angle, MinecraftWorld world, Random random) {
         int l = (int) (size / 5f + 0.5f);
         Material branchMaterial, capMaterial;
-        if (trunkMaterial.getBlockType() == BLK_WOOD) {
+        if ((trunkMaterial.getBlockType() == BLK_WOOD) || (trunkMaterial.getBlockType() == BLK_WOOD2)) {
             branchMaterial = ((angle < (0.25 * Math.PI)) || ((angle > (0.75 * Math.PI)) && (angle < (1.25 * Math.PI))) || (angle > (1.75 * Math.PI)))
                 ? Material.get(trunkMaterial.getBlockType(), (trunkMaterial.getData() & 0x3) | 0x8)
                 : Material.get(trunkMaterial.getBlockType(), (trunkMaterial.getData() & 0x3) | 0x4);
-            capMaterial = Material.get(trunkMaterial.getBlockType(), (trunkMaterial.getData() & 0x3) | 0xC);
+            capMaterial = getCapMaterial();
         } else {
             branchMaterial = capMaterial = trunkMaterial;
         }

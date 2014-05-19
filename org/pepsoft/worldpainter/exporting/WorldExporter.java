@@ -47,7 +47,6 @@ import org.pepsoft.worldpainter.Tile;
 import org.pepsoft.worldpainter.World2;
 import org.pepsoft.worldpainter.gardenofeden.GardenExporter;
 import org.pepsoft.worldpainter.gardenofeden.Seed;
-import org.pepsoft.worldpainter.layers.Frost;
 import org.pepsoft.worldpainter.layers.GardenCategory;
 import org.pepsoft.worldpainter.layers.Layer;
 import org.pepsoft.worldpainter.layers.ReadOnly;
@@ -215,12 +214,12 @@ public class WorldExporter {
         Rectangle area = new Rectangle((regionCoords.x << 9) - 16, (regionCoords.y << 9) - 16, 544, 544);
         Rectangle exportedArea = new Rectangle((regionCoords.x << 9), (regionCoords.y << 9), 512, 512);
         List<Fixup> fixups = new ArrayList<Fixup>();
-        boolean frost = false;
+//        boolean frost = false;
         for (Layer layer: secondaryPassLayers) {
-            if (layer instanceof Frost) {
-                frost = true;
-                continue;
-            }
+//            if (layer instanceof Frost) {
+//                frost = true;
+//                continue;
+//            }
             @SuppressWarnings("unchecked")
             SecondPassLayerExporter<Layer> exporter = (SecondPassLayerExporter<Layer>) exporters.get(layer);
             List<Fixup> layerFixups = exporter.render(dimension, area, exportedArea, minecraftWorld);
@@ -245,15 +244,15 @@ public class WorldExporter {
         }
         
         // Apply frost layer
-        if (frost) {
-            @SuppressWarnings("unchecked")
-            SecondPassLayerExporter<Layer> exporter = (SecondPassLayerExporter<Layer>) exporters.get(Frost.INSTANCE);
-            exporter.render(dimension, area, exportedArea, minecraftWorld);
-            if (progressReceiver != null) {
-                counter++;
-                progressReceiver.setProgress((float) counter / layerCount);
-            }
-        }
+//        if (frost) {
+//            @SuppressWarnings("unchecked")
+//            SecondPassLayerExporter<Layer> exporter = (SecondPassLayerExporter<Layer>) exporters.get(Frost.INSTANCE);
+//            exporter.render(dimension, area, exportedArea, minecraftWorld);
+//            if (progressReceiver != null) {
+//                counter++;
+//                progressReceiver.setProgress((float) counter / layerCount);
+//            }
+//        }
         
         // TODO: trying to do this for every region should work but is not very
         // elegant
@@ -301,19 +300,30 @@ public class WorldExporter {
                         minecraftWorld.setMaterialAt(x, y, z, Material.SANDSTONE);
                         blockType = BLK_SANDSTONE;
                     }
-                    if ((blockType == BLK_DEAD_SHRUBS) && (blockTypeBelow != BLK_SAND)) {
+                    if ((blockType == BLK_DEAD_SHRUBS) && (blockTypeBelow != BLK_SAND) && (blockTypeBelow != BLK_DIRT) && (blockTypeBelow != BLK_STAINED_CLAY) && (blockTypeBelow != BLK_HARDENED_CLAY)) {
                         // Dead shrubs can only exist on Sand
                         minecraftWorld.setMaterialAt(x, y, z, Material.AIR);
                         blockType = BLK_AIR;
-                    } else if (((blockType == BLK_TALL_GRASS) || (blockType == BLK_ROSE) || (blockType == BLK_DANDELION) || (blockType == BLK_RED_MUSHROOM) || (blockType == BLK_BROWN_MUSHROOM)) && (blockTypeBelow != BLK_GRASS) && (blockTypeBelow != BLK_DIRT)) {
-                        // Tall grass, flowers and mushrooms can only exist on Grass or Dirt blocks
+                    } else if (((blockType == BLK_TALL_GRASS) || (blockType == BLK_ROSE) || (blockType == BLK_DANDELION)) && (blockTypeBelow != BLK_GRASS) && (blockTypeBelow != BLK_DIRT)) {
+                        // Tall grass and flowers can only exist on Grass or Dirt blocks
+                        minecraftWorld.setMaterialAt(x, y, z, Material.AIR);
+                        blockType = BLK_AIR;
+                    } else if (((blockType == BLK_RED_MUSHROOM) || (blockType == BLK_BROWN_MUSHROOM)) && (blockTypeBelow != BLK_GRASS) && (blockTypeBelow != BLK_DIRT) && (blockTypeBelow != BLK_MYCELIUM) && (blockTypeBelow != BLK_STONE)) {
+                        // Mushrooms can only exist on Grass, Dirt, Mycelium or Stone (in caves) blocks
                         minecraftWorld.setMaterialAt(x, y, z, Material.AIR);
                         blockType = BLK_AIR;
                     } else if (dry && ((blockType == BLK_WATER) || (blockType == BLK_STATIONARY_WATER) || (blockType == BLK_SNOW) || (blockType == BLK_SNOW_BLOCK) || (blockType == BLK_LAVA) || (blockType == BLK_STATIONARY_LAVA) || (blockType == BLK_ICE))) {
                         minecraftWorld.setMaterialAt(x, y, z, Material.AIR);
                         blockType = BLK_AIR;
-                    } else if ((blockType == BLK_SNOW) && (blockTypeBelow == BLK_ICE)) {
-                        // Snow can't be on ice
+                    } else if ((blockType == BLK_SNOW) && ((blockTypeBelow == BLK_ICE) || (blockTypeBelow == BLK_SNOW) || (blockTypeBelow == BLK_AIR) || (blockTypeBelow == BLK_PACKED_ICE))) {
+                        // Snow can't be on ice, or another snow block, or air
+                        // (well it could be, but it makes no sense, would
+                        // disappear when touched, and it makes this algorithm
+                        // remove stacks of snow blocks correctly)
+                        minecraftWorld.setMaterialAt(x, y, z, Material.AIR);
+                        blockType = BLK_AIR;
+                    } else if ((blockType == BLK_WHEAT) && (blockTypeBelow != BLK_TILLED_DIRT)) {
+                        // Wheat can only exist on Tilled Dirt blocks
                         minecraftWorld.setMaterialAt(x, y, z, Material.AIR);
                         blockType = BLK_AIR;
                     }
@@ -452,9 +462,10 @@ public class WorldExporter {
     }
     
     private ChunkFactory.ChunkCreationResult getChunk(Dimension dimension, ChunkFactory chunkFactory, Map<Point, Tile> tiles, int chunkX, int chunkY, boolean tileSelection, Map<Layer, LayerExporter<Layer>> exporters) {
-        int tileX = chunkX >> 3;
-        int tileY = chunkY >> 3;
-        Point tileCoords = new Point(tileX, tileY);
+        final int tileX = chunkX >> 3;
+        final int tileY = chunkY >> 3;
+        final Point tileCoords = new Point(tileX, tileY);
+        final boolean border = (dimension.getBorder() != null) && (dimension.getBorderSize() > 0);
         if (tileSelection) {
             // Tile selection. Don't export bedrock wall or border tiles
             if (tiles.containsKey(tileCoords) && (! dimension.getBitLayerValueAt(ReadOnly.INSTANCE, chunkX << 4, chunkY << 4))) {
@@ -471,11 +482,15 @@ public class WorldExporter {
                 }
             } else {
                 // Might be a border or bedrock wall chunk
-                if (isBorderChunk(dimension, chunkX, chunkY)) {
+                if (border && isBorderChunk(dimension, chunkX, chunkY)) {
                     return BorderChunkFactory.create(chunkX, chunkY, dimension, exporters);
-                } else if (dimension.isBedrockWall() && (isBorderChunk(dimension, chunkX - 1, chunkY) || isBorderChunk(dimension, chunkX, chunkY - 1) || isBorderChunk(dimension, chunkX + 1, chunkY) || isBorderChunk(dimension, chunkX, chunkY + 1))) {
+                } else if (dimension.isBedrockWall()
+                        && (border
+                            ? (isBorderChunk(dimension, chunkX - 1, chunkY) || isBorderChunk(dimension, chunkX, chunkY - 1) || isBorderChunk(dimension, chunkX + 1, chunkY) || isBorderChunk(dimension, chunkX, chunkY + 1))
+                            : (isWorldChunk(dimension, chunkX - 1, chunkY) || isWorldChunk(dimension, chunkX, chunkY - 1) || isWorldChunk(dimension, chunkX + 1, chunkY) || isWorldChunk(dimension, chunkX, chunkY + 1)))) {
                     // Bedrock wall is turned on and a neighbouring chunk is a
-                    // border chunk
+                    // border chunk (if there is a border), or a world chunk (if
+                    // there is no border)
                     return BedrockWallChunk.create(chunkX, chunkY, dimension);
                 } else {
                     // Outside known space
@@ -485,6 +500,10 @@ public class WorldExporter {
         }
     }
 
+    private boolean isWorldChunk(Dimension dimension, int x, int y) {
+        return dimension.getTile(x >> 3, y >> 3) != null;
+    }
+    
     private boolean isBorderChunk(Dimension dimension, int x, int y) {
         final int tileX = x >> 3, tileY = y >> 3;
         final int borderSize = dimension.getBorderSize();

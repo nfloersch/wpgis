@@ -26,6 +26,13 @@ public final class SumHeightMap extends CombiningHeightMap {
     public float getBaseHeight() {
         return heightMap1.getBaseHeight() + heightMap2.getBaseHeight();
     }
+    
+    @Override
+    public SumHeightMap clone() {
+        SumHeightMap clone = new SumHeightMap(heightMap1.clone(), heightMap2.clone());
+        clone.setSeed(getSeed());
+        return clone;
+    }
 
     private Object readResolve() throws ObjectStreamException {
         // There are worlds in the wild where heightMap1 and/or heightMap2 are

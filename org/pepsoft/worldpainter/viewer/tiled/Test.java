@@ -69,7 +69,7 @@ public class Test {
                                 dimension.getHeight() << Constants.TILE_SIZE_BITS);
                     }
                 };
-                final ColourScheme colourScheme = new DynMapColourScheme("default");
+                final ColourScheme colourScheme = new DynMapColourScheme("default", true);
                 final BiomeScheme biomeScheme = new AutoBiomeScheme(dimension);
                 final CustomBiomeManager customBiomeManager = new CustomBiomeManager(frame);
                 TileRendererFactory tileRendererFactory = new TileRendererFactory() {

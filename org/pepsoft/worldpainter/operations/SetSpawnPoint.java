@@ -22,14 +22,14 @@ public class SetSpawnPoint extends MouseOrTabletOperation {
     }
 
     @Override
-    protected void tick(int x, int y, boolean undo, boolean first, float dynamicLevel) {
+    protected void tick(int centreX, int centreY, boolean inverse, boolean first, float dynamicLevel) {
         if (first) {
             Dimension dimension = getDimension();
             if (dimension.getDim() != 0) {
                 throw new IllegalArgumentException("Cannot set spawn point on dimensions other than 0");
             }
             World2 world = dimension.getWorld();
-            int spawnHeight = dimension.getIntHeightAt(x, y);
+            int spawnHeight = dimension.getIntHeightAt(centreX, centreY);
             if (spawnHeight == -1) {
                 // No tile
                 return;
@@ -45,7 +45,7 @@ public class SetSpawnPoint extends MouseOrTabletOperation {
 //                    }
 //                }
 //            }
-            world.setSpawnPoint(new Point(x, y));
+            world.setSpawnPoint(new Point(centreX, centreY));
         }
     }
 }

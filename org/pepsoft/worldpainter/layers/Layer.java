@@ -93,6 +93,17 @@ public abstract class Layer implements Serializable, Comparable<Layer> {
         return id;
     }
 
+    /**
+     * The default value which will be returned wherever the layer has not been
+     * set. By default this is zero (or false).
+     * 
+     * @return The default value which will be returned where the layer value is
+     *     not set.
+     */
+    public int getDefaultValue() {
+        return 0;
+    }
+    
     @Override
     public boolean equals(Object obj) {
         return (obj instanceof Layer)

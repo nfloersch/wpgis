@@ -15,6 +15,15 @@ public class CustomTerrainHelper {
         this.index = index;
     }
 
+    public Material getMaterial(long seed, int x, int y, float z, int height) {
+        final float dz = z - height;
+        if (dz >= 0.5f) {
+            return AIR;
+        } else {
+            return Terrain.customMaterials[index].getMaterial(seed, x, y, z);
+        }
+    }
+    
     public Material getMaterial(long seed, int x, int y, int z, int height) {
         final int dz = z - height;
         if (dz > 0) {
@@ -46,6 +55,12 @@ public class CustomTerrainHelper {
         return index;
     }
 
+    public int getColour(long seed, int x, int y, float z, int height, ColourScheme colourScheme) {
+        MixedMaterial material = Terrain.customMaterials[index];
+        Integer colour = (material != null) ? material.getColour() : null;
+        return (colour != null) ? colour : colourScheme.getColour(getMaterial(seed, x, y, z, height));
+    }
+    
     public int getColour(long seed, int x, int y, int z, int height, ColourScheme colourScheme) {
         MixedMaterial material = Terrain.customMaterials[index];
         Integer colour = (material != null) ? material.getColour() : null;

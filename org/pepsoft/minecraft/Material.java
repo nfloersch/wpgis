@@ -14,7 +14,7 @@ import static org.pepsoft.minecraft.Constants.*;
  *
  * @author pepijn
  */
-public final class Material implements Serializable {
+public final class Material implements Serializable, Comparable<Material> {
     private Material(int blockType, int data) {
         this.blockType = blockType;
         this.data = data;
@@ -31,7 +31,7 @@ public final class Material implements Serializable {
     /**
      * Get the cardinal direction this block is pointing, if applicable.
      * 
-     * @return The carinal direction in which this block is pointing, or
+     * @return The cardinal direction in which this block is pointing, or
      *     <code>null</code> if it has no direction, or is not pointing in a
      *     cardinal direction (but for instance up or down)
      */
@@ -46,6 +46,9 @@ public final class Material implements Serializable {
             case BLK_PINE_WOOD_STAIRS:
             case BLK_BIRCH_WOOD_STAIRS:
             case BLK_JUNGLE_WOOD_STAIRS:
+            case BLK_QUARTZ_STAIRS:
+            case BLK_ACACIA_WOOD_STAIRS:
+            case BLK_DARK_OAK_WOOD_STAIRS:
                 switch (data & 0x03) {
                     case 0:
                         return Direction.EAST;
@@ -96,6 +99,7 @@ public final class Material implements Serializable {
                 }
                 break;
             case BLK_POWERED_RAILS:
+            case BLK_DETECTOR_RAILS:
                 switch (data & 0x07) {
                     case 0:
                         return Direction.NORTH;
@@ -199,6 +203,7 @@ public final class Material implements Serializable {
                 break;
             case BLK_REDSTONE_REPEATER_OFF:
             case BLK_REDSTONE_REPEATER_ON:
+            case BLK_REDSTONE_COMPARATOR:
                 switch (data & 0x03) {
                     case 0:
                         return Direction.NORTH;
@@ -236,6 +241,7 @@ public final class Material implements Serializable {
                 }
                 break;
             case BLK_WOOD:
+            case BLK_WOOD2:
                 switch (data & 0xC) {
                     case 0x4:
                         return Direction.EAST;
@@ -281,6 +287,9 @@ public final class Material implements Serializable {
             case BLK_PINE_WOOD_STAIRS:
             case BLK_BIRCH_WOOD_STAIRS:
             case BLK_JUNGLE_WOOD_STAIRS:
+            case BLK_QUARTZ_STAIRS:
+            case BLK_ACACIA_WOOD_STAIRS:
+            case BLK_DARK_OAK_WOOD_STAIRS:
                 switch (direction) {
                     case EAST:
                         return get(blockType, data & 0x0C);
@@ -333,6 +342,7 @@ public final class Material implements Serializable {
                 }
                 break;
             case BLK_POWERED_RAILS:
+            case BLK_DETECTOR_RAILS:
                 if (data < 2) {
                     // Straight
                     switch (direction) {
@@ -446,6 +456,7 @@ public final class Material implements Serializable {
                 break;
             case BLK_REDSTONE_REPEATER_OFF:
             case BLK_REDSTONE_REPEATER_ON:
+            case BLK_REDSTONE_COMPARATOR:
                 switch (direction) {
                     case NORTH:
                         return get(blockType, data & 0x0C);
@@ -483,6 +494,7 @@ public final class Material implements Serializable {
                 }
                 break;
             case BLK_WOOD:
+            case BLK_WOOD2:
                 switch (direction) {
                     case NORTH:
                     case SOUTH:
@@ -805,6 +817,17 @@ public final class Material implements Serializable {
             return Integer.toString(blockType);
         }
     }
+
+    // Comparable
+    
+    @Override
+    public int compareTo(Material o) {
+        if (blockType != o.blockType) {
+            return blockType - o.blockType;
+        } else {
+            return data - o.data;
+        }
+    }
     
     private Object readResolve() throws ObjectStreamException {
         return get(blockType, data);
@@ -881,29 +904,67 @@ public final class Material implements Serializable {
     public static final Material SUGAR_CANE            = get(BLK_SUGAR_CANE);
     public static final Material EMERALD_ORE           = get(BLK_EMERALD_ORE);
     public static final Material EMERALD_BLOCK         = get(BLK_EMERALD_BLOCK);
+    public static final Material PERMADIRT             = get(BLK_DIRT, 1);
+    public static final Material PODZOL                = get(BLK_DIRT, 2);
+    public static final Material RED_SAND              = get(BLK_SAND, 1);
+    public static final Material HARDENED_CLAY         = get(BLK_HARDENED_CLAY);
+    public static final Material WHITE_CLAY            = get(BLK_STAINED_CLAY);
+    public static final Material ORANGE_CLAY           = get(BLK_STAINED_CLAY, DATA_ORANGE);
+    public static final Material MAGENTA_CLAY          = get(BLK_STAINED_CLAY, DATA_MAGENTA);
+    public static final Material LIGHT_BLUE_CLAY       = get(BLK_STAINED_CLAY, DATA_LIGHT_BLUE);
+    public static final Material YELLOW_CLAY           = get(BLK_STAINED_CLAY, DATA_YELLOW);
+    public static final Material LIME_CLAY             = get(BLK_STAINED_CLAY, DATA_LIME);
+    public static final Material PINK_CLAY             = get(BLK_STAINED_CLAY, DATA_PINK);
+    public static final Material GREY_CLAY             = get(BLK_STAINED_CLAY, DATA_GREY);
+    public static final Material LIGHT_GREY_CLAY       = get(BLK_STAINED_CLAY, DATA_LIGHT_GREY);
+    public static final Material CYAN_CLAY             = get(BLK_STAINED_CLAY, DATA_CYAN);
+    public static final Material PURPLE_CLAY           = get(BLK_STAINED_CLAY, DATA_PURPLE);
+    public static final Material BLUE_CLAY             = get(BLK_STAINED_CLAY, DATA_BLUE);
+    public static final Material BROWN_CLAY            = get(BLK_STAINED_CLAY, DATA_BROWN);
+    public static final Material GREEN_CLAY            = get(BLK_STAINED_CLAY, DATA_GREEN);
+    public static final Material RED_CLAY              = get(BLK_STAINED_CLAY, DATA_RED);
+    public static final Material BLACK_CLAY            = get(BLK_STAINED_CLAY, DATA_BLACK);
 
     public static final Material TALL_GRASS = get(BLK_TALL_GRASS, DATA_TALL_GRASS);
     public static final Material FERN       = get(BLK_TALL_GRASS, DATA_FERN);
 
-    public static final Material WOOD_OAK    = get(BLK_WOOD, DATA_OAK);
-    public static final Material WOOD_BIRCH  = get(BLK_WOOD, DATA_BIRCH);
-    public static final Material WOOD_PINE   = get(BLK_WOOD, DATA_PINE);
-    public static final Material WOOD_JUNGLE = get(BLK_WOOD, DATA_JUNGLE);
+    public static final Material WOOD_OAK      = get(BLK_WOOD, DATA_OAK);
+    public static final Material WOOD_BIRCH    = get(BLK_WOOD, DATA_BIRCH);
+    public static final Material WOOD_PINE     = get(BLK_WOOD, DATA_PINE);
+    public static final Material WOOD_JUNGLE   = get(BLK_WOOD, DATA_JUNGLE);
+    public static final Material WOOD_ACACIA   = get(BLK_WOOD2, DATA_ACACIA);
+    public static final Material WOOD_DARK_OAK = get(BLK_WOOD2, DATA_DARK_OAK);
     
-    public static final Material LEAVES_OAK    = get(BLK_LEAVES, DATA_OAK);
-    public static final Material LEAVES_BIRCH  = get(BLK_LEAVES, DATA_BIRCH);
-    public static final Material LEAVES_PINE   = get(BLK_LEAVES, DATA_PINE);
-    public static final Material LEAVES_JUNGLE = get(BLK_LEAVES, DATA_JUNGLE);
+    public static final Material LEAVES_OAK      = get(BLK_LEAVES, DATA_OAK);
+    public static final Material LEAVES_BIRCH    = get(BLK_LEAVES, DATA_BIRCH);
+    public static final Material LEAVES_PINE     = get(BLK_LEAVES, DATA_PINE);
+    public static final Material LEAVES_JUNGLE   = get(BLK_LEAVES, DATA_JUNGLE);
+    public static final Material LEAVES_ACACIA   = get(BLK_LEAVES2, DATA_ACACIA);
+    public static final Material LEAVES_DARK_OAK = get(BLK_LEAVES2, DATA_DARK_OAK);
     
-    public static final Material WOODEN_PLANK_OAK    = get(BLK_WOODEN_PLANK, DATA_OAK);
-    public static final Material WOODEN_PLANK_BIRCH  = get(BLK_WOODEN_PLANK, DATA_BIRCH);
-    public static final Material WOODEN_PLANK_PINE   = get(BLK_WOODEN_PLANK, DATA_PINE);
-    public static final Material WOODEN_PLANK_JUNGLE = get(BLK_WOODEN_PLANK, DATA_JUNGLE);
+    public static final Material WOODEN_PLANK_OAK       = get(BLK_WOODEN_PLANK, DATA_OAK);
+    public static final Material WOODEN_PLANK_BIRCH     = get(BLK_WOODEN_PLANK, DATA_BIRCH);
+    public static final Material WOODEN_PLANK_PINE      = get(BLK_WOODEN_PLANK, DATA_PINE);
+    public static final Material WOODEN_PLANK_JUNGLE    = get(BLK_WOODEN_PLANK, DATA_JUNGLE);
+    public static final Material WOODEN_PLANK_ACACIA    = get(BLK_WOODEN_PLANK, 4 + DATA_ACACIA);
+    public static final Material WOODEN_PLANK_DARK_WOOD = get(BLK_WOODEN_PLANK, 4 + DATA_DARK_OAK);
     
-    public static final Material WOOL_WHITE  = get(BLK_WOOL,  0);
-    public static final Material WOOL_YELLOW = get(BLK_WOOL,  4);
-    public static final Material WOOL_ORANGE = get(BLK_WOOL,  1);
-    public static final Material WOOL_RED    = get(BLK_WOOL, 14);
+    public static final Material WOOL_WHITE      = get(BLK_WOOL, DATA_WHITE);
+    public static final Material WOOL_ORANGE     = get(BLK_WOOL, DATA_ORANGE);
+    public static final Material WOOL_MAGENTA    = get(BLK_WOOL, DATA_MAGENTA);
+    public static final Material WOOL_LIGHT_BLUE = get(BLK_WOOL, DATA_LIGHT_BLUE);
+    public static final Material WOOL_YELLOW     = get(BLK_WOOL, DATA_YELLOW);
+    public static final Material WOOL_LIME       = get(BLK_WOOL, DATA_LIME);
+    public static final Material WOOL_PINK       = get(BLK_WOOL, DATA_PINK);
+    public static final Material WOOL_GREY       = get(BLK_WOOL, DATA_GREY);
+    public static final Material WOOL_LIGHT_GREY = get(BLK_WOOL, DATA_LIGHT_GREY);
+    public static final Material WOOL_CYAN       = get(BLK_WOOL, DATA_CYAN);
+    public static final Material WOOL_PURPLE     = get(BLK_WOOL, DATA_PURPLE);
+    public static final Material WOOL_BLUE       = get(BLK_WOOL, DATA_BLUE);
+    public static final Material WOOL_BROWN      = get(BLK_WOOL, DATA_BROWN);
+    public static final Material WOOL_GREEN      = get(BLK_WOOL, DATA_GREEN);
+    public static final Material WOOL_RED        = get(BLK_WOOL, DATA_RED);
+    public static final Material WOOL_BLACK      = get(BLK_WOOL, DATA_BLACK);
 
     public static final Material COBBLESTONE_SLAB = get(BLK_SLAB, DATA_SLAB_COBBLESTONE);
     

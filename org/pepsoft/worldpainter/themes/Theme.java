@@ -29,4 +29,5 @@ public interface Theme extends Serializable {
     void setSeed(long seed);
     int getWaterHeight();
     void setWaterHeight(int waterHeight);
+    Theme clone();
 }

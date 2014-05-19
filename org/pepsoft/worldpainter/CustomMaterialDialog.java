@@ -144,7 +144,10 @@ public class CustomMaterialDialog extends WorldPainterDialog {
             }
         }
         buttonRemoveMaterial.setEnabled(validRowsSelected);
-        spinnerScale.setEnabled(radioButtonBlobs.isSelected());
+        boolean oneMaterial = tableModel.getRowCount() < 2;
+        radioButtonBlobs.setEnabled(! oneMaterial);
+        radioButtonNoise.setEnabled(! oneMaterial);
+        spinnerScale.setEnabled((! oneMaterial) && radioButtonBlobs.isSelected());
         tableModel.setScaleEnabled(radioButtonBlobs.isSelected());
         if (checkBoxColour.isSelected()) {
             setLabelColour();

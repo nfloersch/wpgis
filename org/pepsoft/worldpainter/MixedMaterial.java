@@ -63,10 +63,9 @@ public class MixedMaterial implements Serializable {
         }
         // Draw the terrain
         if (colour != null) {
-            int colourInt = colour;
             for (int x = 1; x < 15; x++) {
                 for (int y = 1; y < 15; y++) {
-                    icon.setRGB(x, y, colourInt);
+                    icon.setRGB(x, y, colour);
                 }
             }
         } else {
@@ -77,6 +76,29 @@ public class MixedMaterial implements Serializable {
             }
         }
         return icon;
+    }
+    
+    public Material getMaterial(long seed, int x, int y, float z) {
+        if (simple) {
+            return simpleMaterial;
+        } else if (noise) {
+            return materials[random.nextInt(1000)];
+        } else {
+            double xx = x / Constants.TINY_BLOBS, yy = y / Constants.TINY_BLOBS, zz = z / Constants.TINY_BLOBS;
+            if (seed + 1 != noiseGenerators[0].getSeed()) {
+                for (int i = 0; i < noiseGenerators.length; i++) {
+                    noiseGenerators[i].setSeed(seed + i + 1);
+                }
+            }
+            Material material = sortedRows[sortedRows.length - 1].material;
+            for (int i = noiseGenerators.length - 1; i >= 0; i--) {
+                final float rowScale = sortedRows[i].scale * this.scale;
+                if (noiseGenerators[i].getPerlinNoise(xx / rowScale, yy / rowScale, zz / rowScale) >= sortedRows[i].chance) {
+                    material = sortedRows[i].material;
+                }
+            }
+            return material;
+        }
     }
     
     public Material getMaterial(long seed, int x, int y, int z) {
@@ -116,12 +138,10 @@ public class MixedMaterial implements Serializable {
     @Override
     public int hashCode() {
         int hash = 7;
-        hash = 19 * hash + (this.name != null ? this.name.hashCode() : 0);
         hash = 19 * hash + this.biome;
         hash = 19 * hash + Arrays.deepHashCode(this.rows);
         hash = 19 * hash + (this.noise ? 1 : 0);
         hash = 19 * hash + Float.floatToIntBits(this.scale);
-        hash = 19 * hash + (this.colour != null ? this.colour : 0);
         return hash;
     }
 
@@ -134,9 +154,6 @@ public class MixedMaterial implements Serializable {
             return false;
         }
         final MixedMaterial other = (MixedMaterial) obj;
-        if ((this.name == null) ? (other.name != null) : !this.name.equals(other.name)) {
-            return false;
-        }
         if (this.biome != other.biome) {
             return false;
         }
@@ -147,9 +164,6 @@ public class MixedMaterial implements Serializable {
             return false;
         }
         if (Float.floatToIntBits(this.scale) != Float.floatToIntBits(other.scale)) {
-            return false;
-        }
-        if ((this.colour == null) ? (other.colour != null) : !this.colour.equals(other.colour)) {
             return false;
         }
         return true;
@@ -233,6 +247,40 @@ public class MixedMaterial implements Serializable {
             this.material = material;
             this.occurrence = occurrence;
             this.scale = scale;
+        }
+
+        @Override
+        public int hashCode() {
+            int hash = 5;
+            hash = 23 * hash + (this.material != null ? this.material.hashCode() : 0);
+            hash = 23 * hash + this.occurrence;
+            hash = 23 * hash + Float.floatToIntBits(this.scale);
+            hash = 23 * hash + Float.floatToIntBits(this.chance);
+            return hash;
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (obj == null) {
+                return false;
+            }
+            if (getClass() != obj.getClass()) {
+                return false;
+            }
+            final Row other = (Row) obj;
+            if (this.material != other.material && (this.material == null || !this.material.equals(other.material))) {
+                return false;
+            }
+            if (this.occurrence != other.occurrence) {
+                return false;
+            }
+            if (Float.floatToIntBits(this.scale) != Float.floatToIntBits(other.scale)) {
+                return false;
+            }
+            if (Float.floatToIntBits(this.chance) != Float.floatToIntBits(other.chance)) {
+                return false;
+            }
+            return true;
         }
         
         final Material material;

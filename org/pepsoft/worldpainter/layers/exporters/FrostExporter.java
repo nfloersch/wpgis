@@ -52,7 +52,10 @@ public class FrostExporter extends AbstractLayerExporter<Frost> implements Secon
                             if (blockType == BLK_STATIONARY_WATER) {
                                 minecraftWorld.setBlockTypeAt(x, y, height, BLK_ICE);
                                 break;
-                            } else if ((blockType == BLK_LEAVES) || (blockType == BLK_WOOD)) {
+                            } else if ((blockType == BLK_LEAVES)
+                                    || (blockType == BLK_LEAVES2)
+                                    || (blockType == BLK_WOOD)
+                                    || (blockType == BLK_WOOD2)) {
                                 if (previousBlockType == BLK_AIR) {
                                     minecraftWorld.setBlockTypeAt(x, y, height + 1, BLK_SNOW);
                                 }
@@ -151,8 +154,9 @@ public class FrostExporter extends AbstractLayerExporter<Frost> implements Secon
         BLK_COBBLESTONE_WALL, BLK_FLOWER_POT, BLK_CARROTS, BLK_POTATOES,
         BLK_WOODEN_BUTTON, BLK_HEAD, BLK_ANVIL, BLK_TRAPPED_CHEST,
         BLK_WEIGHTED_PRESSURE_PLATE_HEAVY, BLK_WEIGHTED_PRESSURE_PLATE_LIGHT,
-        BLK_REDSTONE_COMPARATOR_OFF, BLK_REDSTONE_COMPARATOR_ON,
-        BLK_DAYLIGHT_SENSOR, BLK_ACTIVATOR_RAIL));
+        BLK_REDSTONE_COMPARATOR, BLK_DAYLIGHT_SENSOR, BLK_ACTIVATOR_RAIL,
+        BLK_STAINED_GLASS_PANE, BLK_ACACIA_WOOD_STAIRS,
+        BLK_DARK_OAK_WOOD_STAIRS, BLK_CARPET, BLK_LARGE_FLOWERS, BLK_PACKED_ICE));
     
     public static class FrostSettings implements ExporterSettings<Frost> {
         @Override

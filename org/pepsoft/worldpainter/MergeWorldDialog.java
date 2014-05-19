@@ -84,12 +84,10 @@ public class MergeWorldDialog extends javax.swing.JDialog implements Listener {
             }
         }
         if (selectedTiles != null) {
-            radioButtonExportSelection.setText("export " + selectedTiles.size() + " selected tiles");
+            radioButtonExportSelection.setText("merge " + selectedTiles.size() + " selected tiles");
             radioButtonExportSelection.setSelected(true);
         }
         
-        biomeMergingEnabled = world.getBiomeAlgorithm() != World2.BIOME_ALGORITHM_1_7_3;
-
         DocumentListener documentListener = new DocumentListener() {
             @Override
             public void insertUpdate(DocumentEvent e) {
@@ -126,6 +124,7 @@ public class MergeWorldDialog extends javax.swing.JDialog implements Listener {
         rootPane.setDefaultButton(buttonMerge);
 
         setControlStates();
+        pack();
     }
 
     // ProgressComponent.Listener
@@ -221,7 +220,6 @@ public class MergeWorldDialog extends javax.swing.JDialog implements Listener {
         }
 
         setDefaultCloseOperation(JDialog.DO_NOTHING_ON_CLOSE);
-        merging = true;
 
         start = System.currentTimeMillis();
         progressComponent1.setTask(new ProgressTask<Void>() {
@@ -283,22 +281,18 @@ public class MergeWorldDialog extends javax.swing.JDialog implements Listener {
         boolean levelDatSelected = file.isFile() && (file.getName().equalsIgnoreCase("level.dat"));
         if (levelDatSelected) {
             levelDatFile = file;
-            if (biomeMergingEnabled) {
-                try {
-                    Level level = Level.load(levelDatFile);
-                    if (level.getVersion() != org.pepsoft.minecraft.Constants.SUPPORTED_VERSION_2) {
-                        if (radioButtonBiomes.isSelected()) {
-                            radioButtonAll.setSelected(true);
-                        }
-                        radioButtonBiomes.setEnabled(false);
-                    } else {
-                        radioButtonBiomes.setEnabled(true);
+            try {
+                Level level = Level.load(levelDatFile);
+                if (level.getVersion() != org.pepsoft.minecraft.Constants.SUPPORTED_VERSION_2) {
+                    if (radioButtonBiomes.isSelected()) {
+                        radioButtonAll.setSelected(true);
                     }
-                } catch (IOException e) {
-                    throw new RuntimeException("I/O error while loading level.dat", e);
+                    radioButtonBiomes.setEnabled(false);
+                } else {
+                    radioButtonBiomes.setEnabled(true);
                 }
-            } else {
-                radioButtonBiomes.setEnabled(false);
+            } catch (IOException e) {
+                throw new RuntimeException("I/O error while loading level.dat", e);
             }
         }
         buttonMerge.setEnabled(levelDatSelected);
@@ -559,8 +553,6 @@ public class MergeWorldDialog extends javax.swing.JDialog implements Listener {
     private final CustomBiomeManager customBiomeManager;
     private File levelDatFile;
     private volatile File backupDir;
-    private boolean merging, biomeMergingEnabled;
-    private volatile boolean cancelled;
     private long start;
     private int selectedDimension;
     private Set<Point> selectedTiles;

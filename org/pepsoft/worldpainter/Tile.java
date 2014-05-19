@@ -12,6 +12,7 @@ import java.io.ObjectOutputStream;
 import java.io.PrintStream;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Collections;
 import java.util.EnumSet;
@@ -36,6 +37,7 @@ import org.pepsoft.worldpainter.layers.Layer;
 import org.pepsoft.worldpainter.layers.Layer.DataSize;
 
 import static org.pepsoft.worldpainter.Constants.TILE_SIZE_MASK;
+import org.pepsoft.worldpainter.layers.Biome;
 import org.pepsoft.worldpainter.layers.FloodWithLava;
 import static org.pepsoft.worldpainter.layers.Layer.DataSize.BYTE;
 import static org.pepsoft.worldpainter.layers.Layer.DataSize.NIBBLE;
@@ -561,7 +563,7 @@ public class Tile extends InstanceKeeper implements Serializable, UndoListener {
         ensureReadable(TileBuffer.LAYER_DATA);
         byte[] layerValues = layerData.get(layer);
         if (layerValues == null) {
-            return 0;
+            return layer.getDefaultValue();
         } else {
             switch (layer.getDataSize()) {
                 case BIT:
@@ -588,10 +590,9 @@ public class Tile extends InstanceKeeper implements Serializable, UndoListener {
         ensureWriteable(TileBuffer.LAYER_DATA);
         byte[] layerValues = layerData.get(layer);
         if (layerValues == null) {
-            if (value == 0) {
-                // The default value when there is no data is zero, so when
-                // setting the value to zero there is no point in creating the
-                // data buffer if it does not exist yet
+            if (value == layer.getDefaultValue()) {
+                // There is no data buffer and we're setting the value to the
+                // default, so we don't need to create it
                 return;
             }
             cachedLayers = null;
@@ -601,9 +602,17 @@ public class Tile extends InstanceKeeper implements Serializable, UndoListener {
                     throw new IllegalArgumentException("Can't set bits using this method");
                 case NIBBLE:
                     layerValues = new byte[TILE_SIZE * TILE_SIZE / 2];
+                    if (layer.getDefaultValue() != 0) {
+                        byte defaultValue = (byte) (layer.getDefaultValue() << 4 | layer.getDefaultValue());
+                        Arrays.fill(layerValues, defaultValue);
+                    }
                     break;
                 case BYTE:
                     layerValues = new byte[TILE_SIZE * TILE_SIZE];
+                    if (layer.getDefaultValue() != 0) {
+                        byte defaultValue = (byte) layer.getDefaultValue();
+                        Arrays.fill(layerValues, defaultValue);
+                    }
                     break;
                 default:
                     throw new InternalError();
@@ -976,6 +985,16 @@ public class Tile extends InstanceKeeper implements Serializable, UndoListener {
         for (TileBuffer tileBuffer: TileBuffer.values()) {
             ensureReadable(tileBuffer);
         }
+    }
+
+    void convertBiomeData() {
+        byte[] biomeData = layerData.remove(Biome.INSTANCE);
+        byte[] newBiomeData = new byte[biomeData.length * 2];
+        for (int i = 0; i < biomeData.length; i++) {
+            newBiomeData[i * 2] = (byte) (biomeData[i] & 0x0f);
+            newBiomeData[i * 2 + 1] = (byte) ((biomeData[i] & 0xf0) >> 4);
+        }
+        layerData.put(Biome.INSTANCE, newBiomeData);
     }
 
     private boolean getBitPerBlockLayerValue(BitSet bitSet, int x, int y) {

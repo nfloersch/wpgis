@@ -165,6 +165,14 @@ public interface WPObject extends Serializable, Cloneable {
      * <tr><td>{@link #LEAF_DECAY_OFF}</td><td>All leaf blocks are set to <em>not</em> decay regardless of their setting in the custom object</td></tr></table>
      */
     static final String ATTRIBUTE_LEAF_DECAY_MODE  = "WPObject.leafDecay";       // Type Integer; see LEAF_DECAY_* constants
+    /**
+     * When set, describes a block ID (index 0) and data (index 1) combination
+     * which will be replaced with air blocks when this object is rendered.
+     * Mainly meant to be able to create voids underground using schematics,
+     * which is otherwise not possible since there is no way to tell whether an
+     * air block from a schematic is supposed to be placed or not.
+     */
+    static final String ATTRIBUTE_REPLACE_WITH_AIR = "WPObject.replaceWithAir";  // Type int[]; default: null
     
     static final int COLLISION_MODE_ALL   = 1;
     static final int COLLISION_MODE_SOLID = 2;

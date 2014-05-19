@@ -27,7 +27,7 @@ import org.pepsoft.worldpainter.Terrain;
  *
  * @author pepijn
  */
-public class SimpleThemeEditor extends javax.swing.JPanel implements ButtonPressListener {
+public class SimpleThemeEditor extends javax.swing.JPanel implements ButtonPressListener, TerrainRangesTableModel.ChangeListener {
     /** Creates new form TerrainRangesEditor */
     public SimpleThemeEditor() {
         initComponents();
@@ -65,6 +65,7 @@ public class SimpleThemeEditor extends javax.swing.JPanel implements ButtonPress
         this.theme = theme;
         if (theme != null) {
             terrainTableModel = new TerrainRangesTableModel(theme.getTerrainRanges());
+            terrainTableModel.setChangeListener(this);
             jTable1.setModel(terrainTableModel);
             
             jTable1.setDefaultRenderer(Integer.class, new DefaultTableCellRenderer());
@@ -95,11 +96,26 @@ public class SimpleThemeEditor extends javax.swing.JPanel implements ButtonPress
         checkBoxRandomise.setEnabled(enabled);
     }
 
+    public ChangeListener getChangeListener() {
+        return changeListener;
+    }
+
+    public void setChangeListener(ChangeListener changeListener) {
+        this.changeListener = changeListener;
+    }
+
     // ButtonPressListener
 
     @Override
     public void buttonPressed(int row, int column) {
         terrainTableModel.deleteRow(row);
+    }
+
+    // TerrainRangesTableModel.ChangeListener
+    
+    @Override
+    public void dataChanged(TerrainRangesTableModel model) {
+        notifyChangeListener();
     }
 
     private void addTerrain() {
@@ -111,6 +127,12 @@ public class SimpleThemeEditor extends javax.swing.JPanel implements ButtonPress
         }
     }
     
+    private void notifyChangeListener() {
+        if (changeListener != null) {
+            changeListener.settingsModified(this);
+        }
+    }
+
     /** This method is called from within the constructor to
      * initialize the form.
      * WARNING: Do NOT modify this code. The content of this method is
@@ -147,9 +169,19 @@ public class SimpleThemeEditor extends javax.swing.JPanel implements ButtonPress
         });
 
         spinnerWaterLevel.setEnabled(false);
+        spinnerWaterLevel.addChangeListener(new javax.swing.event.ChangeListener() {
+            public void stateChanged(javax.swing.event.ChangeEvent evt) {
+                spinnerWaterLevelStateChanged(evt);
+            }
+        });
 
         checkBoxRandomise.setText("noisy edges");
         checkBoxRandomise.setToolTipText("Whether to randomise the edges of the terrain types (except beaches).");
+        checkBoxRandomise.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                checkBoxRandomiseActionPerformed(evt);
+            }
+        });
 
         jLabel1.setText("Terrain:");
 
@@ -191,7 +223,16 @@ public class SimpleThemeEditor extends javax.swing.JPanel implements ButtonPress
 
     private void checkBoxBeachesActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_checkBoxBeachesActionPerformed
         spinnerWaterLevel.setEnabled(checkBoxBeaches.isSelected());
+        notifyChangeListener();
     }//GEN-LAST:event_checkBoxBeachesActionPerformed
+
+    private void spinnerWaterLevelStateChanged(javax.swing.event.ChangeEvent evt) {//GEN-FIRST:event_spinnerWaterLevelStateChanged
+        notifyChangeListener();
+    }//GEN-LAST:event_spinnerWaterLevelStateChanged
+
+    private void checkBoxRandomiseActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_checkBoxRandomiseActionPerformed
+        notifyChangeListener();
+    }//GEN-LAST:event_checkBoxRandomiseActionPerformed
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JButton buttonAdd;
@@ -206,6 +247,18 @@ public class SimpleThemeEditor extends javax.swing.JPanel implements ButtonPress
     private SimpleTheme theme;
     private TerrainRangesTableModel terrainTableModel;
     private ColourScheme colourScheme;
+    private ChangeListener changeListener;
     
     private static final long serialVersionUID = 1L;
+    
+    public interface ChangeListener {
+        /**
+         * Indicates that the user made changes in the specified theme editor.
+         * <strong>Note:</strong> the changes have <em>not</em> been saved to
+         * the theme yet!
+         * 
+         * @param editor The editor in which changes were made.
+         */
+        void settingsModified(SimpleThemeEditor editor);
+    }
 }

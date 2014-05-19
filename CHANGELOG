@@ -1,3 +1,142 @@
+-- Version 1.8.5, released 19-3-2014
+
+ * Don't put snow on packed ice blocks, since Minecraft does not allow that
+ * The Deep Snow terrain type no longer has thin Snow on top. This is to facilitate easier generation of ice spikes by setting the biome to Ice Plains Spikes and painting Populate in the same area. Of course if you use the Frost layer in the same area, that will still place Snow and prevent ice spikes from forming!
+ * Bug fix: don't crash upon encountering unknown tile entities in schematics; instead log a warning in the log file. Note that for unknown tile entities WorldPainter can't check whether the corresponding block still exists. If it doesn't (because it was replaced by something else, for instance), Minecraft may crash
+ * Bug fix: configuring a colour for the material of a Custom Ground Cover layer would result in an error; this has been fixed
+
+-- Version 1.8.4, released 16-3-2014
+
+ * It is now possible to replace a particular block type in custom objects with air when placing the object:
+   - The Edit Object Attributes screen now has a new checkbox called "replace with air". If you select it you can then specify a block ID and data value
+   - By default the block ID is set to 35 and the data value to 2, which is Magenta Wool, but you can use any block type you want
+   - For objects where this option is active, any blocks in the object with the specified ID and data value will be replaced with air when the objects is rendered
+   - Note that for the collision calculations the original block type is used
+   - One way to use this is to create dungeons or other hollow spaces underground with schematics, something which was not previously possible. Just replace the air blocks with magenta wool blocks before exporting the schematic, and activate the "replace with air" option in WorldPainter
+   - Another way to use this is to expand the "collision envelope" of objects, in other words increase the guaranteed distance from other objects, by placing a few Magenta Wool blocks as a buffer around the outside of the object, which will collide with solid blocks, but rendered as air
+ * The tool panels and palettes now use the JIDE Docking Framework for much improved management and organisation
+   - When a world is saved WorldPainter will remember the workspace layout (in its own settings, not in the .world file, so they will not travel with the file) and will restore it when you load the world again
+   - You can also set the default workspace layout from the menu: View -> Save workspace layout
+   - By default custom layer palettes are tabbed with the regular Layers palette, and the custom brush palettes are tabbed with the regular Brushes palette, but you can drag them away and create your own layout of panes and/or tabs for optimum convenience
+   - Panels can be moved and docked in various places by dragging the title bar (which will move all the tabs), or by dragging the individual tabs
+   - Panels can be floated by clicking the float icon on their titlebar, or by dragging them onto the editor, or out of the window. They can be unfloated by clicking the unfloat icon
+   - Panels can be set to autohide by clicking the pin icon
+   - Panels can be dragged onto a workspace edge to create a new pane, onto the titlebar of an existing pane to add a tab, or in between panes to insert a new pane between the existing ones
+   - If you want to move all tabs but one to a new pane it's easier to first drag the entire pane to a new location, and then drag only the one tab which you wish to remain in its original location back
+   - If you mess up the layout or lose a panel you can restore to factory defaults from the menu: View -> Reset workspace layout
+ * The default export settings (world type, game mode, etc.) can now be configured on the Preferences screen (Edit menu)
+ * Worlds created from height maps now inherit more default settings from the Preferences screen (such as the default export settings and the default border, surface layer depth, bottomless world and layer configuration settings)
+ * Bedrock walls are now solid bedrock (instead of being hollow in the middle), to avoid triggering a bug in Minecraft
+ * Bug fix: don't export custom terrains with incorrect biome ID's, causing Minecraft to crash. Unfortunately such worlds will have to be reexported to fix the biomes
+ * Bug fix: the Grass terrain type should no longer render empty but breakable blocks on top of some tall grass blocks
+ * Bug fix: when importing a height map don't turn pixels with value 0 into void (unless requested)
+ * Bug fix: when importing a height map correctly initialise the default water level to the stored defaults
+ * Bug fix: remove tile entity data for tile entities (chests, etc.) which did not end up in the exported map (because they were replaced by something else, for instance) to prevent Minecraft crashes
+
+-- Version 1.8.3, released 24-2-2014
+
+ * Bug fix: make importing height maps work again without generating an error message
+
+-- Version 1.8.2, released 23-2-2014
+
+ * The Grass terrain type (which is the default terrain type) now generates the new flowers and double high plants of Minecraft 1.7. It generates as many flowers and as much grass as previously, but anywhere it previously generated a dandelion or poppy it can now generate any flower (including double high ones), and anywhere it previously generated tall grass or ferns it can now also generate double high grass or ferns
+ * Zoom support has been added to the 3D view. Note that it is a simple zoom; i.e. it just enlarges the pixels. No additional detail will be visible when zooming in. You can zoom in or out by pressing the - or + buttons on the keyboard, by scrolling the mouse wheel or by using the new toolbar buttons. You can zoom a maximum of three levels in either direction. Note that zooming out large worlds will cost a lot of memory and performance!
+
+-- Version 1.8.1, released 17-2-2014
+
+ * Bug fix: make the Global Operations tool work again, without hanging WorldPainter
+ * Bug fix: merging maps with Mesa terrain now works correctly, without building higher and higher columns of clay
+ 
+-- Version 1.8.0, released 16-2-2014
+
+ * A new feature has been added: Annotations. They allow you to add lines (both straight and free form) and text to the map view as guides or reminders. It has the following properties:
+   - Activate by selecting the Annotations layer button. An options panel will be displayed which allows you to select a tool and a colour.
+   - The Pencil tool allows you to draw lines and to erase annotations
+     + It uses the shape and size of the brush. By reducing the brush radius all the way to zero you can draw single pixel lines
+     + Click one with the Pencil tool to draw a single point
+     + Click and drag with the left mouse button to draw a free form line
+     + Press Shift while clicking with the left mouse button to draw a straight line from the last point you drew
+     + Press Ctrl and Shift while clicking with the left mouse button to draw a straight line from the last point you drew, snapped to the nearest 45 degree angle
+     + Press Ctrl and drag with the left mouse button to draw a straight free form line, snapped to the nearest 45 degree angle
+     + You can do all of the above with the right mouse button instead of the left to erase annotations instead of drawing. You might want to use a larger brush size for that
+   - The Text tool allows you to draw text
+     + Select it and left click where you want to place the text
+     + A dialog box will appear allowing you to enter the text you want to draw, as well as select a font, font size, bold and/or italics, and angle (allowing you to draw the text on its side or upside down)
+     + The text may have multiple lines
+     + Note that if you select a different angle than zero degrees, the text will be rotated around the point where you clicked. In other words, if for instance you selected 180 degrees, the text will be placed above and to the left of where you clicked
+   - The colour palette determines the colour of any lines or text you draw
+   - You can erase annotations by right clicking with the Pencil tool (use a larger brush size for convenience)
+   - The Annotations layer is mainly meant for creating guides and reminders for the world creation process, not for actual exporting to the Minecraft map. However, it *is* possible to do that by checking the "export the annotations" checkbox on the Other Layers tab of the Export or Dimension Properties screens. The annotations will be exported as coloured wool on top of the landscape
+ * The height map import dialog has been slightly improved:
+   - The settings on the Terrain tab can now be saved as defaults, so you don't have to keep changing them if you use the same settings a lot
+   - It once again supports importing RGB ("colour") images. Note that only the red channel will be used!
+   - It now properly supports 16-bit height maps (height maps with 65536 discrete values per pixel, instead of 256). Such height maps can be used in two ways:
+     + Creating worlds higher than 256 blocks. WorldPainter automatically chooses this mode if the highest value in the image is below 2048. Otherwise WorldPainter chooses the next mode by default:
+     + "High resolution" world creation: a world with a normal 256 world height, but with additional resolution to the height information, resulting in better looking Smooth Snow (which will be turned on by default, as opposed to normal "low res" height maps), and smoother terrain operations. The additional resolution does not show up in Minecraft (other than in the Smooth Snow), but it makes editing the world after importing the height map work better
+   - Note that it does not support scaling for grey scale images with alpha channels. Remove the alpha channel from such images using a program such as GIMP or PhotoShop in order to be able to scale it in WorldPainter
+ * Bug fix: tile entities (chests, signs, etc.) from schematics are now correctly placed, even if the schematic has a non-zero offset
+   - Note that there is a bug in WorldEdit causing it not to include paintings or item frames in exported schematics. They will be lost, but there is nothing WorldPainter can do about that unfortunately
+   - There are a few known bugs which will be fixed in the future:
+     + Severed heads aren't supported; both the rotation and the type of head will be lost
+     + Rail track corners aren't rotated properly
+
+-- Version 1.7.1, released 1-12-2013
+
+ * Made the terrain type menu on the brush filter panel shorter by breaking off the stained clays and the custom terrain types into their own sub menus
+ * The default "ocean" and "land" seeds have changed to seeds which work with Minecraft 1.7's new biome algorithm (but therefore are no longer correct for Minecraft 1.6). Note that Minecraft 1.7 has no large oceans any more, so even the default "ocean" seed will only result in a relatively small ocean around the origin (the nearest land is approximately 1400 blocks away)
+ * Made several small usability improvements and bug fixes to the Biomes Viewer
+ * Bug fix: actually use the custom terrain colours, when configured, in the editor
+
+-- Version 1.7.0, released 30-11-2013
+
+ * Added support for Minecraft 1.7 biomes in various places:
+   - The Biomes layer
+   - The Biomes Viewer tool
+   - Because there are so many biomes now the Biomes panel has been refactored. Instead of having buttons for all biomes there are, it has buttons for the base biomes (to which have been added Birch Forest, Roofed Forest, Mega Taiga, Mega Spruce Taiga, Savanna, Mesa, Stone Beach, Cold Beach and Cold Taiga) and checkboxes for a number of options ("hills/shore", "edge/plateau", "M", "F" and "variant"). The "variant" option is for things like Flower Forest, Extreme Hills+, Mesa (Bryce) and Ice Plains Spikes
+ * Various changes were made to the Custom and Automatic Biomes support:
+   - The legacy biomes support (where WorldPainter would calculate the biomes according to the Minecraft seed) has been removed
+   - Custom Biomes is now *always* enabled (and therefore the option has been removed). Note that if you export a world to the MCRegion (Minecraft 1.1 and earlier) format the biome information will not be exported and therefore be ignored!
+   - Automatic Biomes have been refactored and work differently. It is no longer an option; instead it is always available. New worlds are initialised to have automatic biomes everywhere, which you can override by painting biomes manually with the Biomes layer. To reset to Automatic Biomes, right-click with the Biomes layer (it doesn't matter which biome you have selected), or use the Global Operations tool to reset it everywhere. Automatic Biomes will now no longer overwrite your manual changes whenever you edit the terrain or the layers
+   - Existing worlds may have Automatic Biomes enabled if it was disabled, or disabled if it was enabled, depending on exactly which options were enabled previously. WorldPainter will warn you when it does this. For more information, including how to disable or reenable Automatic Biomes, see this web page: http://www.worldpainter.net/trac/wiki/NewAutomaticBiomes
+ * The colour schemes have been updated and expanded for Minecraft 1.7:
+   - The default colour scheme has been altered to more accurately represent the actual colours in Minecraft. You can change the colour scheme from the View menu
+   - Some more colour schemes have been added, corresponding to popular texture packs: DokuDark, DokuHigh and DokuLight (DokuCraft), Misa (Realistic) and Sphax (PureBDCraft)
+   - With thanks to mikeprimm from Dynmap!
+ * The terrain types were also updated for Minecraft 1.7:
+   - Added new terrain types for the new Minecraft 1.7 biomes. The simple terrain types (which consist of a single block type throughout) added are: Permadirt (Dirt on which grass won't grow), Podzol, Red Sand, Hardened Clay and all sixteen colours of Stained Clay. When Importing a Minecraft map WorldPainter will now use these new terrain types
+   - In addition, two new complex terrain types have been added: Mesa and Red Desert. Mesa consist of random horizontal layers of Hardened Clay, Red Sand and White, Yellow, Orange, Light Grey, Red and Brown Stained Clay. The layers vary up and down randomly and on top are many dead shrubs. The associated Automatic Biome is Mesa. The second complex terrain type is Red Desert, which is very similar to Desert, except that it places Red Sand, has fewer cactuses and the associated Automatic Biome is also Mesa
+   - The Terrains panel has changed to accomodate the new terrain types. Dirt has been replaced with Permadirt (the idea is that if you are placing Dirt manually you most likely want it to stay Dirt). Podzol, Red Sand and Hardened Clay have been added, as well as Mesa and Red Desert. Resources has been removed. An extra More Terrains panel has been added, which can be opened with the new + button on the Terrains panel, and which contains all the Stained Clays
+ * You can now donate bitcoins! If you find WorldPainter fun or useful, or you make money with it, please consider donating an amount of your choice. The bitcoin address for donations is: 1NK8PFYFetTiWReujPsQXDcarXKJuYtqgF
+ * WorldPainter now targets Minecraft 1.7 in principle. While the map format has not changed and it can still generate Minecraft 1.6 compatible maps in principle, you have to make sure yourself not to use any block types or biomes which Minecraft 1.6 does not support, if you are targeting Minecraft 1.6. Note that Automatic Biomes (which is used by default on new worlds) *will* choose biomes which Minecraft 1.6 does not support, so you will have to paint the biomes manually. See http://www.worldpainter.net/trac/wiki/NewAutomaticBiomes for more information. WorldPainter 1.6.7 will also remain available
+ * Bug fix: make painting custom terrain types work correctly again (the wrong terrain was being painted)
+ * Bug fix: some small zoom related bugs were fixed in tile selection screens
+
+-- Version 1.6.7, released 15-11-2013
+
+ * Bug fix: fix an error while importing a map that was caused by encountering a Dirt or Sand block with an unknown data value. Such blocks will now be counted as regular Dirt or Sand blocks (with a data value of zero)
+ * Bug fix: make changing the colour of custom terrain types work again
+
+-- Version 1.6.6, released 10-11-2013
+
+ * New feature: layer palettes! This allows you to group custom layers together on separate palettes, alleviating the problem that if you have too many custom layers they don't fit on the screen any more. To use: right-click on a layer button, choose "Move to palette", then choose the name of an existing palette or "New palette" to create a new one. In the future you will be able to hide and/or collapse these palettes, but as of now that is not yet possible
+ * New option: "keep steep terrain covered". It's on the Dimension Properties/Export screen next to the top layer depth settings. It is on by default for new worlds; for existing worlds it remains off. It does what it says: it makes sure that the surface layer is extended downwards on steep terrain as much as needed to prevent the subsurface material from being visible. It prevents the stone underground showing through on cliffs and steep mountain sides, for instance. If you *want* that effect you can of course turn it off
+ * It is now possible to select custom biomes for the "only on" or "except on" brush filter settings
+ * Added support (names, light calculation, rotation and mirroring, etc.) for new blocks in Minecraft 1.7
+ * When importing existing Minecraft maps, as a temporary solution until full Minecraft 1.7 support arrives, WorldPainter will create custom terrain types for the new biome surface blocks (red sand, hardened clay, stained clay, permadirt and podzol) so these biomes can be more or less correctly imported and edited
+ * New import option: when importing an existing map there is a new setting (which is also the new default) for when to mark chunks read only: "chunks with man made blocks *above ground*". This will prevent chunks from being marked read only just because there are underground structures such as abandoned mines or strongholds. The old option of man made chunks at any level is also still available
+ * WorldPainter will try to remove blocks that would pop off in Minecraft anyway because they are placed on invalid blocks. It already did this for some block types (for instance flowers on anything but Grass or Dirt blocks), but it has been expanded to include Snow and Wheat blocks. Other invalid configurations will be added in the future. The reason is that large areas of these invalid block configurations have been known to crash Minecraft upon loading the map or entering the area
+ * Bug fix: make the "bottomless world" option work with the Cave/Tunnel layer
+ 
+-- Version 1.6.5, released 28-10-2013
+
+ * Bug fix: fixed a bug that prevented multiple ground cover layers in the same location from being exported if they had the same thickness
+ * Bug fix: fixed an error that occurred when importing a Combined Layer which refers to a Custom Terrain which is not present in the current world. For existing Combined Layers, the Custom Terrain setting has been lost and a warning will be displayed. For Combined Layers exported from now on, the Custom Terrain settings will be saved with the layer, and restored when it is imported
+ * Bug fix: don't remove red or brown mushrooms from mycelium blocks
+ * Bug fix: wheat no longer replaces water when used in a Custom Ground Cover layer
+ * Bug fix: make the bedrock wall option work again when no border is selected
+ * Bug fix: select the correct radiobutton for configured materials when editing existing Cave/Tunnel layers
+ * Various small bug fixes
+
 -- Version 1.6.4, released 25-9-2013
 
  * Bug fix: make importing existing Minecraft maps work again. Sorry about that!

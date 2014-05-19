@@ -25,26 +25,18 @@ import javax.swing.KeyStroke;
  */
 public class DimensionPropertiesDialog extends javax.swing.JDialog {
     /** Creates new form DimensionPropertiesDialog */
+    public DimensionPropertiesDialog(Window parent, Dimension dimension, ColourScheme colourScheme) {
+        this(parent, dimension, colourScheme, false);
+    }
+    
+    /** Creates new form DimensionPropertiesDialog */
     public DimensionPropertiesDialog(Window parent, Dimension dimension, ColourScheme colourScheme, boolean defaultSettingsMode) {
-        this(parent, dimension, null, colourScheme, defaultSettingsMode);
-    }
-    
-    /** Creates new form DimensionPropertiesDialog */
-    public DimensionPropertiesDialog(Window parent, Dimension dimension, BiomeScheme biomeScheme, ColourScheme colourScheme) {
-        this(parent, dimension, biomeScheme, colourScheme, false);
-    }
-    
-    /** Creates new form DimensionPropertiesDialog */
-    public DimensionPropertiesDialog(Window parent, Dimension dimension, BiomeScheme biomeScheme, ColourScheme colourScheme, boolean defaultSettingsMode) {
         super(parent, ModalityType.APPLICATION_MODAL);
         
         initComponents();
         
-        worldPropertiesEditor1.setDimension(dimension);
         worldPropertiesEditor1.setColourScheme(colourScheme);
-        if ((biomeScheme != null) && (dimension.getDim() == 0)) {
-            worldPropertiesEditor1.setBiomeScheme(biomeScheme);
-        }
+        worldPropertiesEditor1.setDimension(dimension);
         if (defaultSettingsMode) {
             worldPropertiesEditor1.setDefaultSettingsMode();
         }

@@ -6,7 +6,6 @@ package org.pepsoft.worldpainter.layers.groundcover;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
-import org.pepsoft.minecraft.Constants;
 
 import org.pepsoft.minecraft.Material;
 import org.pepsoft.worldpainter.MixedMaterial;
@@ -76,6 +75,14 @@ public class GroundCoverLayer extends CustomLayer {
         this.noiseSettings = noiseSettings;
     }
 
+    public boolean isSmooth() {
+        return smooth;
+    }
+
+    public void setSmooth(boolean smooth) {
+        this.smooth = smooth;
+    }
+
     @Override
     public LayerExporter<GroundCoverLayer> getExporter() {
         return exporter;
@@ -88,7 +95,7 @@ public class GroundCoverLayer extends CustomLayer {
             return -1;
         } else if (priority > layer.priority) {
             return 1;
-        } else if (layer instanceof GroundCoverLayer) {
+        } else if ((layer instanceof GroundCoverLayer) && (Math.abs(((GroundCoverLayer) layer).thickness) != Math.abs(thickness))) {
             return Math.abs(((GroundCoverLayer) layer).thickness) - Math.abs(thickness);
         } else {
             return getId().compareTo(layer.getId());
@@ -108,12 +115,6 @@ public class GroundCoverLayer extends CustomLayer {
             thickness = 1;
         }
         if (mixedMaterial == null) {
-            String name;
-            if (material.getData() != 0) {
-                name = Constants.BLOCK_TYPE_NAMES[material.getBlockType()] + " (" + material.getData() + ")";
-            } else {
-                name = Constants.BLOCK_TYPE_NAMES[material.getBlockType()];
-            }
             mixedMaterial = MixedMaterial.create(material);
             material = null;
         }
@@ -132,12 +133,11 @@ public class GroundCoverLayer extends CustomLayer {
     @Deprecated
     private int colour;
     private int thickness = 1;
-    @Deprecated
-    private final boolean taperedEdge = false, variedEdge = false;
     private int edgeWidth = 1;
     private MixedMaterial mixedMaterial;
     private EdgeShape edgeShape = EdgeShape.SHEER;
     private NoiseSettings noiseSettings;
+    private boolean smooth;
     private transient GroundCoverLayerExporter exporter;
 
     private static final long serialVersionUID = 1L;

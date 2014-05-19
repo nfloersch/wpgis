@@ -35,7 +35,7 @@ public class Mapper {
     public static void main(String[] args) throws IOException, InterruptedException {
         File worldDir = null;
         int dim = 0;
-        String colourSchemeName = "default";
+        String colourSchemeName = "classic";
         File output = null;
         for (int i = 0; i < args.length; i++) {
             String arg = args[i].trim();
@@ -91,8 +91,8 @@ public class Mapper {
         if ((dim < 0) || (dim > 2)) {
             error("Invalid dimension specified: " + dim);
         }
-        System.out.println("WorldPainter Mapper tool - version " + Version.VERSION + " - © 2012 pepsoft.org");
-        ColourScheme colourScheme = new DynMapColourScheme(colourSchemeName);
+        System.out.println("WorldPainter Mapper tool - version " + Version.VERSION + " - © 2012 - 2014 pepsoft.org");
+        ColourScheme colourScheme = new DynMapColourScheme(colourSchemeName, true);
         if (output == null) {
             output = new File(worldDir.getName().toLowerCase() + ".png");
         }
@@ -349,10 +349,7 @@ public class Mapper {
                                                         }
                                                     } else if (TERRAIN_BLOCKS.contains(blockType)) {
                                                         // Terrain found
-                                                        int data = 0;
-                                                        if ((blockType == BLK_WOOD) || (blockType == BLK_WOOL) || (blockType == BLK_SLAB) || (blockType == BLK_DOUBLE_SLAB) || (blockType == BLK_TALL_GRASS)) {
-                                                            data = world.getDataAt(worldX, worldY, height);
-                                                        }
+                                                        int data = world.getDataAt(worldX, worldY, height);
                                                         int depth = waterLevel - height;
                                                         int fluidAlpha = 0xff >> Math.min(depth, 3);
                                                         int colour = colourScheme.getColour(blockType, data);
@@ -374,10 +371,7 @@ public class Mapper {
                                                         break;
                                                     } else {
                                                         // Non-terrain block found (not shaded)
-                                                        int data = 0;
-                                                        if ((blockType == BLK_WOOD) || (blockType == BLK_WOOL) || (blockType == BLK_SLAB) || (blockType == BLK_DOUBLE_SLAB) || (blockType == BLK_TALL_GRASS)) {
-                                                            data = world.getDataAt(worldX, worldY, height);
-                                                        }
+                                                        int data = world.getDataAt(worldX, worldY, height);
                                                         int depth = waterLevel - height;
                                                         int fluidAlpha = 0xff >> Math.min(depth, 3);
                                                         int colour = colourScheme.getColour(blockType, data);

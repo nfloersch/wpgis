@@ -25,6 +25,8 @@ import org.pepsoft.worldpainter.MixedMaterial;
 import org.pepsoft.worldpainter.MixedMaterial.Row;
 import org.pepsoft.worldpainter.Terrain;
 import org.pepsoft.worldpainter.TileRenderer;
+import org.pepsoft.worldpainter.biomeschemes.AutoBiomeScheme;
+import org.pepsoft.worldpainter.biomeschemes.BiomeSchemeManager;
 import org.pepsoft.worldpainter.biomeschemes.Minecraft1_2BiomeScheme;
 import org.pepsoft.worldpainter.heightMaps.ConstantHeightMap;
 import org.pepsoft.worldpainter.heightMaps.MaximisingHeightMap;
@@ -32,7 +34,7 @@ import org.pepsoft.worldpainter.heightMaps.NinePatchHeightMap;
 import org.pepsoft.worldpainter.heightMaps.NoiseHeightMap;
 import org.pepsoft.worldpainter.heightMaps.ProductHeightMap;
 import org.pepsoft.worldpainter.heightMaps.SumHeightMap;
-import org.pepsoft.worldpainter.themes.FancyTheme;
+import org.pepsoft.worldpainter.themes.impl.fancy.FancyTheme;
 
 /**
  *
@@ -97,7 +99,7 @@ public class TileFactoryPreviewer {
         Terrain.setCustomMaterial(1, new MixedMaterial("Stone/Gravel", new Row[] {new Row(Material.STONE, 750, 1.0f), new Row(Material.GRAVEL, 250, 1.0f)}, Minecraft1_2BiomeScheme.BIOME_PLAINS, false, 1.0f, null));
         TiledImageViewer viewer = new TiledImageViewer();
         JFrame frame = new JFrame("TileFactory Previewer");
-        viewer.setTileProvider(new WPTileProvider(tileProvider, new DynMapColourScheme("default"), null, null, Collections.singleton((Layer) Biome.INSTANCE), true, TileRenderer.LightOrigin.NORTHWEST));
+        viewer.setTileProvider(new WPTileProvider(tileProvider, new DynMapColourScheme("default", true), new AutoBiomeScheme(null), null, Collections.singleton((Layer) Biome.INSTANCE), true, TileRenderer.LightOrigin.NORTHWEST));
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.getContentPane().add(viewer, BorderLayout.CENTER);
         frame.setSize(1000, 800);

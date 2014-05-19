@@ -181,7 +181,7 @@ public class ExportProgressDialog extends javax.swing.JDialog implements Listene
         if (stats.waterArea > 0) {
             sb.append("Water or lava area: " + formatter.format(stats.waterArea) + " blocks²<br>");
             if (stats.landArea > 0) {
-                sb.append("Total surface area (excluding Void, if any): " + formatter.format(stats.landArea + stats.waterArea) + " blocks²<br>");
+                sb.append("Total surface area: " + formatter.format(stats.landArea + stats.waterArea) + " blocks²<br>");
             }
         }
         final long totalBlocks = stats.surfaceArea * world.getMaxHeight();

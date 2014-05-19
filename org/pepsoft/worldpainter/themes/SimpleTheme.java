@@ -27,7 +27,7 @@ import org.pepsoft.worldpainter.layers.Layer;
  *
  * @author SchmitzP
  */
-public class SimpleTheme implements Theme {
+public class SimpleTheme implements Theme, Cloneable {
     @Deprecated
     public SimpleTheme(long seed, int waterHeight, Terrain[] terrainRangesTable, int maxHeight, boolean randomise, boolean beaches) {
         setSeed(seed);
@@ -136,6 +136,7 @@ public class SimpleTheme implements Theme {
     public final void setMaxHeight(int maxHeight, HeightTransform transform) {
         if (maxHeight != this.maxHeight) {
             this.maxHeight = maxHeight;
+            waterHeight = clamp(transform.transformHeight(waterHeight), maxHeight - 1);
             Terrain[] oldTerrainRangesTable = terrainRangesTable;
             terrainRangesTable = new Terrain[maxHeight];
             if (terrainRanges != null) {
@@ -170,6 +171,24 @@ public class SimpleTheme implements Theme {
     public final void setLayerMap(Map<Filter, Layer> layerMap) {
         this.layerMap = layerMap;
         initCaches();
+    }
+
+    @Override
+    public Theme clone() {
+        try {
+            SimpleTheme clone = (SimpleTheme) super.clone();
+            if (terrainRanges != null) {
+                clone.terrainRanges = new TreeMap<Integer, Terrain>(terrainRanges);
+            }
+            clone.terrainRangesTable = terrainRangesTable.clone();
+            if (layerMap != null) {
+                clone.setLayerMap(new HashMap<Filter, Layer>(layerMap));
+            }
+            clone.perlinNoise = (PerlinNoise) perlinNoise.clone();
+            return clone;
+        } catch (CloneNotSupportedException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     protected Terrain getTerrain(int x, int y, int height) {

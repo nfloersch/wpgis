@@ -65,7 +65,7 @@ public class MapViewer {
             Level level = Level.load(levelDatFile);
             final int maxHeight = level.getMaxHeight();
             final int version = level.getVersion();
-            final ColourScheme colourScheme = new DynMapColourScheme("default");
+            final ColourScheme colourScheme = new DynMapColourScheme("default", true);
             TileProvider tileProvider = new TileProvider() {
                 @Override
                 public int getTileSize() {

@@ -6,6 +6,7 @@ package org.pepsoft.worldpainter.panels;
 
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.util.List;
 import javax.swing.AbstractAction;
 import javax.swing.Action;
 import javax.swing.Icon;
@@ -21,7 +22,9 @@ import org.pepsoft.worldpainter.BiomeScheme;
 import org.pepsoft.worldpainter.ColourScheme;
 import org.pepsoft.worldpainter.Terrain;
 import org.pepsoft.worldpainter.biomeschemes.AutoBiomeScheme;
-import org.pepsoft.worldpainter.biomeschemes.BiomeSchemeManager;
+import org.pepsoft.worldpainter.biomeschemes.BiomeHelper;
+import org.pepsoft.worldpainter.biomeschemes.CustomBiome;
+import org.pepsoft.worldpainter.biomeschemes.CustomBiomeManager;
 import org.pepsoft.worldpainter.layers.Biome;
 import org.pepsoft.worldpainter.layers.Layer;
 import org.pepsoft.worldpainter.layers.LayerManager;
@@ -89,15 +92,15 @@ public class BrushOptions extends javax.swing.JPanel {
                 switch (myFilter.objectType) {
                     case BIOME:
                         int biome = myFilter.biome;
-                        BiomeScheme biomeScheme = (app.getBiomeScheme() != null) ? app.getBiomeScheme() : autoBiomeScheme;
+                        BiomeHelper biomeHelper = new BiomeHelper(autoBiomeScheme, app.getColourScheme(), app.getCustomBiomeManager());
                         if (myFilter.replaceIsExcept) {
                             exceptOn = biome;
-                            buttonExceptOn.setText(biomeScheme.getBiomeNames()[biome]);
-                            buttonExceptOn.setIcon(new ImageIcon(BiomeSchemeManager.createImage(biomeScheme, biome, app.getColourScheme())));
+                            buttonExceptOn.setText(biomeHelper.getBiomeName(biome));
+                            buttonExceptOn.setIcon(biomeHelper.getBiomeIcon(biome));
                         } else {
                             onlyOn = biome;
-                            buttonReplace.setText(biomeScheme.getBiomeNames()[biome]);
-                            buttonReplace.setIcon(new ImageIcon(BiomeSchemeManager.createImage(biomeScheme, biome, app.getColourScheme())));
+                            buttonReplace.setText(biomeHelper.getBiomeName(biome));
+                            buttonReplace.setIcon(biomeHelper.getBiomeIcon(biome));
                         }
                         break;
                     case BIT_LAYER:
@@ -235,6 +238,8 @@ public class BrushOptions extends javax.swing.JPanel {
         popupMenu.add(landItem);
         
         JMenu terrainMenu = new JMenu("Terrain");
+        JMenu customTerrainMenu = new JMenu("Custom");
+        JMenu stainedClayTerrainMenu = new JMenu("Stained Clay");
         App app = App.getInstance();
         ColourScheme colourScheme = app.getColourScheme();
         for (Terrain terrain: Terrain.getConfiguredValues()) {
@@ -248,7 +253,17 @@ public class BrushOptions extends javax.swing.JPanel {
                     listener.objectSelected(selectedTerrain, name, icon);
                 }
             });
-            terrainMenu.add(menuItem);
+            if (terrain.isCustom()) {
+                customTerrainMenu.add(menuItem);
+            } else if (terrain.getName().endsWith(" Clay") && (terrain != Terrain.HARDENED_CLAY)) {
+                stainedClayTerrainMenu.add(menuItem);
+            } else {
+                terrainMenu.add(menuItem);
+            }
+        }
+        terrainMenu.add(stainedClayTerrainMenu);
+        if (customTerrainMenu.getMenuComponentCount() > 0) {
+            terrainMenu.add(customTerrainMenu);
         }
         popupMenu.add(terrainMenu);
         
@@ -284,15 +299,33 @@ public class BrushOptions extends javax.swing.JPanel {
         }
         popupMenu.add(layerMenu);
         
-        BiomeScheme biomeScheme = (app.getBiomeScheme() != null) ? app.getBiomeScheme() : autoBiomeScheme;
-        if (biomeScheme != null) {
-            JMenu biomeMenu = new JMenu("Biome");
-            String[] names = biomeScheme.getBiomeNames();
-            for (int i = 0; i < names.length; i++) {
+        final JMenu biomeMenu = new JMenu("Biome");
+        final CustomBiomeManager customBiomeManager = app.getCustomBiomeManager();
+        final BiomeHelper biomeHelper = new BiomeHelper(autoBiomeScheme, colourScheme, customBiomeManager);
+        List<CustomBiome> customBiomes = customBiomeManager.getCustomBiomes();
+        if ((customBiomes != null) && (! customBiomes.isEmpty())) {
+            JMenu customBiomeMenu = new JMenu("Custom");
+            for (CustomBiome customBiome: customBiomes) {
+                final int selectedBiome = customBiome.getId();
+                final String name = biomeHelper.getBiomeName(selectedBiome);
+                final Icon icon = biomeHelper.getBiomeIcon(selectedBiome);
+                final JMenuItem menuItem = new JMenuItem(name, icon);
+                menuItem.addActionListener(new ActionListener() {
+                    @Override
+                    public void actionPerformed(ActionEvent e) {
+                        listener.objectSelected(selectedBiome, name, icon);
+                    }
+                });
+                customBiomeMenu.add(menuItem);
+            }
+            biomeMenu.add(customBiomeMenu);
+        }
+        for (int i = 0; i < autoBiomeScheme.getBiomeCount(); i++) {
+            if (autoBiomeScheme.isBiomePresent(i) && (! (autoBiomeScheme.getBiomeName(i).endsWith("+") || autoBiomeScheme.getBiomeName(i).endsWith(" F") || autoBiomeScheme.getBiomeName(i).endsWith(" M") || autoBiomeScheme.getBiomeName(i).endsWith(" F M") || autoBiomeScheme.getBiomeName(i).endsWith(" Edge") || autoBiomeScheme.getBiomeName(i).endsWith(" Shore")))) {
                 final int selectedBiome = i;
-                final String name = names[i];
-                final Icon icon = new ImageIcon(BiomeSchemeManager.createImage(biomeScheme, i, colourScheme));
-                JMenuItem menuItem = new JMenuItem(name, icon);
+                final String name = biomeHelper.getBiomeName(i);
+                final Icon icon = biomeHelper.getBiomeIcon(i);
+                final JMenuItem menuItem = new JMenuItem(name, icon);
                 menuItem.addActionListener(new ActionListener() {
                     @Override
                     public void actionPerformed(ActionEvent e) {
@@ -301,8 +334,25 @@ public class BrushOptions extends javax.swing.JPanel {
                 });
                 biomeMenu.add(menuItem);
             }
-            popupMenu.add(biomeMenu);
         }
+        JMenu biomeSubMenu = new JMenu("Variants");
+        for (int i = 0; i < autoBiomeScheme.getBiomeCount(); i++) {
+            if (autoBiomeScheme.isBiomePresent(i) && (autoBiomeScheme.getBiomeName(i).endsWith("+") || autoBiomeScheme.getBiomeName(i).endsWith(" F") || autoBiomeScheme.getBiomeName(i).endsWith(" M") || autoBiomeScheme.getBiomeName(i).endsWith(" F M") || autoBiomeScheme.getBiomeName(i).endsWith(" Edge") || autoBiomeScheme.getBiomeName(i).endsWith(" Shore"))) {
+                final int selectedBiome = i;
+                final String name = biomeHelper.getBiomeName(i);
+                final Icon icon = biomeHelper.getBiomeIcon(i);
+                final JMenuItem menuItem = new JMenuItem(name, icon);
+                menuItem.addActionListener(new ActionListener() {
+                    @Override
+                    public void actionPerformed(ActionEvent e) {
+                        listener.objectSelected(selectedBiome, name, icon);
+                    }
+                });
+                biomeSubMenu.add(menuItem);
+            }
+        }
+        biomeMenu.add(biomeSubMenu);
+        popupMenu.add(biomeMenu);
         return popupMenu;
     }
     

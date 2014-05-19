@@ -5,12 +5,13 @@
 package org.pepsoft.worldpainter.tools;
 
 import java.io.IOException;
+import java.util.Random;
 import javax.swing.JFrame;
 import javax.swing.UIManager;
 import javax.swing.UnsupportedLookAndFeelException;
 import org.pepsoft.worldpainter.Configuration;
-import org.pepsoft.worldpainter.World2;
 import org.pepsoft.worldpainter.biomeschemes.BiomeSchemeManager;
+import org.pepsoft.worldpainter.colourschemes.DynMapColourScheme;
 
 /**
  *
@@ -55,7 +56,7 @@ public class BiomesViewerMain {
         }
         Configuration.setInstance(config);
         
-        BiomesViewerFrame frame = new BiomesViewerFrame(World2.DEFAULT_OCEAN_SEED, BiomeSchemeManager.getBiomeScheme(World2.BIOME_ALGORITHM_1_2_AND_1_3_DEFAULT, null), null);
+        BiomesViewerFrame frame = new BiomesViewerFrame(new Random().nextLong(), BiomeSchemeManager.getBiomeScheme(BiomeSchemeManager.BIOME_ALGORITHM_1_7_DEFAULT, null), new DynMapColourScheme("default", true), null);
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setLocationRelativeTo(null);
         frame.setVisible(true);

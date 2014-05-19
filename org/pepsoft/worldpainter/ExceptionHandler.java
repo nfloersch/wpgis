@@ -14,15 +14,21 @@ import javax.swing.SwingUtilities;
 public class ExceptionHandler implements Thread.UncaughtExceptionHandler {
     public void handle(Throwable t) {
 //        t.printStackTrace();
-        ErrorDialog dialog = new ErrorDialog(App.getInstanceIfExists());
-        dialog.setException(t);
-        dialog.setVisible(true);
+        if (shouldIgnore(t)) {
+            t.printStackTrace();
+        } else {
+            ErrorDialog dialog = new ErrorDialog(App.getInstanceIfExists());
+            dialog.setException(t);
+            dialog.setVisible(true);
+        }
     }
 
     @Override
     public void uncaughtException(Thread t, final Throwable e) {
 //        e.printStackTrace();
-        if (SwingUtilities.isEventDispatchThread()) {
+        if (shouldIgnore(e)) {
+            e.printStackTrace();
+        } else  if (SwingUtilities.isEventDispatchThread()) {
             handle(e);
         } else {
             SwingUtilities.invokeLater(new Runnable() {
@@ -32,5 +38,21 @@ public class ExceptionHandler implements Thread.UncaughtExceptionHandler {
                 }
             });
         }
+    }
+    
+    private boolean shouldIgnore(Throwable rootCause) {
+        if ((rootCause instanceof NullPointerException)
+                && (rootCause.getStackTrace() != null)) {
+            if ((rootCause.getStackTrace()[0].getClassName().equals("javax.swing.SwingUtilities")
+                        && rootCause.getStackTrace()[0].getMethodName().equals("getWindowAncestor"))
+                    || (rootCause.getStackTrace()[0].getClassName().equals("javax.swing.plaf.basic.BasicProgressBarUI")
+                        && rootCause.getStackTrace()[0].getMethodName().equals("sizeChanged"))) {
+                // This happens now and again with no WP code on the stack.
+                // Probably a bug in Java and most likely not something we can
+                // do anything about, so ignore it
+                return true;
+            }
+        }
+        return false;
     }
 }

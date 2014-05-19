@@ -39,6 +39,7 @@ import static org.pepsoft.worldpainter.Constants.*;
 import static org.pepsoft.minecraft.Constants.*;
 import org.pepsoft.util.MathUtils;
 import org.pepsoft.worldpainter.Dimension.Border;
+import org.pepsoft.worldpainter.biomeschemes.AutoBiomeScheme;
 import org.pepsoft.worldpainter.layers.Biome;
 import org.pepsoft.worldpainter.themes.SimpleTheme;
 
@@ -49,11 +50,11 @@ import org.pepsoft.worldpainter.themes.SimpleTheme;
 public class NewWorldDialog extends javax.swing.JDialog implements WindowListener {
     /** Creates new form NewWorldDialog */
     public NewWorldDialog(App app, String name, long seed, int dim, int defaultMaxHeight) {
-        this(app, name, seed, Configuration.getInstance().isDefaultAutomaticBiomesEnabled(), dim, defaultMaxHeight, null);
+        this(app, name, seed, dim, defaultMaxHeight, null);
     }
     
     /** Creates new form NewWorldDialog */
-    public NewWorldDialog(App app, String name, long seed, boolean automaticBiomes, int dim, int defaultMaxHeight, Set<Point> tiles) {
+    public NewWorldDialog(App app, String name, long seed, int dim, int defaultMaxHeight, Set<Point> tiles) {
         super(app, true);
         this.app = app;
         this.dim = dim;
@@ -100,8 +101,6 @@ public class NewWorldDialog extends javax.swing.JDialog implements WindowListene
             checkBoxLava.setSelected(true);
             checkBoxBeaches.setSelected(false);
             comboBoxMaxHeight.setEnabled(false);
-            checkBoxAutomaticBiomes.setEnabled(false);
-            checkBoxCustomBiomes.setEnabled(false);
         } else if (dim == DIM_END) {
             setTitle("Add End");
             fieldName.setEnabled(false);
@@ -110,17 +109,6 @@ public class NewWorldDialog extends javax.swing.JDialog implements WindowListene
             spinnerWaterLevel.setValue(0);
             checkBoxBeaches.setSelected(false);
             comboBoxMaxHeight.setEnabled(false);
-            checkBoxAutomaticBiomes.setEnabled(false);
-            checkBoxCustomBiomes.setEnabled(false);
-        } else {
-            if (defaultMaxHeight == DEFAULT_MAX_HEIGHT_2) {
-                checkBoxCustomBiomes.setSelected(config.isDefaultCustomBiomesEnabled());
-                checkBoxAutomaticBiomes.setSelected(automaticBiomes);
-            } else {
-                checkBoxCustomBiomes.setEnabled(false);
-                checkBoxAutomaticBiomes.setSelected(false);
-                checkBoxAutomaticBiomes.setEnabled(false);
-            }
         }
         
         if (tiles != null) {
@@ -243,21 +231,32 @@ public class NewWorldDialog extends javax.swing.JDialog implements WindowListene
     }
     
     public World2 getSelectedWorld(ProgressReceiver progressReceiver) throws ProgressReceiver.OperationCancelled {
-        String name = fieldName.getText().trim();
-        Dimension dimension = getSelectedDimension(progressReceiver);
-        World2 world = new World2(dimension.getMaxHeight());
-        boolean minecraft11Only = dimension.getMaxHeight() != DEFAULT_MAX_HEIGHT_2;
-        if ((! minecraft11Only) && (dimension.getMinecraftSeed() == World2.DEFAULT_OCEAN_SEED)) {
-            world.setGenerator(Generator.LARGE_BIOMES);
-        }
+        final String name = fieldName.getText().trim();
+        final Dimension dimension = getSelectedDimension(progressReceiver);
+        final World2 world = new World2(dimension.getMaxHeight());
+        final boolean minecraft11Only = dimension.getMaxHeight() != DEFAULT_MAX_HEIGHT_2;
         world.setName(name);
+
+        // Export settings
+        final Configuration config = Configuration.getInstance();
+        world.setCreateGoodiesChest(config.isDefaultCreateGoodiesChest());
+        Generator generator = config.getDefaultGenerator();
+        if (minecraft11Only && (generator == Generator.LARGE_BIOMES)) {
+            generator = Generator.DEFAULT;
+        } else if ((! minecraft11Only) && ((dimension.getMinecraftSeed() == World2.DEFAULT_OCEAN_SEED) || (dimension.getMinecraftSeed() == World2.DEFAULT_LAND_SEED)) && (generator == Generator.DEFAULT)) {
+            generator = Generator.LARGE_BIOMES;
+        }
+        world.setGenerator(generator);
+        if (generator == Generator.FLAT) {
+            world.setGeneratorOptions(config.getDefaultGeneratorOptions());
+        }
+        world.setMapFeatures(config.isDefaultMapFeatures());
+        world.setGameType(config.getDefaultGameType());
+        world.setAllowCheats(config.isDefaultAllowCheats());
+
         world.addDimension(dimension);
         if (! minecraft11Only) {
-            world.setBiomeAlgorithm(checkBoxAutomaticBiomes.isSelected() ? World2.BIOME_ALGORITHM_AUTO_BIOMES : World2.BIOME_ALGORITHM_NONE);
-            world.setCustomBiomes(checkBoxCustomBiomes.isSelected());
             world.setExtendedBlockIds(checkBoxExtendedBlockIds.isSelected());
-        } else {
-            world.setBiomeAlgorithm(World2.BIOME_ALGORITHM_NONE);
         }
         if (tiles != null) {
             int lowestX = Integer.MAX_VALUE, highestX = Integer.MIN_VALUE;
@@ -276,8 +275,8 @@ public class NewWorldDialog extends javax.swing.JDialog implements WindowListene
                     highestY = tileCoords.y;
                 }
             }
-            int middleX = Math.round((lowestX + highestX) / 2f);
-            int middleY = Math.round((lowestY + highestY) / 2f);
+            final int middleX = Math.round((lowestX + highestX) / 2f);
+            final int middleY = Math.round((lowestY + highestY) / 2f);
             Point mostCenteredTileCoords = null;
             float mostCenteredTileDistance = Float.MAX_VALUE;
             for (Point tileCoords: tiles) {
@@ -455,19 +454,17 @@ public class NewWorldDialog extends javax.swing.JDialog implements WindowListene
     private void setControlStates() {
         boolean surfaceDimension = dim == DIM_NORMAL;
         boolean minecraft11Only = Integer.parseInt((String) comboBoxMaxHeight.getSelectedItem()) != DEFAULT_MAX_HEIGHT_2;
-        boolean customBiomesPossible = surfaceDimension && (! minecraft11Only);
-        checkBoxCustomBiomes.setEnabled(customBiomesPossible);
-        checkBoxAutomaticBiomes.setEnabled(customBiomesPossible);
         checkBoxExtendedBlockIds.setEnabled(! minecraft11Only);
         boolean hilly = radioButtonHilly.isSelected();
         spinnerRange.setEnabled(hilly);
         spinnerScale.setEnabled(hilly);
         spinnerLength.setEnabled((tiles == null) && (! checkBoxCircular.isSelected()));
-        radioButtonOceanSeed.setEnabled(surfaceDimension);
-        radioButtonLandSeed.setEnabled(surfaceDimension);
-        radioButtonCustomSeed.setEnabled(surfaceDimension);
-        buttonRandomSeed.setEnabled(surfaceDimension && radioButtonCustomSeed.isSelected());
-        fieldSeed.setEnabled(surfaceDimension && radioButtonCustomSeed.isSelected());
+        boolean seedLocked = tiles != null;
+        radioButtonOceanSeed.setEnabled(surfaceDimension && (! seedLocked));
+        radioButtonLandSeed.setEnabled(surfaceDimension && (! seedLocked));
+        radioButtonCustomSeed.setEnabled(surfaceDimension && (! seedLocked));
+        buttonRandomSeed.setEnabled(surfaceDimension && radioButtonCustomSeed.isSelected() && (! seedLocked));
+        fieldSeed.setEnabled(surfaceDimension && radioButtonCustomSeed.isSelected() && (! seedLocked));
     }
 
     private void updatePreview() {
@@ -499,7 +496,7 @@ public class NewWorldDialog extends javax.swing.JDialog implements WindowListene
             private final Map<Point, Tile> cache = new HashMap<Point, Tile>();
         };
         Configuration config = Configuration.getInstance();
-        tiledImageViewer1.setTileProvider(new WPTileProvider(tileProvider, app.getColourScheme(config.getColourschemeIndex()), null, app.getCustomBiomeManager(), Collections.singleton((Layer) Biome.INSTANCE), config.isDefaultContoursEnabled(), config.getDefaultLightOrigin()));
+        tiledImageViewer1.setTileProvider(new WPTileProvider(tileProvider, app.getColourScheme(config.getColourschemeIndex()), autoBiomeScheme, app.getCustomBiomeManager(), Collections.singleton((Layer) Biome.INSTANCE), config.isDefaultContoursEnabled(), config.getDefaultLightOrigin()));
     }
     
     private TileFactory createTileFactory(long seed) {
@@ -564,7 +561,6 @@ public class NewWorldDialog extends javax.swing.JDialog implements WindowListene
         comboBoxMaxHeight = new javax.swing.JComboBox();
         spinnerLength = new javax.swing.JSpinner();
         jLabel6 = new javax.swing.JLabel();
-        jLabel16 = new javax.swing.JLabel();
         jLabel9 = new javax.swing.JLabel();
         fieldSeed = new javax.swing.JTextField();
         spinnerRange = new javax.swing.JSpinner();
@@ -588,12 +584,10 @@ public class NewWorldDialog extends javax.swing.JDialog implements WindowListene
         checkBoxLava = new javax.swing.JCheckBox();
         jLabel4 = new javax.swing.JLabel();
         jLabel18 = new javax.swing.JLabel();
-        checkBoxCustomBiomes = new javax.swing.JCheckBox();
         spinnerWidth = new javax.swing.JSpinner();
         radioButtonOceanSeed = new javax.swing.JRadioButton();
         radioButtonLandSeed = new javax.swing.JRadioButton();
         radioButtonCustomSeed = new javax.swing.JRadioButton();
-        checkBoxAutomaticBiomes = new javax.swing.JCheckBox();
         labelWarning = new javax.swing.JLabel();
         checkBoxExtendedBlockIds = new javax.swing.JCheckBox();
         jPanel3 = new javax.swing.JPanel();
@@ -645,8 +639,6 @@ public class NewWorldDialog extends javax.swing.JDialog implements WindowListene
         });
 
         jLabel6.setText("Surface material:");
-
-        jLabel16.setText("Biomes:");
 
         jLabel9.setText("Water level:");
 
@@ -753,9 +745,6 @@ public class NewWorldDialog extends javax.swing.JDialog implements WindowListene
 
         jLabel18.setText("Hill height:");
 
-        checkBoxCustomBiomes.setText("Custom");
-        checkBoxCustomBiomes.setToolTipText("Paint or modify the biomes yourself");
-
         spinnerWidth.setModel(new javax.swing.SpinnerNumberModel(Integer.valueOf(640), Integer.valueOf(128), null, Integer.valueOf(128)));
         spinnerWidth.addChangeListener(new javax.swing.event.ChangeListener() {
             public void stateChanged(javax.swing.event.ChangeEvent evt) {
@@ -790,9 +779,6 @@ public class NewWorldDialog extends javax.swing.JDialog implements WindowListene
                 radioButtonCustomSeedActionPerformed(evt);
             }
         });
-
-        checkBoxAutomaticBiomes.setSelected(true);
-        checkBoxAutomaticBiomes.setText("Automatic");
 
         labelWarning.setFont(labelWarning.getFont().deriveFont(labelWarning.getFont().getStyle() | java.awt.Font.BOLD));
         labelWarning.setIcon(new javax.swing.ImageIcon(getClass().getResource("/org/pepsoft/worldpainter/icons/error.png"))); // NOI18N
@@ -873,17 +859,9 @@ public class NewWorldDialog extends javax.swing.JDialog implements WindowListene
                                 .addComponent(spinnerScale, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                                 .addGap(0, 0, 0)
                                 .addComponent(jLabel20))
-                            .addGroup(jPanel2Layout.createSequentialGroup()
-                                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                                    .addComponent(comboBoxSurfaceMaterial, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                    .addComponent(jLabel6))
-                                .addGap(18, 18, 18)
-                                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                                    .addComponent(jLabel16)
-                                    .addGroup(jPanel2Layout.createSequentialGroup()
-                                        .addComponent(checkBoxAutomaticBiomes)
-                                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                        .addComponent(checkBoxCustomBiomes)))))
+                            .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                                .addComponent(comboBoxSurfaceMaterial, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addComponent(jLabel6)))
                         .addContainerGap())))
         );
         jPanel2Layout.setVerticalGroup(
@@ -933,14 +911,9 @@ public class NewWorldDialog extends javax.swing.JDialog implements WindowListene
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(checkBoxBeaches)
                 .addGap(18, 18, 18)
-                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                    .addComponent(jLabel6)
-                    .addComponent(jLabel16))
+                .addComponent(jLabel6)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                    .addComponent(comboBoxSurfaceMaterial, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(checkBoxAutomaticBiomes)
-                    .addComponent(checkBoxCustomBiomes))
+                .addComponent(comboBoxSurfaceMaterial, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addGap(18, 18, 18)
                 .addComponent(checkBoxExtendedBlockIds)
                 .addGap(18, 18, 18)
@@ -1096,8 +1069,6 @@ public class NewWorldDialog extends javax.swing.JDialog implements WindowListene
             }
             
             if (exp != 8) {
-                checkBoxCustomBiomes.setSelected(false);
-                checkBoxAutomaticBiomes.setSelected(false);
                 checkBoxExtendedBlockIds.setSelected(false);
             }
             
@@ -1220,10 +1191,8 @@ public class NewWorldDialog extends javax.swing.JDialog implements WindowListene
     private javax.swing.ButtonGroup buttonGroup1;
     private javax.swing.ButtonGroup buttonGroup2;
     private javax.swing.JButton buttonRandomSeed;
-    private javax.swing.JCheckBox checkBoxAutomaticBiomes;
     private javax.swing.JCheckBox checkBoxBeaches;
     private javax.swing.JCheckBox checkBoxCircular;
-    private javax.swing.JCheckBox checkBoxCustomBiomes;
     private javax.swing.JCheckBox checkBoxExtendedBlockIds;
     private javax.swing.JCheckBox checkBoxLava;
     private javax.swing.JComboBox comboBoxMaxHeight;
@@ -1233,7 +1202,6 @@ public class NewWorldDialog extends javax.swing.JDialog implements WindowListene
     private javax.swing.JLabel jLabel1;
     private javax.swing.JLabel jLabel10;
     private javax.swing.JLabel jLabel11;
-    private javax.swing.JLabel jLabel16;
     private javax.swing.JLabel jLabel17;
     private javax.swing.JLabel jLabel18;
     private javax.swing.JLabel jLabel19;
@@ -1264,9 +1232,10 @@ public class NewWorldDialog extends javax.swing.JDialog implements WindowListene
     // End of variables declaration//GEN-END:variables
 
     private final App app;
+    private final Set<Point> tiles;
+    private final AutoBiomeScheme autoBiomeScheme = new AutoBiomeScheme(null);
     private boolean cancelled = true;
     private int previousExp = 7, dim, savedTerrainLevel;
-    private final Set<Point> tiles;
     private long worldpainterSeed;
 
     static final int ESTIMATED_TILE_DATA_SIZE = 81; // in KB

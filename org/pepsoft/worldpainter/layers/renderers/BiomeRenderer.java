@@ -19,7 +19,16 @@ import org.pepsoft.worldpainter.biomeschemes.CustomBiomeManager.CustomBiomeListe
  * @author pepijn
  */
 public class BiomeRenderer implements ByteLayerRenderer, ColourSchemeRenderer, CustomBiomeListener {
-    public BiomeRenderer(CustomBiomeManager customBiomeManager) {
+    public BiomeRenderer(BiomeScheme biomeScheme, CustomBiomeManager customBiomeManager) {
+        if (biomeScheme == null) {
+            throw new NullPointerException();
+        }
+        this.biomeScheme = biomeScheme;
+        int count = biomeScheme.getBiomeCount();
+        patterns = new boolean[count][][];
+        for (int i = 0; i < count; i++) {
+            patterns[i] = biomeScheme.getPattern(i);
+        }
         if (customBiomeManager != null) {
             List<CustomBiome> customBiomes = customBiomeManager.getCustomBiomes();
             if (customBiomes != null) {
@@ -48,23 +57,11 @@ public class BiomeRenderer implements ByteLayerRenderer, ColourSchemeRenderer, C
         return biomeScheme;
     }
 
-    public void setBiomeScheme(BiomeScheme biomeScheme) {
-        this.biomeScheme = biomeScheme;
-        if (biomeScheme != null) {
-            int count = biomeScheme.getBiomeCount();
-            patterns = new boolean[count][][];
-            for (int i = 0; i < count; i++) {
-                patterns[i] = biomeScheme.getPattern(i);
-            }
-        } else {
-            patterns = null;
-        }
-        resetColours();
-    }
-
     @Override
     public int getPixelColour(int x, int y, int underlyingColour, int value) {
-        if ((patterns != null) && (value < patterns.length) && (patterns[value] != null) && patterns[value][x & 0xF][y & 0xF]) {
+        if (value == 255) {
+            return underlyingColour;
+        } else if ((patterns != null) && (value < patterns.length) && (patterns[value] != null) && patterns[value][x & 0xF][y & 0xF]) {
             return ColourUtils.mix(underlyingColour, BLACK);
         } else {
             return ColourUtils.mix(underlyingColour, colours[value]);
@@ -93,7 +90,7 @@ public class BiomeRenderer implements ByteLayerRenderer, ColourSchemeRenderer, C
     
     private void resetColours() {
         for (int i = 0; i < 256; i++) {
-            if ((biomeScheme != null) && (i < biomeScheme.getBiomeCount()) && (colourScheme != null)) {
+            if (biomeScheme.isBiomePresent(i) && (colourScheme != null)) {
                 colours[i] = biomeScheme.getColour(i, colourScheme);
             } else if (customColours.containsKey(i)) {
                 colours[i] = customColours.get(i);
@@ -113,10 +110,10 @@ public class BiomeRenderer implements ByteLayerRenderer, ColourSchemeRenderer, C
     }
 
     private final int[] colours = new int[256];
-    private BiomeScheme biomeScheme;
+    private final Map<Integer, Integer> customColours = new HashMap<Integer, Integer>();
+    private final BiomeScheme biomeScheme;
+    private final boolean[][][] patterns;
     private ColourScheme colourScheme;
-    private boolean[][][] patterns;
-    private Map<Integer, Integer> customColours = new HashMap<Integer, Integer>();
     
     private static final int BLACK = 0;
 }

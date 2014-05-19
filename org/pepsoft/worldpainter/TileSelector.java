@@ -41,6 +41,7 @@ public class TileSelector extends javax.swing.JPanel {
     /** Creates new form TileSelector */
     public TileSelector() {
         initComponents();
+        viewer.setZoom(zoom);
         viewer.addMouseWheelListener(new MouseWheelListener() {
             @Override
             public void mouseWheelMoved(MouseWheelEvent e) {

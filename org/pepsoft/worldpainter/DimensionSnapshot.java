@@ -5,7 +5,6 @@
 package org.pepsoft.worldpainter;
 
 import java.awt.Point;
-import java.awt.Window;
 import java.beans.PropertyChangeListener;
 import java.util.Collection;
 import java.util.Collections;
@@ -181,11 +180,6 @@ public final class DimensionSnapshot extends Dimension {
     @Override
     public boolean isEventsInhibited() {
         return false;
-    }
-
-    @Override
-    public void recalculateBiomes(BiomeScheme biomeScheme, Window parent) {
-        throw new UnsupportedOperationException();
     }
 
     @Override

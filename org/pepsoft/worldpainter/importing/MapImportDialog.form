@@ -45,6 +45,7 @@
                   </Group>
                   <Group type="102" attributes="0">
                       <Group type="103" groupAlignment="0" attributes="0">
+                          <Component id="radioButtonReadOnlyManMadeAboveGround" min="-2" max="-2" attributes="0"/>
                           <Component id="radioButtonReadOnlyAll" min="-2" max="-2" attributes="0"/>
                           <Component id="radioButtonReadOnlyManMade" min="-2" max="-2" attributes="0"/>
                           <Component id="radioButtonReadOnlyNone" min="-2" max="-2" attributes="0"/>
@@ -140,6 +141,8 @@
               <Component id="jLabel5" min="-2" max="-2" attributes="0"/>
               <EmptySpace max="-2" attributes="0"/>
               <Component id="radioButtonReadOnlyNone" min="-2" max="-2" attributes="0"/>
+              <EmptySpace max="-2" attributes="0"/>
+              <Component id="radioButtonReadOnlyManMadeAboveGround" min="-2" max="-2" attributes="0"/>
               <EmptySpace max="-2" attributes="0"/>
               <Component id="radioButtonReadOnlyManMade" min="-2" max="-2" attributes="0"/>
               <EmptySpace max="-2" attributes="0"/>
@@ -292,7 +295,6 @@
         <Property name="buttonGroup" type="javax.swing.ButtonGroup" editor="org.netbeans.modules.form.RADComponent$ButtonGroupPropertyEditor">
           <ComponentRef name="buttonGroup1"/>
         </Property>
-        <Property name="selected" type="boolean" value="true"/>
         <Property name="text" type="java.lang.String" value="mark chunks containing man-made blocks read-only"/>
       </Properties>
     </Component>
@@ -302,6 +304,15 @@
           <ComponentRef name="buttonGroup1"/>
         </Property>
         <Property name="text" type="java.lang.String" value="mark all chunks read-only"/>
+      </Properties>
+    </Component>
+    <Component class="javax.swing.JRadioButton" name="radioButtonReadOnlyManMadeAboveGround">
+      <Properties>
+        <Property name="buttonGroup" type="javax.swing.ButtonGroup" editor="org.netbeans.modules.form.RADComponent$ButtonGroupPropertyEditor">
+          <ComponentRef name="buttonGroup1"/>
+        </Property>
+        <Property name="selected" type="boolean" value="true"/>
+        <Property name="text" type="java.lang.String" value="&lt;html&gt;mark chunks containing man-made blocks &lt;i&gt;above ground&lt;/i&gt; read-only&lt;/html&gt;"/>
       </Properties>
     </Component>
   </SubComponents>

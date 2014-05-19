@@ -5,9 +5,19 @@
 
 package org.pepsoft.worldpainter;
 
+import com.jidesoft.docking.DefaultDockingManager;
+import com.jidesoft.docking.DockContext;
+import static com.jidesoft.docking.DockContext.*;
+import com.jidesoft.docking.DockableFrame;
+import static com.jidesoft.docking.DockableFrame.*;
+import com.jidesoft.docking.DockableHolder;
+import com.jidesoft.docking.DockingManager;
+import com.jidesoft.docking.Workspace;
+import com.jidesoft.swing.JideTabbedPane;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
+import java.awt.Container;
 import java.awt.Cursor;
 import java.awt.DisplayMode;
 import java.awt.FlowLayout;
@@ -72,8 +82,12 @@ import java.util.zip.GZIPOutputStream;
 import java.util.zip.ZipException;
 
 import static java.awt.event.KeyEvent.*;
+import java.awt.geom.AffineTransform;
+import java.awt.image.AffineTransformOp;
+import java.awt.image.BufferedImageOp;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
+import java.io.ByteArrayInputStream;
 import java.io.ObjectInputStream;
 import java.util.Iterator;
 import java.util.SortedMap;
@@ -81,6 +95,7 @@ import java.util.TreeMap;
 import java.util.logging.Level;
 
 import javax.imageio.ImageIO;
+import javax.swing.AbstractButton;
 import javax.swing.Action;
 import javax.swing.ActionMap;
 import javax.swing.ButtonGroup;
@@ -104,8 +119,9 @@ import javax.swing.JProgressBar;
 import javax.swing.JRootPane;
 import javax.swing.JScrollBar;
 import javax.swing.JScrollPane;
-import javax.swing.JSeparator;
+//import javax.swing.JSeparator;
 import javax.swing.JSlider;
+import javax.swing.JTabbedPane;
 import javax.swing.JToggleButton;
 import javax.swing.JToolBar;
 import javax.swing.KeyStroke;
@@ -113,7 +129,6 @@ import javax.swing.MenuElement;
 import javax.swing.SwingUtilities;
 import javax.swing.Timer;
 import javax.swing.border.BevelBorder;
-import javax.swing.border.TitledBorder;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 import javax.swing.filechooser.FileFilter;
@@ -134,13 +149,6 @@ import org.pepsoft.util.swing.ProgressTask;
 import org.pepsoft.util.undo.UndoManager;
 import org.pepsoft.worldpainter.biomeschemes.AutoBiomeScheme;
 import org.pepsoft.worldpainter.biomeschemes.BiomeSchemeManager;
-import org.pepsoft.worldpainter.biomeschemes.Minecraft1_0BiomeScheme;
-import org.pepsoft.worldpainter.biomeschemes.Minecraft1_1BiomeScheme;
-import org.pepsoft.worldpainter.biomeschemes.Minecraft1_2BiomeScheme;
-import org.pepsoft.worldpainter.biomeschemes.Minecraft1_3LargeBiomeScheme;
-import org.pepsoft.worldpainter.biomeschemes.Minecraft1_7_3BiomeScheme;
-import org.pepsoft.worldpainter.biomeschemes.Minecraft1_8_1BiomeScheme;
-import org.pepsoft.worldpainter.biomeschemes.Minecraft1_9BiomeScheme;
 import org.pepsoft.worldpainter.colourschemes.DynMapColourScheme;
 import org.pepsoft.worldpainter.gardenofeden.GardenOfEdenOperation;
 import org.pepsoft.worldpainter.importing.MapImportDialog;
@@ -162,8 +170,6 @@ import org.pepsoft.worldpainter.layers.groundcover.GroundCoverDialog;
 import org.pepsoft.worldpainter.layers.groundcover.GroundCoverLayer;
 import org.pepsoft.worldpainter.layers.pockets.UndergroundPocketsDialog;
 import org.pepsoft.worldpainter.layers.pockets.UndergroundPocketsLayer;
-import org.pepsoft.worldpainter.operations.AutoBiomeOperation;
-import org.pepsoft.worldpainter.operations.BiomeOperation;
 import org.pepsoft.worldpainter.operations.BiomePaint;
 import org.pepsoft.worldpainter.operations.BitmapBrush;
 import org.pepsoft.worldpainter.operations.Brush;
@@ -171,7 +177,6 @@ import org.pepsoft.worldpainter.operations.CustomTerrainPaint;
 import org.pepsoft.worldpainter.operations.Filter;
 import org.pepsoft.worldpainter.operations.Flatten;
 import org.pepsoft.worldpainter.operations.Flood;
-import org.pepsoft.worldpainter.operations.FloodRiver;
 import org.pepsoft.worldpainter.operations.Height;
 import org.pepsoft.worldpainter.operations.LayerPaint;
 import org.pepsoft.worldpainter.operations.MouseOrTabletOperation;
@@ -192,7 +197,6 @@ import org.pepsoft.worldpainter.panels.BrushOptions.Listener;
 import org.pepsoft.worldpainter.threedeeview.ThreeDeeFrame;
 import org.pepsoft.worldpainter.tools.BiomesViewerFrame;
 import org.pepsoft.worldpainter.tools.RespawnPlayerDialog;
-import org.pepsoft.worldpainter.util.AKDockLayout;
 import org.pepsoft.worldpainter.util.BetterAction;
 import org.pepsoft.worldpainter.vo.AttributeKeyVO;
 import org.pepsoft.worldpainter.vo.EventVO;
@@ -200,17 +204,17 @@ import org.pepsoft.worldpainter.vo.UsageVO;
 
 import static org.pepsoft.minecraft.Constants.*;
 import static org.pepsoft.worldpainter.Constants.*;
-import org.pepsoft.worldpainter.MixedMaterial.Row;
-import org.pepsoft.worldpainter.biomeschemes.AbstractMinecraft1_2BiomeScheme;
 import org.pepsoft.worldpainter.biomeschemes.CustomBiome;
 import org.pepsoft.worldpainter.biomeschemes.CustomBiomeManager;
 import org.pepsoft.worldpainter.biomeschemes.CustomBiomeManager.CustomBiomeListener;
+import org.pepsoft.worldpainter.layers.Annotations;
 import org.pepsoft.worldpainter.layers.CombinedLayer;
 import org.pepsoft.worldpainter.layers.LayerContainer;
 import org.pepsoft.worldpainter.layers.combined.CombinedLayerDialog;
 import org.pepsoft.worldpainter.layers.tunnel.TunnelLayerDialog;
 import org.pepsoft.worldpainter.layers.tunnel.TunnelLayer;
 import org.pepsoft.worldpainter.objects.AbstractObject;
+import org.pepsoft.worldpainter.operations.Annotate;
 import org.pepsoft.worldpainter.operations.CombinedLayerPaint;
 import org.pepsoft.worldpainter.operations.RotatedBrush;
 
@@ -218,21 +222,28 @@ import org.pepsoft.worldpainter.operations.RotatedBrush;
  *
  * @author pepijn
  */
-public final class App extends JFrame implements RadiusControl, BiomesViewerFrame.SeedListener, Listener, CustomBiomeListener {
+public final class App extends JFrame implements RadiusControl,
+        BiomesViewerFrame.SeedListener, Listener, CustomBiomeListener,
+        PaletteManager.ButtonProvider, DockableHolder {
     private App() {
-        super("WorldPainter"); // NOI18N
+        super((mode == Mode.WORLDPAINTER) ? "WorldPainter" : "MinecraftMapEditor"); // NOI18N
         setIconImage(ICON);
 
         colourSchemes = new ColourScheme[] {
-            new DynMapColourScheme("default"),
-            new DynMapColourScheme("flames"),
-            new DynMapColourScheme("ovocean"),
-            new DynMapColourScheme("sk89q")
+            new DynMapColourScheme("default", true),
+            new DynMapColourScheme("flames", true),
+            new DynMapColourScheme("ovocean", true),
+            new DynMapColourScheme("sk89q", true),
+            new DynMapColourScheme("dokudark", true),
+            new DynMapColourScheme("dokuhigh", true),
+            new DynMapColourScheme("dokulight", true),
+            new DynMapColourScheme("misa", true),
+            new DynMapColourScheme("sphax", true)
         };
         Configuration config = Configuration.getInstance();
         selectedColourScheme = colourSchemes[config.getColourschemeIndex()];
         operations = OperationManager.getInstance().getOperations();
-        toolbarsLocked = config.isToolbarsLocked();
+//        toolbarsLocked = config.isToolbarsLocked();
         setMaxRadius(config.getMaximumBrushSize());
 
         loadCustomBrushes();
@@ -248,9 +259,21 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
         // Initialize various things
         customBiomeManager.addListener(this);
         
-        setBiomeScheme(null);
-
-        if (config.getWindowBounds() != null) {
+        int biomeCount = autoBiomeScheme.getBiomeCount();
+        for (int i = 0; i < biomeCount; i++) {
+            if (autoBiomeScheme.isBiomePresent(i)) {
+                biomeNames[i] = autoBiomeScheme.getBiomeName(i) + " (" + i + ")";
+            }
+        }
+        
+        String sizeStr = System.getProperty("org.pepsoft.worldpainter.size");
+        if (sizeStr != null) {
+            String[] dims = sizeStr.split("x");
+            int width = Integer.parseInt(dims[0]);
+            int height = Integer.parseInt(dims[1]);
+            setSize(width, height);
+            setLocationRelativeTo(null);
+        } else if (config.getWindowBounds() != null) {
             setBounds(config.getWindowBounds());
         } else {
             setSize(1024, 896);
@@ -259,10 +282,11 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
         setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
 
 //        Toolkit.getDefaultToolkit().addAWTEventListener(new AWTEventListener() {
+//            @Override
 //            public void eventDispatched(AWTEvent event) {
 //                System.out.println(event);
 //            }
-//        }, AWTEvent.KEY_EVENT_MASK);
+//        }, AWTEvent.MOUSE_EVENT_MASK);
 
         // For some look and feels the preferred size of labels isn't set until
         // they are displayed
@@ -375,36 +399,13 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
     }
 
     public void setWorld(World2 world) {
-        setWorld(world, false);
-    }
-    
-    public void setWorld(World2 world, boolean inhibitBiomeRecalculation) {
         this.world = world;
         if (world != null) {
             loadCustomMaterials();
             
-            if (! inhibitBiomeRecalculation) {
-                if (world.getMaxHeight() == DEFAULT_MAX_HEIGHT_2) {
-                    setCustomBiomesActive(world.isCustomBiomes());
-                } else {
-                    setCustomBiomesActive(false);
-                }
-                selectBiomeScheme(world.getBiomeAlgorithm(), world.getDimension(DIM_NORMAL));
-            }
-            
-            if (world.getMaxHeight() != DEFAULT_MAX_HEIGHT_2) {
-//                biome5MenuItem.setEnabled(false);
-                biome7MenuItem.setEnabled(false);
-                biome8MenuItem.setEnabled(false);
-            } else {
-//                biome5MenuItem.setEnabled(true);
-                biome7MenuItem.setEnabled(true);
-                biome8MenuItem.setEnabled(true);
-            }
-            
             extendedBlockIdsMenuItem.setSelected(world.isExtendedBlockIds());
             
-            setDimension(world.getDimension(DIM_NORMAL), inhibitBiomeRecalculation);
+            setDimension(world.getDimension(DIM_NORMAL));
             
             Configuration config = Configuration.getInstance();
             if (config.isDefaultViewDistanceEnabled() != view.isDrawViewDistance()) {
@@ -426,9 +427,7 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
                 ACTION_MERGE_WORLD.setEnabled(true);
             }
         } else {
-            setBiomeScheme(null);
-
-            setDimension(null, inhibitBiomeRecalculation);
+            setDimension(null);
 
             ACTION_EXPORT_WORLD.setEnabled(false);
             ACTION_MERGE_WORLD.setEnabled(false);
@@ -440,10 +439,6 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
     }
 
     public void setDimension(final Dimension dimension) {
-        setDimension(dimension, false);
-    }
-    
-    public void setDimension(final Dimension dimension, boolean inhibitBiomeRecalculation) {
         if (this.dimension != null) {
             Point viewPosition = view.getViewCentreInWorldCoords();
             if (viewPosition != null) {
@@ -454,31 +449,30 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
             undoManager = null;
 
             // Remove the existing custom object layers
-            boolean visibleLayersChanged = false;
-            for (Map.Entry<CustomLayer, Component> entry: customLayerButtons.entrySet()) {
-                customLayerPanel.remove(entry.getValue());
-                CustomLayer layer = entry.getKey();
-                if (hiddenLayers.contains(layer)) {
-                    hiddenLayers.remove(layer);
-                    visibleLayersChanged = true;
+            if (! paletteManager.isEmpty()) {
+                boolean visibleLayersChanged = false;
+                for (Palette palette: paletteManager.clear()) {
+                    for (Layer layer: palette.getLayers()) {
+                        if (hiddenLayers.contains(layer)) {
+                            hiddenLayers.remove(layer);
+                            visibleLayersChanged = true;
+                        }
+                        if (layer.equals(soloLayer)) {
+                            soloLayer = null;
+                            visibleLayersChanged = true;
+                        }
+                    }
+                    dockingManager.removeFrame(palette.getDockableFrame().getKey());
                 }
-                if (layer.equals(soloLayer)) {
-                    soloLayer = null;
-                    visibleLayersChanged = true;
+                if (visibleLayersChanged) {
+                    updateLayerVisibility();
                 }
+//                validate(); // Doesn't happen automatically for some reason; Swing bug?
+//                repaint();
+                layerSoloCheckBoxes.clear();
             }
-            if (visibleLayersChanged) {
-                updateLayerVisibility();
-            }
-            customLayerButtons.clear();
             layersWithNoButton.clear();
-            if (customLayerToolBarShowing) {
-                getContentPane().remove(customLayerToolBar);
-                customLayerToolBarShowing = false;
-                addLayerButtonPanel.setVisible(true);
-            }
-            App.this.validate(); // Doesn't happen automatically for some reason; Swing bug?
-            
+
             saveCustomBiomes();
         }
         this.dimension = dimension;
@@ -489,9 +483,6 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
                     viewSurfaceMenuItem.setSelected(true);
                     viewNetherMenuItem.setSelected(false);
                     viewEndMenuItem.setSelected(false);
-                    if ((biomeScheme != null) && (! customBiomesActive) && (! dimension.isBiomesCalculated()) && world.isAllowMerging() && (! inhibitBiomeRecalculation)) {
-                        dimension.recalculateBiomes(biomeScheme, this);
-                    }
                     break;
                 case DIM_NETHER:
                     viewSurfaceMenuItem.setSelected(false);
@@ -525,7 +516,6 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
             }
             view.moveTo(dimension.getLastViewPosition());
             
-            setBiomeControlStates();
             setDimensionControlStates();
             Configuration config = Configuration.getInstance();
             if ((! "true".equals(System.getProperty("org.pepsoft.worldpainter.disableUndo"))) && config.isUndoEnabled()) {
@@ -547,12 +537,22 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
             }
                 
             // Add the custom object layers from the world
+            boolean missingTerrainWarningGiven = false;
             for (Layer layer: dimension.getAllLayers(true)) {
                 if (layer instanceof CustomLayer) {
                     if (((CustomLayer) layer).isHide()) {
                         layersWithNoButton.add((CustomLayer) layer);
                     } else {
-                        createCustomLayerButton((CustomLayer) layer, false);
+                        registerCustomLayer((CustomLayer) layer, false);
+                    }
+                    if (layer instanceof CombinedLayer) {
+                        if (((CombinedLayer) layer).isMissingTerrainWarning()) {
+                            if (! missingTerrainWarningGiven) {
+                                JOptionPane.showMessageDialog(this, "The world contains one or more Combined Layer(s) referring to a Custom Terrain\nwhich is not present in this world. The terrain has been reset.", "Missing Custom Terrain", JOptionPane.WARNING_MESSAGE);
+                                missingTerrainWarningGiven = true;
+                            }
+                            ((CombinedLayer) layer).resetMissingTerrainWarning();
+                        }
                     }
                 }
             }
@@ -562,8 +562,21 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
             ACTION_CONTOURS.setSelected(view.isDrawContours());
             ACTION_OVERLAY.setSelected(view.isDrawOverlay());
             
-            // Load custom biomes
-            customBiomeManager.setCustomBiomes(dimension.getCustomBiomes());
+            // Load custom biomes. But first remove any that are now regular
+            // biomes
+            List<CustomBiome> customBiomes = dimension.getCustomBiomes();
+            if (customBiomes != null) {
+                for (Iterator<CustomBiome> i = customBiomes.iterator(); i.hasNext(); ) {
+                    CustomBiome customBiome = i.next();
+                    if (autoBiomeScheme.isBiomePresent(customBiome.getId())) {
+                        i.remove();
+                    }
+                }
+                if (customBiomes.isEmpty()) {
+                    customBiomes = null;
+                }
+            }
+            customBiomeManager.setCustomBiomes(customBiomes);
         } else {
             view.setDimension(null);
             setTitle("WorldPainter"); // NOI18N
@@ -644,12 +657,24 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
         }
         // TODO: apparently this was sometimes invoked at or soon after startup,
         // with biomeNames being null, causing a NPE. How is this possible?
-        if ((dimension.getDim() == 0) && (customBiomesActive || (biomeScheme != null))) {
+        if (dimension.getDim() == 0) {
             int biome = dimension.getLayerValueAt(Biome.INSTANCE, x, y);
-            if (biomeNames[biome] == null) {
-                biomeLabel.setText(MessageFormat.format(strings.getString("biome.0"), biome));
-            } else {
-                biomeLabel.setText(MessageFormat.format(strings.getString("biome.0"), biomeNames[biome]));
+            // TODO: is this too slow?
+            if (biome == 255) {
+                biome = dimension.getAutoBiome(x, y);
+                if (biome != -1) {
+                    if (biomeNames[biome] == null) {
+                        biomeLabel.setText("Auto biome: biome " + biome);
+                    } else {
+                        biomeLabel.setText("Auto biome: " + biomeNames[biome]);
+                    }
+                }
+            } else if (biome != -1) {
+                if (biomeNames[biome] == null) {
+                    biomeLabel.setText(MessageFormat.format(strings.getString("biome.0"), biome));
+                } else {
+                    biomeLabel.setText(MessageFormat.format(strings.getString("biome.0"), biomeNames[biome]));
+                }
             }
         } else {
             biomeLabel.setText(strings.getString("biome-"));
@@ -660,9 +685,9 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
         return activeOperation;
     }
 
-    //    public BrushShape getBrushShape() {
-    //        return brushShape;
-    //    }
+//    public BrushShape getBrushShape() {
+//        return brushShape;
+//    }
 
     public Brush getBrush() {
         return brush;
@@ -696,65 +721,6 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
         return zoom;
     }
 
-    public BiomeScheme getBiomeScheme() {
-        return biomeScheme;
-    }
-
-    public void setBiomeScheme(BiomeScheme biomeScheme) {
-        this.biomeScheme = biomeScheme;
-        if ((biomeScheme != null) && (dimension != null) && (dimension.getDim() == 0)) {
-            if (world.isAllowMerging() && ((! customBiomesActive) || (JOptionPane.showConfirmDialog(this, strings.getString("do.you.want.to.reinitialise.the.biomes"), strings.getString("confirm.reinitialisation"), JOptionPane.YES_NO_OPTION) == JOptionPane.YES_OPTION))) {
-                dimension.recalculateBiomes(biomeScheme, this);
-            }
-        }
-        if (biomeScheme != null) {
-            view.setBiomeScheme(biomeScheme);
-            if (dimension != null) {
-                biomeScheme.setSeed(dimension.getMinecraftSeed());
-            }
-            String[] schemeBiomeNames = biomeScheme.getBiomeNames();
-            System.arraycopy(schemeBiomeNames, 0, biomeNames, 0, schemeBiomeNames.length);
-            for (int i = schemeBiomeNames.length; i <= AbstractMinecraft1_2BiomeScheme.BIOME_JUNGLE_HILLS; i++) {
-                biomeNames[i] = null;
-            }
-            if (activeOperation instanceof BiomeOperation) {
-                ((BiomeOperation) activeOperation).setBiomeScheme(biomeScheme);
-            }
-            if (activeOperation instanceof AutoBiomeOperation) {
-                ((AutoBiomeOperation) activeOperation).setAutoBiomesEnabled(biomeScheme instanceof AutoBiomeScheme);
-            }
-        } else {
-            view.setBiomeScheme(autoBiomeScheme);
-            String[] schemeBiomeNames = autoBiomeScheme.getBiomeNames();
-            for (int i = 0; i < schemeBiomeNames.length; i++) {
-                biomeNames[i] = (schemeBiomeNames[i] != null) ? (schemeBiomeNames[i] + " (" + i + ")") : null;
-            }
-            if (activeOperation instanceof BiomeOperation) {
-                ((BiomeOperation) activeOperation).setBiomeScheme(null);
-            }
-            if (activeOperation instanceof AutoBiomeOperation) {
-                ((AutoBiomeOperation) activeOperation).setAutoBiomesEnabled(false);
-            }
-            if (! customBiomesActive) {
-                boolean visibleLayersChanged = false;
-                if (biomesCheckBox.isSelected()) {
-                    biomesCheckBox.setSelected(false);
-                    hiddenLayers.add(Biome.INSTANCE);
-                    visibleLayersChanged = true;
-                }
-                if (biomesSoloCheckBox.isSelected()) {
-                    biomesSoloCheckBox.setSelected(false);
-                    soloLayer = null;
-                    visibleLayersChanged = true;
-                }
-                if (visibleLayersChanged) {
-                    updateLayerVisibility();
-                }
-            }
-        }
-        setBiomeControlStates();
-    }
-
     public final int getMaxRadius() {
         return maxRadius;
     }
@@ -771,22 +737,22 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
         }
     }
 
-    public boolean isToolbarsLocked() {
-        return toolbarsLocked;
-    }
-
-    public void setToolbarsLocked(boolean toolbarsLocked) {
-        if (toolbarsLocked != this.toolbarsLocked) {
-            this.toolbarsLocked = toolbarsLocked;
-            Configuration.getInstance().setToolbarsLocked(toolbarsLocked);
-            for (Component component: getContentPane().getComponents()) {
-                if (component instanceof JToolBar) {
-                    ((JToolBar) component).setFloatable(! toolbarsLocked);
-                }
-            }
-            lockToolbarsMenuItem.setSelected(toolbarsLocked);
-        }
-    }
+//    public boolean isToolbarsLocked() {
+//        return toolbarsLocked;
+//    }
+//
+//    public void setToolbarsLocked(boolean toolbarsLocked) {
+//        if (toolbarsLocked != this.toolbarsLocked) {
+//            this.toolbarsLocked = toolbarsLocked;
+//            Configuration.getInstance().setToolbarsLocked(toolbarsLocked);
+//            for (Component component: getContentPane().getComponents()) {
+//                if (component instanceof JToolBar) {
+//                    ((JToolBar) component).setFloatable(! toolbarsLocked);
+//                }
+//            }
+//            lockToolbarsMenuItem.setSelected(toolbarsLocked);
+//        }
+//    }
 
     public void open(File file, boolean askForConfirmation) {
         if (askForConfirmation && (world != null) && world.isDirty()) {
@@ -896,26 +862,50 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
 
         // Log an event
         Configuration config = Configuration.getInstance();
-        if (config != null) {
-            EventVO event = new EventVO(EVENT_KEY_ACTION_OPEN_WORLD).addTimestamp();
-            event.setAttribute(ATTRIBUTE_KEY_MAX_HEIGHT, newWorld.getMaxHeight());
-            Dimension loadedDimension = newWorld.getDimension(0);
-            event.setAttribute(ATTRIBUTE_KEY_TILES, loadedDimension.getTiles().size());
-            logLayers(loadedDimension, event, "");
-            loadedDimension = newWorld.getDimension(1);
-            if (loadedDimension != null) {
-                event.setAttribute(ATTRIBUTE_KEY_NETHER_TILES, loadedDimension.getTiles().size());
-                logLayers(loadedDimension, event, "nether.");
+        EventVO event = new EventVO(EVENT_KEY_ACTION_OPEN_WORLD).addTimestamp();
+        event.setAttribute(ATTRIBUTE_KEY_MAX_HEIGHT, newWorld.getMaxHeight());
+        Dimension loadedDimension = newWorld.getDimension(0);
+        event.setAttribute(ATTRIBUTE_KEY_TILES, loadedDimension.getTiles().size());
+        logLayers(loadedDimension, event, "");
+        loadedDimension = newWorld.getDimension(1);
+        if (loadedDimension != null) {
+            event.setAttribute(ATTRIBUTE_KEY_NETHER_TILES, loadedDimension.getTiles().size());
+            logLayers(loadedDimension, event, "nether.");
+        }
+        loadedDimension = newWorld.getDimension(2);
+        if (loadedDimension != null) {
+            event.setAttribute(ATTRIBUTE_KEY_END_TILES, loadedDimension.getTiles().size());
+            logLayers(loadedDimension, event, "end.");
+        }
+        if (newWorld.getImportedFrom() != null) {
+            event.setAttribute(ATTRIBUTE_KEY_IMPORTED_WORLD, true);
+        }
+        config.logEvent(event);
+        
+        Set<World2.Warning> warnings = newWorld.getWarnings();
+        if ((warnings != null) && (! warnings.isEmpty())) {
+            for (World2.Warning warning: warnings) {
+                switch (warning) {
+                    case AUTO_BIOMES_DISABLED:
+                        if (JOptionPane.showOptionDialog(this, "Automatic Biomes were previously enabled for this world but have been disabled.\nPress More Info for more information, including how to reenable it.", "Automatic Biomes Disabled", JOptionPane.DEFAULT_OPTION, JOptionPane.WARNING_MESSAGE, null, new Object[] {"More Info", "OK"}, "OK") == 0) {
+                            try {
+                                DesktopUtils.open(new URL("http://www.worldpainter.net/trac/wiki/NewAutomaticBiomes"));
+                            } catch (MalformedURLException e) {
+                                throw new RuntimeException(e);
+                            }
+                        }
+                        break;
+                    case AUTO_BIOMES_ENABLED:
+                        if (JOptionPane.showOptionDialog(this, "Automatic Biomes were previously disabled for this world but have been enabled.\nPress More Info for more information, including how to disable it.", "Automatic Biomes Enabled", JOptionPane.DEFAULT_OPTION, JOptionPane.WARNING_MESSAGE, null, new Object[] {"More Info", "OK"}, "OK") == 0) {
+                            try {
+                                DesktopUtils.open(new URL("http://www.worldpainter.net/trac/wiki/NewAutomaticBiomes"));
+                            } catch (MalformedURLException e) {
+                                throw new RuntimeException(e);
+                            }
+                        }
+                        break;
+                }
             }
-            loadedDimension = newWorld.getDimension(2);
-            if (loadedDimension != null) {
-                event.setAttribute(ATTRIBUTE_KEY_END_TILES, loadedDimension.getTiles().size());
-                logLayers(loadedDimension, event, "end.");
-            }
-            if (newWorld.getImportedFrom() != null) {
-                event.setAttribute(ATTRIBUTE_KEY_IMPORTED_WORLD, true);
-            }
-            config.logEvent(event);
         }
         
         if (newWorld.isAskToConvertToAnvil() && (newWorld.getMaxHeight() == DEFAULT_MAX_HEIGHT_1) && (newWorld.getImportedFrom() == null)) {
@@ -928,9 +918,7 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
                 }
                 
                 // Log event
-                if (config != null) {
-                    config.logEvent(new EventVO(EVENT_KEY_ACTION_MIGRATE_HEIGHT).addTimestamp());
-                }
+                config.logEvent(new EventVO(EVENT_KEY_ACTION_MIGRATE_HEIGHT).addTimestamp());
             }
             // Don't ask again, no matter what the user answered
             newWorld.setAskToConvertToAnvil(false);
@@ -952,9 +940,7 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
                 }, false);
                 
                 // Log event
-                if (config != null) {
-                    config.logEvent(new EventVO(EVENT_KEY_ACTION_MIGRATE_ROTATION).addTimestamp());
-                }
+                config.logEvent(new EventVO(EVENT_KEY_ACTION_MIGRATE_ROTATION).addTimestamp());
             }
             // Don't ask again, no matter what the user answered
             newWorld.setAskToRotate(false);
@@ -989,6 +975,18 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
             disableImportedWorldOperation();
         }
         setDimensionControlStates();
+            
+        if ((config.getJideLayoutData() != null) && config.getJideLayoutData().containsKey(world.getName())) {
+            dockingManager.loadLayoutFrom(new ByteArrayInputStream(config.getJideLayoutData().get(world.getName())));
+        }
+    }
+
+    public static Mode getMode() {
+        return mode;
+    }
+
+    public static void setMode(Mode mode) {
+        App.mode = mode;
     }
 
     // RadiusControl
@@ -1068,15 +1066,12 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
     // SeedListener
     
     @Override
-    public void setSeed(long seed) {
-        if (dimension != null) {
-            if (seed != dimension.getMinecraftSeed()) {
-                dimension.setMinecraftSeed(seed);
-            }
-            if (! (biomeScheme instanceof Minecraft1_1BiomeScheme)) {
-                selectBiomeScheme(World2.BIOME_ALGORITHM_1_1);
-            } else if ((! customBiomesActive) && world.isAllowMerging()) {
-                dimension.recalculateBiomes(biomeScheme, this);
+    public void setSeed(long seed, Generator generator) {
+        if (world != null) {
+            world.setGenerator(generator);
+            Dimension dim0 = world.getDimension(DIM_NORMAL);
+            if (dim0 != null) {
+                dim0.setMinecraftSeed(seed);
             }
         }
     }
@@ -1092,119 +1087,6 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
         return instance;
     }
     
-    @Override
-    public void selectBiomeScheme(int biomeAlgorithm) {
-        selectBiomeScheme(biomeAlgorithm, dimension);
-    }
-    
-    public void selectBiomeScheme(int biomeAlgorithm, Dimension dimension) {
-//        try {
-//            setBiomeScheme(new Maps2MinecraftBiomeScheme(new File("/home/pepijn/map.png"), 2));
-//        } catch (IOException e) {
-//            throw new RuntimeException("I/O error reading Maps2Minecraft biomes map /home/pepijn/map.png", e);
-//        }
-//        return;
-        if (biomeAlgorithm == World2.BIOME_ALGORITHM_NONE) {
-            if (biomeScheme == null) {
-                return;
-            }
-            world.setBiomeAlgorithm(biomeAlgorithm);
-            setBiomeScheme(null);
-        } else if (biomeAlgorithm == World2.BIOME_ALGORITHM_1_7_3) {
-            if (biomeScheme instanceof Minecraft1_7_3BiomeScheme) {
-                return;
-            }
-            world.setBiomeAlgorithm(World2.BIOME_ALGORITHM_1_7_3);
-            setBiomeScheme(new Minecraft1_7_3BiomeScheme());
-        } else if (biomeAlgorithm == World2.BIOME_ALGORITHM_AUTO_BIOMES) {
-            world.setBiomeAlgorithm(World2.BIOME_ALGORITHM_AUTO_BIOMES);
-            setBiomeScheme(new AutoBiomeScheme(dimension));
-        } else if (biomeAlgorithm == World2.BIOME_ALGORITHM_1_8_1) {
-            if (biomeScheme instanceof Minecraft1_8_1BiomeScheme) {
-                return;
-            }
-
-            BiomeScheme selectedBiomeScheme = BiomeSchemeManager.getBiomeScheme(World2.BIOME_ALGORITHM_1_8_1, this);
-
-            if (selectedBiomeScheme != null) {
-                world.setBiomeAlgorithm(biomeAlgorithm);
-                setBiomeScheme(selectedBiomeScheme);
-            } else {
-//                biome1MenuItem.setSelected(false);
-            }
-        } else if (biomeAlgorithm == World2.BIOME_ALGORITHM_1_9) {
-            if (biomeScheme instanceof Minecraft1_9BiomeScheme) {
-                return;
-            }
-
-            BiomeScheme selectedBiomeScheme = BiomeSchemeManager.getBiomeScheme(World2.BIOME_ALGORITHM_1_9, this);
-
-            if (selectedBiomeScheme != null) {
-                world.setBiomeAlgorithm(biomeAlgorithm);
-                setBiomeScheme(selectedBiomeScheme);
-            } else {
-//                biome2MenuItem.setSelected(false);
-            }
-        } else if (biomeAlgorithm == World2.BIOME_ALGORITHM_1_0_0) {
-            if (biomeScheme instanceof Minecraft1_0BiomeScheme) {
-                return;
-            }
-
-            BiomeScheme selectedBiomeScheme = BiomeSchemeManager.getBiomeScheme(World2.BIOME_ALGORITHM_1_0_0, this);
-
-            if (selectedBiomeScheme != null) {
-                world.setBiomeAlgorithm(biomeAlgorithm);
-                setBiomeScheme(selectedBiomeScheme);
-            } else {
-//                biome3MenuItem.setSelected(false);
-            }
-        } else if (biomeAlgorithm == World2.BIOME_ALGORITHM_1_1) {
-            if (biomeScheme instanceof Minecraft1_1BiomeScheme) {
-                return;
-            }
-
-            BiomeScheme selectedBiomeScheme = BiomeSchemeManager.getBiomeScheme(World2.BIOME_ALGORITHM_1_1, this);
-
-            if (selectedBiomeScheme != null) {
-                world.setBiomeAlgorithm(biomeAlgorithm);
-                setBiomeScheme(selectedBiomeScheme);
-            } else {
-//                biome4MenuItem.setSelected(false);
-            }
-        } else if (biomeAlgorithm == World2.BIOME_ALGORITHM_1_2_AND_1_3_DEFAULT) {
-            if (biomeScheme instanceof Minecraft1_2BiomeScheme) {
-                return;
-            }
-
-            BiomeScheme selectedBiomeScheme = BiomeSchemeManager.getBiomeScheme(World2.BIOME_ALGORITHM_1_2_AND_1_3_DEFAULT, this);
-
-            if (selectedBiomeScheme != null) {
-                world.setBiomeAlgorithm(biomeAlgorithm);
-                setBiomeScheme(selectedBiomeScheme);
-            } else {
-//                biome5MenuItem.setSelected(false);
-            }
-        } else if (biomeAlgorithm == World2.BIOME_ALGORITHM_1_3_LARGE) {
-            if (biomeScheme instanceof Minecraft1_3LargeBiomeScheme) {
-                return;
-            }
-
-            BiomeScheme selectedBiomeScheme = BiomeSchemeManager.getBiomeScheme(World2.BIOME_ALGORITHM_1_3_LARGE, this);
-
-            if (selectedBiomeScheme != null) {
-                world.setBiomeAlgorithm(biomeAlgorithm);
-                setBiomeScheme(selectedBiomeScheme);
-            } else {
-//                biome5MenuItem.setSelected(false);
-            }
-        } else {
-            throw new IllegalArgumentException(Integer.toString(biomeAlgorithm));
-        }
-        if ((biomeScheme != null) && (activeOperation instanceof BiomeOperation)) {
-            ((BiomeOperation) activeOperation).setBiomeScheme(biomeScheme);
-        }
-    }
-
     /**
      * Offer to save the current world, but only if is dirty.
      * 
@@ -1243,13 +1125,11 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
         dialog.setVisible(true);
         if (! dialog.isCancelled()) {
             MixedMaterial newMaterial = dialog.getMaterial();
-            if (! newMaterial.equals(oldMaterial)) {
-                Terrain.setCustomMaterial(customMaterialIndex, newMaterial);
-                customMaterialButtons[customMaterialIndex].setIcon(new ImageIcon(newMaterial.getIcon(selectedColourScheme)));
-                customMaterialButtons[customMaterialIndex].setToolTipText(MessageFormat.format(strings.getString("customMaterial.0.right.click.to.change"), newMaterial));
-                view.refreshTiles();
-                return true;
-            }
+            Terrain.setCustomMaterial(customMaterialIndex, newMaterial);
+            customMaterialButtons[customMaterialIndex].setIcon(new ImageIcon(newMaterial.getIcon(selectedColourScheme)));
+            customMaterialButtons[customMaterialIndex].setToolTipText(MessageFormat.format(strings.getString("customMaterial.0.right.click.to.change"), newMaterial));
+            view.refreshTiles();
+            return true;
         }
         return false;
     }
@@ -1279,7 +1159,7 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
      */
     public Set<CustomLayer> getCustomLayers() {
         Set<CustomLayer> customLayers = new HashSet<CustomLayer>();
-        customLayers.addAll(customLayerButtons.keySet());
+        customLayers.addAll(paletteManager.getLayers());
         customLayers.addAll(layersWithNoButton);
         return customLayers;
     }
@@ -1325,6 +1205,13 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
     @Override
     public void customBiomeRemoved(CustomBiome customBiome) {
         biomeNames[customBiome.getId()] = null;
+    }
+    
+    // DockableHolder
+
+    @Override
+    public DockingManager getDockingManager() {
+        return dockingManager;
     }
     
     void exit() {
@@ -1484,17 +1371,6 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
             }
             
             setWorld(newWorld);
-            if (newWorld.isCustomBiomes() && (biomeScheme != null)) {
-                Dimension newDimension = newWorld.getDimension(0);
-                
-                // Initialise the custom biomes
-                newDimension.recalculateBiomes(biomeScheme, this);
-                
-                // Throw away the undo information generated by initialising the
-                // custom biomes
-                newDimension.clearUndo();
-                newDimension.armSavePoint();
-            }
             lastSelectedFile = null;
             disableImportedWorldOperation();
             setDimensionControlStates();
@@ -1706,6 +1582,14 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
                     } finally {
                         out.close();
                     }
+                    
+                    Map<String, byte[]> layoutData = config.getJideLayoutData();
+                    if (layoutData == null) {
+                        layoutData = new HashMap<String, byte[]>();
+                    }
+                    layoutData.put(world.getName(), dockingManager.getLayoutRawData());
+                    config.setJideLayoutData(layoutData);
+                    
                     return null;
                 } catch (IOException e) {
                     throw new RuntimeException("I/O error saving file (message: " + e.getMessage() + ")", e);
@@ -1789,7 +1673,7 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
     }
     
     private void addRemoveTiles() {
-        TileEditor tileEditor = new TileEditor(this, dimension, selectedColourScheme, biomeScheme, customBiomeManager, hiddenLayers, false, view.getLightOrigin());
+        TileEditor tileEditor = new TileEditor(this, dimension, selectedColourScheme, autoBiomeScheme, customBiomeManager, hiddenLayers, false, view.getLightOrigin());
         tileEditor.setVisible(true);
     }
     
@@ -1821,10 +1705,6 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
         if (! dialog.isCancelled()) {
             setWorld(null);
             World2 importedWorld = dialog.getImportedWorld();
-            if (importedWorld.getBiomeAlgorithm() == World2.BIOME_ALGORITHM_AUTO_BIOMES) {
-                Dimension importedDimension = importedWorld.getDimension(DIM_NORMAL);
-                importedDimension.recalculateBiomes(new AutoBiomeScheme(importedDimension), App.this);
-            }
             setWorld(importedWorld);
             lastSelectedFile = null;
         }
@@ -1845,7 +1725,7 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
         if (((config == null) || (! config.isMergeWarningDisplayed())) && (JOptionPane.showConfirmDialog(this, strings.getString("this.is.experimental.and.unfinished.functionality"), strings.getString("experimental.functionality"), JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE) != JOptionPane.YES_OPTION)) {
             return;
         }
-        MergeWorldDialog dialog = new MergeWorldDialog(this, world, biomeScheme, selectedColourScheme, customBiomeManager, hiddenLayers, false, view.getLightOrigin());
+        MergeWorldDialog dialog = new MergeWorldDialog(this, world, autoBiomeScheme, selectedColourScheme, customBiomeManager, hiddenLayers, false, view.getLightOrigin());
         view.setInhibitUpdates(true);
         try {
             dialog.setVisible(true);
@@ -1854,18 +1734,6 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
         }
     }
 
-    private void overlayResources() {
-        
-        OverlayResourcesDialog dialog = new OverlayResourcesDialog(this, view);
-        view.setInhibitUpdates(true);
-        try {
-            dialog.setVisible(true);
-        } finally {
-            view.setInhibitUpdates(false);
-        }
-    }
-
-    
     private void updateZoomLabel() {
         double factor = Math.pow(2.0, zoom);
         int zoomPercentage = (int) (100 * factor);
@@ -1874,7 +1742,7 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
     }
 
     private void initComponents() {
-        view = new WorldPainter(selectedColourScheme, biomeScheme, customBiomeManager);
+        view = new WorldPainter(selectedColourScheme, autoBiomeScheme, customBiomeManager);
         view.setRadius(radius);
         view.setBrushShape(brush.getBrushShape());
         final Cursor cursor = Toolkit.getDefaultToolkit().createCustomCursor(IconUtils.loadImage("org/pepsoft/worldpainter/cursor.png"), new Point(15, 15), "Custom Crosshair");
@@ -1897,8 +1765,26 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
         privateRootPane.setContentPane(scrollPane);
         privateRootPane.setGlassPane(glassPane);
         glassPane.setVisible(true);
-        getContentPane().setLayout(new AKDockLayout());
-        getContentPane().add(privateRootPane, BorderLayout.CENTER);
+
+        // Set up docking framework
+        JPanel contentContainer = new JPanel(new BorderLayout());
+        getContentPane().add(contentContainer, BorderLayout.CENTER);
+        dockingManager = new DefaultDockingManager(this, contentContainer);
+        if (SystemUtils.isLinux()) {
+            // On Linux, at least in the GTK look and feel, the default
+            // (whatever it is) doesn't work; nothing is displayed
+            dockingManager.setOutlineMode(DockingManager.MIX_OUTLINE_MODE);
+        }
+        dockingManager.setGroupAllowedOnSidePane(false);
+        dockingManager.setTabbedPaneCustomizer(new DockingManager.TabbedPaneCustomizer() {
+            @Override
+            public void customize(JideTabbedPane tabbedPane) {
+                tabbedPane.setTabPlacement(JTabbedPane.LEFT);
+            }
+        });
+        Workspace workspace = dockingManager.getWorkspace();
+        workspace.setLayout(new BorderLayout());
+        workspace.add(privateRootPane, BorderLayout.CENTER);
 
         setJMenuBar(createMenuBar());
         
@@ -1930,34 +1816,70 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
             private boolean mapDraggingInhibited;
         };
         
-        getContentPane().add(createToolPanel(), BorderLayout.WEST);
+//        getContentPane().add(createToolPanel(), BorderLayout.WEST);
+        dockingManager.addFrame(createDockableFrame(createToolPanel(), "Tools", DOCK_SIDE_WEST, 1));
 
-        getContentPane().add(createLayerPanel(), BorderLayout.WEST);
+//        getContentPane().add(createLayerPanel(), BorderLayout.WEST);
+        dockingManager.addFrame(createDockableFrame(createLayerPanel(), "Layers", DOCK_SIDE_WEST, 3));
 
-        getContentPane().add(createTerrainPanel(), BorderLayout.WEST);
+//        getContentPane().add(createTerrainPanel(), BorderLayout.WEST);
+        dockingManager.addFrame(createDockableFrame(createTerrainPanel(), "Terrain", DOCK_SIDE_WEST, 4));
+//        extraTerrainToolBar = createExtraTerrainPanel();
+        dockingManager.addFrame(createDockableFrame(createExtraTerrainPanel(), "stainedClays", "Stained Clays", DOCK_SIDE_WEST, 4));
 
-        getContentPane().add(createCustomTerrainPanel(), BorderLayout.WEST);
+//        getContentPane().add(createCustomTerrainPanel(), BorderLayout.WEST);
+        dockingManager.addFrame(createDockableFrame(createCustomTerrainPanel(), "customTerrain", "Custom Terrain", DOCK_SIDE_WEST, 4));
         
-        getContentPane().add(createBrushPanel(), BorderLayout.EAST);
+//        getContentPane().add(createBrushPanel(), BorderLayout.EAST);
+        dockingManager.addFrame(createDockableFrame(createBrushPanel(), "Brushes", DOCK_SIDE_EAST, 1));
         
         if (customBrushes.containsKey(CUSTOM_BRUSHES_DEFAULT_TITLE)) {
-            getContentPane().add(createCustomBrushPanel(CUSTOM_BRUSHES_DEFAULT_TITLE,customBrushes.get(CUSTOM_BRUSHES_DEFAULT_TITLE)), BorderLayout.EAST);
+//            getContentPane().add(createCustomBrushPanel(CUSTOM_BRUSHES_DEFAULT_TITLE, customBrushes.get(CUSTOM_BRUSHES_DEFAULT_TITLE)), BorderLayout.EAST);
+            dockingManager.addFrame(createDockableFrame(createCustomBrushPanel(CUSTOM_BRUSHES_DEFAULT_TITLE, customBrushes.get(CUSTOM_BRUSHES_DEFAULT_TITLE)), "customBrushesDefault", "Custom Brushes", DOCK_SIDE_EAST, 1));
         }
         for (Map.Entry<String, List<Brush>> entry: customBrushes.entrySet()) {
             if (entry.getKey().equals(CUSTOM_BRUSHES_DEFAULT_TITLE)) {
                 continue;
             }
-            getContentPane().add(createCustomBrushPanel(entry.getKey(), entry.getValue()), BorderLayout.EAST);
+//            getContentPane().add(createCustomBrushPanel(entry.getKey(), entry.getValue()), BorderLayout.EAST);
+            dockingManager.addFrame(createDockableFrame(createCustomBrushPanel(entry.getKey(), entry.getValue()), "customBrushes." + entry.getKey(), entry.getKey(), DOCK_SIDE_EAST, 1));
         }
         
-        getContentPane().add(createBrushSettingsPanel(), BorderLayout.EAST);
-        
-        biomesToolBar = new JToolBar(JToolBar.VERTICAL);
-        biomesPanel = new JPanel(new GridLayout(1, 1));
-        biomesPanel.setBorder(new TitledBorder(strings.getString("biomes")));
-        biomesPanel.add(biomePaintOp.getOptionsPanel());
-        biomesToolBar.add(biomesPanel);
+//        getContentPane().add(createBrushSettingsPanel(), BorderLayout.EAST);
+        dockingManager.addFrame(createDockableFrame(createBrushSettingsPanel(), "brushSettings", "Brush Settings", DOCK_SIDE_EAST, 2));
 
+//        biomesToolBar = new JToolBar(JToolBar.VERTICAL);
+//        JPanel panel = new JPanel(new GridLayout(1, 1));
+//        panel.setBorder(new TitledBorder(strings.getString("biomes")));
+//        panel.add(biomePaintOp.getOptionsPanel());
+//        biomesToolBar.add(panel);
+        biomesToolBar = createDockableFrame(biomePaintOp.getOptionsPanel(), "Biomes", DOCK_SIDE_WEST, 4);
+        biomesToolBar.setInitMode(DockContext.STATE_HIDDEN);
+        dockingManager.addFrame(biomesToolBar);
+        
+//        annotationsToolBar = new JToolBar(JToolBar.VERTICAL);
+//        panel = new JPanel(new GridLayout(1, 1));
+//        panel.setBorder(new TitledBorder("Annotations"));
+//        panel.add(annotateOp.getOptionsPanel());
+//        annotationsToolBar.add(panel);
+        annotationsToolBar = createDockableFrame(annotateOp.getOptionsPanel(), "Annotations", DOCK_SIDE_WEST, 4);
+        annotationsToolBar.setInitMode(DockContext.STATE_HIDDEN);
+        dockingManager.addFrame(annotationsToolBar);
+        
+        Configuration config = Configuration.getInstance();
+        if (config.getDefaultJideLayoutData() != null) {
+            dockingManager.loadLayoutFrom(new ByteArrayInputStream(config.getDefaultJideLayoutData()));
+        } else {
+            dockingManager.resetToDefault();
+        }
+
+//        try {
+//            biomesToolBar.setHidden(true);
+//            annotationsToolBar.setHidden(true);
+//        } catch (PropertyVetoException ex) {
+//            throw new RuntimeException(ex);
+//        }
+        
         MouseAdapter viewListener = new MouseAdapter() {
             @Override
             public void mouseMoved(MouseEvent e) {
@@ -2119,7 +2041,7 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
         waterLabel = new JLabel(MessageFormat.format(strings.getString("fluid.level.1.depth.2"), 9999, 9999));
         waterLabel.setBorder(new BevelBorder(BevelBorder.LOWERED));
         statusBar.add(waterLabel);
-        biomeLabel = new JLabel(MessageFormat.format(strings.getString("biome.0"), " Seasonal Forest"));
+        biomeLabel = new JLabel("Auto biome: Mega Spruce Taiga Hills (161)");
         biomeLabel.setBorder(new BevelBorder(BevelBorder.LOWERED));
         statusBar.add(biomeLabel);
         radiusLabel = new JLabel(MessageFormat.format(strings.getString("radius.0"), 999));
@@ -2153,16 +2075,14 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
         return statusBar;
     }
 
-    private JToolBar createToolPanel() {
+    private JPanel createToolPanel() {
         JPanel toolPanel = new JPanel();
-        toolPanel.setBorder(new TitledBorder(strings.getString("tools")));
+//        toolPanel.setBorder(new TitledBorder(strings.getString("tools")));
         toolPanel.setLayout(new GridLayout(0, 4));
-        final Configuration config = Configuration.getInstance();
         JComponent button = createButtonForOperation(new RaiseRotatedPyramid(view), "pyramid");
         toolPanel.add(button);
         toolPanel.add(createButtonForOperation(new RaisePyramid(view), "pyramid"));
         toolPanel.add(createButtonForOperation(new Flood(view, false), "flood", 'f'));
-        toolPanel.add(createButtonForOperation(new FloodRiver(view, false), "information", 'r'));
         toolPanel.add(createButtonForOperation(new Flood(view, true), "flood_with_lava", 'l'));
         toolPanel.add(createButtonForOperation(new Height(view, this, mapDragControl), "height", 'h'));
         toolPanel.add(createButtonForOperation(new Flatten(view, this, mapDragControl), "flatten", 'a'));
@@ -2186,18 +2106,18 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
             toolPanel.add(createButtonForOperation(operation, operation.getName().replaceAll("\\s", "").toLowerCase()));
         }
 
-        JToolBar toolBar = new JToolBar(JToolBar.VERTICAL);
-        if (toolbarsLocked) {
-            toolBar.setFloatable(false);
-        }
-        toolBar.add(toolPanel);
+//        JToolBar toolBar = new JToolBar(JToolBar.VERTICAL);
+//        if (toolbarsLocked) {
+//            toolBar.setFloatable(false);
+//        }
+//        toolBar.add(toolPanel);
 
-        return toolBar;
+        return toolPanel;
     }
     
-    private JToolBar createLayerPanel() {
+    private JPanel createLayerPanel() {
         JPanel layerPanel = new JPanel();
-        layerPanel.setBorder(new TitledBorder(strings.getString("layers")));
+//        layerPanel.setBorder(new TitledBorder(strings.getString("layers")));
         layerPanel.setLayout(new GridBagLayout());
         GridBagConstraints constraints = new GridBagConstraints();
         constraints.gridwidth = GridBagConstraints.REMAINDER;
@@ -2214,10 +2134,12 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
         layerPanel.add(createButtonForOperation(new LayerPaint(view, this, mapDragControl, ReadOnly.INSTANCE), "readonly", 'o', true), constraints);
         disableImportedWorldOperation();
 
-        // Create biome checkbox
-        JPanel biomePanel = new JPanel();
-        ((FlowLayout) biomePanel.getLayout()).setHgap(0);
-        ((FlowLayout) biomePanel.getLayout()).setVgap(0);
+
+        // Biomes
+        
+        JPanel panel = new JPanel();
+        ((FlowLayout) panel.getLayout()).setHgap(0);
+        ((FlowLayout) panel.getLayout()).setVgap(0);
         biomesCheckBox = new JCheckBox();
         biomesCheckBox.setToolTipText(strings.getString("whether.or.not.to.display.this.layer"));
         biomesCheckBox.addActionListener(new ActionListener() {
@@ -2231,7 +2153,7 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
                 updateLayerVisibility();
             }
         });
-        biomePanel.add(biomesCheckBox);
+        panel.add(biomesCheckBox);
         
         biomesSoloCheckBox = new JCheckBox();
         biomesSoloCheckBox.setToolTipText("<html>Check to show <em>only</em> this layer (the other layers are still exported)</html>");
@@ -2252,43 +2174,75 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
             }
         });
         layerSoloCheckBoxes.put(Biome.INSTANCE, biomesSoloCheckBox);
-        biomePanel.add(biomesSoloCheckBox);
+        panel.add(biomesSoloCheckBox);
 
-        biomePaintOp = new BiomePaint(view, instance, mapDragControl, selectedColourScheme, customBiomeManager);
+        // Always use default colours for biomes:
+        biomePaintOp = new BiomePaint(view, instance, mapDragControl, colourSchemes[0], customBiomeManager);
         biomesToggleButton = (JToggleButton) createButtonForOperation(biomePaintOp, "biome", 'b', false);
         biomesToggleButton.setText(strings.getString("biomes"));
+        panel.add(biomesToggleButton);
         
-        biomesBrowserButton = new JButton(strings.getString("biomes"), loadIcon("biome"));
-        biomesBrowserButton.setMargin(new Insets(2, 2, 2, 2));
-        biomesBrowserButton.setMnemonic('b');
-        biomesBrowserButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                boolean biomesWereHidden = false;
-                if (hiddenLayers.contains(Biome.INSTANCE)) {
-                    biomesWereHidden = true;
-                    hiddenLayers.remove(Biome.INSTANCE);
-                    view.removeHiddenLayer(Biome.INSTANCE);
-                }
-                SeedBrowser seedBrowser = new SeedBrowser(App.this, dimension, biomeScheme);
-                seedBrowser.setVisible(true);
-                if (biomesWereHidden) {
-                    hiddenLayers.add(Biome.INSTANCE);
-                    view.addHiddenLayer(Biome.INSTANCE);
-                }
-            }
-        });
-        biomeButtonContainer = new JPanel(new GridLayout(1, 1));
-        biomeButtonContainer.add(biomesBrowserButton);
-        biomePanel.add(biomeButtonContainer);
         if (! config.isEasyMode()) {
-            layerPanel.add(biomePanel, constraints);
+            layerPanel.add(panel, constraints);
         }
 
-        createCustomLayerMenu();
+        
+        // Annotations
+        
+        panel = new JPanel();
+        ((FlowLayout) panel.getLayout()).setHgap(0);
+        ((FlowLayout) panel.getLayout()).setVgap(0);
+        annotationsCheckBox = new JCheckBox();
+        annotationsCheckBox.setSelected(true);
+        annotationsCheckBox.setToolTipText(strings.getString("whether.or.not.to.display.this.layer"));
+        annotationsCheckBox.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                if (annotationsCheckBox.isSelected()) {
+                    hiddenLayers.remove(Annotations.INSTANCE);
+                } else {
+                    hiddenLayers.add(Annotations.INSTANCE);
+                }
+                updateLayerVisibility();
+            }
+        });
+        panel.add(annotationsCheckBox);
+        
+        annotationsSoloCheckBox = new JCheckBox();
+        annotationsSoloCheckBox.setToolTipText("<html>Check to show <em>only</em> this layer (the other layers are still exported)</html>");
+        annotationsSoloCheckBox.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                if (annotationsSoloCheckBox.isSelected()) {
+                    for (JCheckBox otherSoloCheckBox: layerSoloCheckBoxes.values()) {
+                        if (otherSoloCheckBox != annotationsSoloCheckBox) {
+                            otherSoloCheckBox.setSelected(false);
+                        }
+                    }
+                    soloLayer = Annotations.INSTANCE;
+                } else {
+                    soloLayer = null;
+                }
+                updateLayerVisibility();
+            }
+        });
+        layerSoloCheckBoxes.put(Annotations.INSTANCE, annotationsSoloCheckBox);
+        panel.add(annotationsSoloCheckBox);
+
+        annotateOp = new Annotate(view, instance, mapDragControl, selectedColourScheme);
+        annotationsToggleButton = (JToggleButton) createButtonForOperation(annotateOp, "annotations");
+        annotationsToggleButton.setText("Annotations");
+        panel.add(annotationsToggleButton);
+
+        if (! config.isEasyMode()) {
+            layerPanel.add(panel, constraints);
+        }
+
+        
+        final JPopupMenu customLayerMenu = createCustomLayerMenu(null);
         
         final JButton addLayerButton = new JButton(loadIcon("plus"));
-        addLayerButtonPanel = new JPanel();
+        final JPanel addLayerButtonPanel = new JPanel();
         addLayerButton.setToolTipText(strings.getString("add.a.custom.layer"));
         addLayerButton.setMargin(new Insets(2, 2, 2, 2));
         addLayerButton.addActionListener(new ActionListener() {
@@ -2303,58 +2257,44 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
         JPanel spacer = new JPanel();
         spacer.setPreferredSize(checkBox.getPreferredSize());
         addLayerButtonPanel.add(spacer);
+        spacer = new JPanel();
+        spacer.setPreferredSize(checkBox.getPreferredSize());
+        addLayerButtonPanel.add(spacer);
         addLayerButtonPanel.add(addLayerButton);
         layerPanel.add(addLayerButtonPanel, constraints);
 
-        layerToolBar = new JToolBar(JToolBar.VERTICAL);
-        if (toolbarsLocked) {
-            layerToolBar.setFloatable(false);
-        }
-        layerToolBar.add(layerPanel);
+//        layerToolBar = new JToolBar(JToolBar.VERTICAL);
+//        if (toolbarsLocked) {
+//            layerToolBar.setFloatable(false);
+//        }
+//        layerToolBar.add(layerPanel);
         
-        return layerToolBar;
+        return layerPanel;
     }
     
-    private JToolBar createCustomLayerPanel() {
-        customLayerPanel = new JPanel();
-        customLayerPanel.setBorder(new TitledBorder("Custom Layers"));
-        customLayerPanel.setLayout(new GridBagLayout());
-        GridBagConstraints constraints = new GridBagConstraints();
-        constraints.gridwidth = GridBagConstraints.REMAINDER;
-        constraints.anchor = GridBagConstraints.FIRST_LINE_START;
-        constraints.weightx = 1.0;
-        constraints.insets = new Insets(1, 1, 1, 1);
+//    private JPanel createLayerManagementButtonPanel() {
+//        final JButton addLayerButton = new JButton(loadIcon("plus"));
+//        final JPanel addLayerPanel = new JPanel();
+//        addLayerButton.setToolTipText(strings.getString("add.a.custom.layer"));
+//        addLayerButton.setMargin(new Insets(2, 2, 2, 2));
+//        addLayerButton.addActionListener(new ActionListener() {
+//            @Override
+//            public void actionPerformed(ActionEvent e) {
+//                customLayerMenu.show(addLayerPanel, addLayerButton.getX() + addLayerButton.getWidth(), addLayerButton.getY());
+//            }
+//        });
+//        ((FlowLayout) addLayerPanel.getLayout()).setHgap(0);
+//        ((FlowLayout) addLayerPanel.getLayout()).setVgap(0);
+//        JCheckBox checkBox = new JCheckBox();
+//        JPanel spacer = new JPanel();
+//        spacer.setPreferredSize(checkBox.getPreferredSize());
+//        addLayerPanel.add(spacer);
+//        addLayerPanel.add(addLayerButton);
+//        return addLayerPanel;
+//    }
 
-        final JButton addLayerButton = new JButton(loadIcon("plus"));
-        final JPanel addLayerPanel = new JPanel();
-        addLayerButton.setToolTipText(strings.getString("add.a.custom.layer"));
-        addLayerButton.setMargin(new Insets(2, 2, 2, 2));
-        addLayerButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                customLayerMenu.show(addLayerPanel, addLayerButton.getX() + addLayerButton.getWidth(), addLayerButton.getY());
-            }
-        });
-        ((FlowLayout) addLayerPanel.getLayout()).setHgap(0);
-        ((FlowLayout) addLayerPanel.getLayout()).setVgap(0);
-        JCheckBox checkBox = new JCheckBox();
-        JPanel spacer = new JPanel();
-        spacer.setPreferredSize(checkBox.getPreferredSize());
-        addLayerPanel.add(spacer);
-        addLayerPanel.add(addLayerButton);
-        customLayerPanel.add(addLayerPanel, constraints);
-        
-        customLayerToolBar = new JToolBar(JToolBar.VERTICAL);
-        if (toolbarsLocked) {
-            customLayerToolBar.setFloatable(false);
-        }
-        customLayerToolBar.add(customLayerPanel);
-        
-        return customLayerToolBar;
-    }
-    
-    private void createCustomLayerMenu() {
-        customLayerMenu = new JPopupMenu();
+    private JPopupMenu createCustomLayerMenu(final String paletteName) {
+        JPopupMenu customLayerMenu = new JPopupMenu();
         JMenuItem menuItem = new JMenuItem(strings.getString("add.a.custom.object.layer") + "...");
         menuItem.addActionListener(new ActionListener() {
             @Override
@@ -2363,7 +2303,10 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
                 dialog.setVisible(true);
                 if (! dialog.isCancelled()) {
                     Bo2Layer layer = dialog.getSelectedLayer();
-                    createCustomLayerButton(layer, true);
+                    if (paletteName != null) {
+                        layer.setPalette(paletteName);
+                    }
+                    registerCustomLayer(layer, true);
                 }
             }
         });
@@ -2377,7 +2320,10 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
                 dialog.setVisible(true);
                 if (! dialog.isCancelled()) {
                     GroundCoverLayer layer = dialog.getSelectedLayer();
-                    createCustomLayerButton(layer, true);
+                    if (paletteName != null) {
+                        layer.setPalette(paletteName);
+                    }
+                    registerCustomLayer(layer, true);
                 }
             }
         });
@@ -2391,7 +2337,10 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
                 dialog.setVisible(true);
                 if (! dialog.isCancelled()) {
                     UndergroundPocketsLayer layer = dialog.getSelectedLayer();
-                    createCustomLayerButton(layer, true);
+                    if (paletteName != null) {
+                        layer.setPalette(paletteName);
+                    }
+                    registerCustomLayer(layer, true);
                 }
             }
         });
@@ -2415,7 +2364,10 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
                 TunnelLayerDialog dialog = new TunnelLayerDialog(App.this, layer, world.isExtendedBlockIds(), dimension.getMaxHeight(), baseHeight, waterLevel);
                 dialog.setVisible(true);
                 if (! dialog.isCancelled()) {
-                    createCustomLayerButton(layer, true);
+                    if (paletteName != null) {
+                        layer.setPalette(paletteName);
+                    }
+                    registerCustomLayer(layer, true);
                 }
             }
         });
@@ -2426,27 +2378,37 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
             @Override
             public void actionPerformed(ActionEvent e) {
                 CombinedLayer layer = new CombinedLayer("Combined", "A combined layer", Color.ORANGE.getRGB());
-                CombinedLayerDialog dialog = new CombinedLayerDialog(App.this, biomeScheme, selectedColourScheme, customBiomeManager, layer, new ArrayList<Layer>(getAllLayers()));
+                CombinedLayerDialog dialog = new CombinedLayerDialog(App.this, autoBiomeScheme, selectedColourScheme, customBiomeManager, layer, new ArrayList<Layer>(getAllLayers()));
                 dialog.setVisible(true);
                 if (! dialog.isCancelled()) {
                     // TODO: get saved layer
-                    createCustomLayerButton(layer, true);
+                    if (paletteName != null) {
+                        layer.setPalette(paletteName);
+                    }
+                    registerCustomLayer(layer, true);
                 }
             }
         });
         customLayerMenu.add(menuItem);
         
-        menuItem = new JMenuItem(ACTION_IMPORT_LAYER);
-        menuItem.setText("Import custom layer(s) from file...");
+        menuItem = new JMenuItem("Import custom layer(s) from file...");
+        menuItem.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                importLayers(paletteName);
+            }
+        });
         customLayerMenu.add(menuItem);
+        
+        return customLayerMenu;
     }
 
-    private JToolBar createTerrainPanel() {
+    private JPanel createTerrainPanel() {
         JPanel terrainPanel = new JPanel();
-        terrainPanel.setBorder(new TitledBorder(strings.getString("terrain")));
+//        terrainPanel.setBorder(new TitledBorder(strings.getString("terrain")));
         terrainPanel.setLayout(new GridLayout(0, 4));
         terrainPanel.add(createButtonForOperation(new TerrainPaint(view, this, mapDragControl, Terrain.GRASS)));
-        terrainPanel.add(createButtonForOperation(new TerrainPaint(view, this, mapDragControl, Terrain.DIRT)));
+        terrainPanel.add(createButtonForOperation(new TerrainPaint(view, this, mapDragControl, Terrain.PERMADIRT)));
         terrainPanel.add(createButtonForOperation(new TerrainPaint(view, this, mapDragControl, Terrain.SAND)));
         terrainPanel.add(createButtonForOperation(new TerrainPaint(view, this, mapDragControl, Terrain.DESERT)));
         
@@ -2455,12 +2417,12 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
         terrainPanel.add(createButtonForOperation(new TerrainPaint(view, this, mapDragControl, Terrain.ROCK)));
         terrainPanel.add(createButtonForOperation(new TerrainPaint(view, this, mapDragControl, Terrain.SANDSTONE)));
         
-        terrainPanel.add(createButtonForOperation(new TerrainPaint(view, this, mapDragControl, Terrain.OBSIDIAN)));
+        terrainPanel.add(createButtonForOperation(new TerrainPaint(view, this, mapDragControl, Terrain.PODZOL)));
         terrainPanel.add(createButtonForOperation(new TerrainPaint(view, this, mapDragControl, Terrain.COBBLESTONE)));
         terrainPanel.add(createButtonForOperation(new TerrainPaint(view, this, mapDragControl, Terrain.MOSSY_COBBLESTONE)));
         terrainPanel.add(createButtonForOperation(new TerrainPaint(view, this, mapDragControl, Terrain.GRAVEL)));
         
-        terrainPanel.add(createButtonForOperation(new TerrainPaint(view, this, mapDragControl, Terrain.CLAY)));
+        terrainPanel.add(createButtonForOperation(new TerrainPaint(view, this, mapDragControl, Terrain.OBSIDIAN)));
         terrainPanel.add(createButtonForOperation(new TerrainPaint(view, this, mapDragControl, Terrain.WATER)));
         terrainPanel.add(createButtonForOperation(new TerrainPaint(view, this, mapDragControl, Terrain.LAVA)));
         terrainPanel.add(createButtonForOperation(new TerrainPaint(view, this, mapDragControl, Terrain.DEEP_SNOW)));
@@ -2472,21 +2434,76 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
 
         terrainPanel.add(createButtonForOperation(new TerrainPaint(view, this, mapDragControl, Terrain.END_STONE)));
         terrainPanel.add(createButtonForOperation(new TerrainPaint(view, this, mapDragControl, Terrain.BEDROCK)));
-        terrainPanel.add(createButtonForOperation(new TerrainPaint(view, this, mapDragControl, Terrain.RESOURCES)));
+        terrainPanel.add(createButtonForOperation(new TerrainPaint(view, this, mapDragControl, Terrain.CLAY)));
         terrainPanel.add(createButtonForOperation(new TerrainPaint(view, this, mapDragControl, Terrain.BEACHES)));
         
-        JToolBar toolBar = new JToolBar(JToolBar.VERTICAL);
-        if (toolbarsLocked) {
-            toolBar.setFloatable(false);
-        }
-        toolBar.add(terrainPanel);
+        terrainPanel.add(createButtonForOperation(new TerrainPaint(view, this, mapDragControl, Terrain.RED_SAND)));
+        terrainPanel.add(createButtonForOperation(new TerrainPaint(view, this, mapDragControl, Terrain.HARDENED_CLAY)));
+        terrainPanel.add(createButtonForOperation(new TerrainPaint(view, this, mapDragControl, Terrain.RED_DESERT)));
+        terrainPanel.add(createButtonForOperation(new TerrainPaint(view, this, mapDragControl, Terrain.MESA)));
+        
+//        final JToggleButton showExtraTerrainsButton = new JToggleButton(loadIcon("plus"));
+//        showExtraTerrainsButton.setMargin(new Insets(2, 2, 2, 2));
+//        showExtraTerrainsButton.setToolTipText("Show the stained clay terrain types");
+//        showExtraTerrainsButton.addActionListener(new ActionListener() {
+//            @Override
+//            public void actionPerformed(ActionEvent e) {
+//                if (showExtraTerrainsButton.isSelected()) {
+//                    getContentPane().add(extraTerrainToolBar, BorderLayout.WEST);
+//                } else {
+//                    getContentPane().remove(extraTerrainToolBar);
+//                }
+//                App.this.validate(); // Doesn't happen automatically for some reason; Swing bug?
+//                getContentPane().repaint(); // Otherwise a ghost image is left behind for some reason; Swing bug?
+//            }
+//        });
+//        terrainPanel.add(showExtraTerrainsButton);
+        
+//        JToolBar toolBar = new JToolBar(JToolBar.VERTICAL);
+//        if (toolbarsLocked) {
+//            toolBar.setFloatable(false);
+//        }
+//        toolBar.add(terrainPanel);
 
-        return toolBar;
+        return terrainPanel;
     }
     
-    private JToolBar createCustomTerrainPanel() {
+    private JPanel createExtraTerrainPanel() {
+        JPanel extraTerrainPanel = new JPanel();
+//        extraTerrainPanel.setBorder(new TitledBorder("More Terrain"));
+        extraTerrainPanel.setLayout(new GridLayout(0, 4));
+        extraTerrainPanel.add(createButtonForOperation(new TerrainPaint(view, this, mapDragControl, Terrain.WHITE_STAINED_CLAY)));
+        extraTerrainPanel.add(createButtonForOperation(new TerrainPaint(view, this, mapDragControl, Terrain.ORANGE_STAINED_CLAY)));
+        extraTerrainPanel.add(createButtonForOperation(new TerrainPaint(view, this, mapDragControl, Terrain.MAGENTA_STAINED_CLAY)));
+        extraTerrainPanel.add(createButtonForOperation(new TerrainPaint(view, this, mapDragControl, Terrain.LIGHT_BLUE_STAINED_CLAY)));
+        
+        extraTerrainPanel.add(createButtonForOperation(new TerrainPaint(view, this, mapDragControl, Terrain.YELLOW_STAINED_CLAY)));
+        extraTerrainPanel.add(createButtonForOperation(new TerrainPaint(view, this, mapDragControl, Terrain.LIME_STAINED_CLAY)));
+        extraTerrainPanel.add(createButtonForOperation(new TerrainPaint(view, this, mapDragControl, Terrain.PINK_STAINED_CLAY)));
+        extraTerrainPanel.add(createButtonForOperation(new TerrainPaint(view, this, mapDragControl, Terrain.GREY_STAINED_CLAY)));
+        
+        extraTerrainPanel.add(createButtonForOperation(new TerrainPaint(view, this, mapDragControl, Terrain.LIGHT_GREY_STAINED_CLAY)));
+        extraTerrainPanel.add(createButtonForOperation(new TerrainPaint(view, this, mapDragControl, Terrain.CYAN_STAINED_CLAY)));
+        extraTerrainPanel.add(createButtonForOperation(new TerrainPaint(view, this, mapDragControl, Terrain.PURPLE_STAINED_CLAY)));
+        extraTerrainPanel.add(createButtonForOperation(new TerrainPaint(view, this, mapDragControl, Terrain.BLUE_STAINED_CLAY)));
+        
+        extraTerrainPanel.add(createButtonForOperation(new TerrainPaint(view, this, mapDragControl, Terrain.BROWN_STAINED_CLAY)));
+        extraTerrainPanel.add(createButtonForOperation(new TerrainPaint(view, this, mapDragControl, Terrain.GREEN_STAINED_CLAY)));
+        extraTerrainPanel.add(createButtonForOperation(new TerrainPaint(view, this, mapDragControl, Terrain.RED_STAINED_CLAY)));
+        extraTerrainPanel.add(createButtonForOperation(new TerrainPaint(view, this, mapDragControl, Terrain.BLACK_STAINED_CLAY)));
+        
+//        extraTerrainToolBar = new JToolBar(JToolBar.VERTICAL);
+//        if (toolbarsLocked) {
+//            extraTerrainToolBar.setFloatable(false);
+//        }
+//        extraTerrainToolBar.add(extraTerrainPanel);
+
+        return extraTerrainPanel;
+    }
+    
+    private JPanel createCustomTerrainPanel() {
         JPanel customTerrainPanel = new JPanel();
-        customTerrainPanel.setBorder(new TitledBorder("Custom Terrain"));
+//        customTerrainPanel.setBorder(new TitledBorder("Custom Terrain"));
         customTerrainPanel.setLayout(new GridLayout(0, 4));
     
         for (int i = 0; i < Terrain.CUSTOM_TERRAIN_COUNT; i++) {
@@ -2497,20 +2514,20 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
             customTerrainPanel.add(customMaterialButtons[i]);
         }
 
-        JToolBar toolBar = new JToolBar(JToolBar.VERTICAL);
-        if (toolbarsLocked) {
-            toolBar.setFloatable(false);
-        }
-        toolBar.add(customTerrainPanel);
+//        JToolBar toolBar = new JToolBar(JToolBar.VERTICAL);
+//        if (toolbarsLocked) {
+//            toolBar.setFloatable(false);
+//        }
+//        toolBar.add(customTerrainPanel);
 
-        return toolBar;
+        return customTerrainPanel;
     }
     
-    private JToolBar createBrushPanel() {
+    private JPanel createBrushPanel() {
         JPanel optionsPanel = new JPanel();
-        optionsPanel.setBorder(new TitledBorder(strings.getString("brushes")));
+//        optionsPanel.setBorder(new TitledBorder(strings.getString("brushes")));
         optionsPanel.setLayout(new GridBagLayout());
-        brushPanel = new JPanel(new GridLayout(0, 3));
+        JPanel brushPanel = new JPanel(new GridLayout(0, 3));
         brushPanel.add(createBrushButton(SymmetricBrush.SPIKE_CIRCLE));
         brushPanel.add(createBrushButton(SymmetricBrush.SPIKE_SQUARE));
         brushPanel.add(createBrushButton(new BitmapBrush(App.class.getResourceAsStream("resources/brush_noise.png"), strings.getString("noise"))));
@@ -2537,18 +2554,18 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
         constraints.insets = new Insets(1, 1, 1, 1);
         optionsPanel.add(brushPanel, constraints);
         
-        JToolBar toolBar = new JToolBar(JToolBar.VERTICAL);
-        if (toolbarsLocked) {
-            toolBar.setFloatable(false);
-        }
-        toolBar.add(optionsPanel);
+//        JToolBar toolBar = new JToolBar(JToolBar.VERTICAL);
+//        if (toolbarsLocked) {
+//            toolBar.setFloatable(false);
+//        }
+//        toolBar.add(optionsPanel);
         
-        return toolBar;
+        return optionsPanel;
     }
 
-    private JToolBar createCustomBrushPanel(String title, List<Brush> customBrushes) {
+    private JPanel createCustomBrushPanel(String title, List<Brush> customBrushes) {
         JPanel customBrushesPanel = new JPanel();
-        customBrushesPanel.setBorder(new TitledBorder(title));
+//        customBrushesPanel.setBorder(new TitledBorder(title));
         customBrushesPanel.setLayout(new GridBagLayout());
         JPanel customBrushPanel = new JPanel(new GridLayout(0, 3));
         for (Brush customBrush: customBrushes) {
@@ -2562,18 +2579,18 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
         constraints.insets = new Insets(1, 1, 1, 1);
         customBrushesPanel.add(customBrushPanel, constraints);
 
-        JToolBar toolBar = new JToolBar(JToolBar.VERTICAL);
-        if (toolbarsLocked) {
-            toolBar.setFloatable(false);
-        }
-        toolBar.add(customBrushesPanel);
+//        JToolBar toolBar = new JToolBar(JToolBar.VERTICAL);
+//        if (toolbarsLocked) {
+//            toolBar.setFloatable(false);
+//        }
+//        toolBar.add(customBrushesPanel);
         
-        return toolBar;
+        return customBrushesPanel;
     }
     
-    private JToolBar createBrushSettingsPanel() {
+    private JPanel createBrushSettingsPanel() {
         JPanel brushSettingsPanel = new JPanel();
-        brushSettingsPanel.setBorder(new TitledBorder("Brush Settings"));
+//        brushSettingsPanel.setBorder(new TitledBorder("Brush Settings"));
         brushSettingsPanel.setLayout(new GridBagLayout());
         
         GridBagConstraints constraints = new GridBagConstraints();
@@ -2663,13 +2680,13 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
         constraints.insets = new Insets(1, 1, 1, 1);
         brushSettingsPanel.add(brushOptions, constraints);
         
-        JToolBar toolBar = new JToolBar(JToolBar.VERTICAL);
-        if (toolbarsLocked) {
-            toolBar.setFloatable(false);
-        }
-        toolBar.add(brushSettingsPanel);
+//        JToolBar toolBar = new JToolBar(JToolBar.VERTICAL);
+//        if (toolbarsLocked) {
+//            toolBar.setFloatable(false);
+//        }
+//        toolBar.add(brushSettingsPanel);
         
-        return toolBar;
+        return brushSettingsPanel;
     }
 
     private void updateBrushRotation() {
@@ -2703,30 +2720,44 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
             previousBrushRotation = desiredBrushRotation;
         }
     }
-    
-    private void createCustomLayerButton(final CustomLayer layer, boolean activate) {
-        // Show the custom layer panel if there were no custom layers yet, and
-        // hide the button on the regular layer panel
-        if (! customLayerToolBarShowing) {
-            // Create the custom layer toolbar if necessary
-            if (customLayerToolBar == null) {
-                customLayerToolBar = createCustomLayerPanel();
-            }
-            
-            // Add the custom layer toolbar with the same constraints as the
-            // layer toolbar, so it ends up on the same edge of the window
-            getContentPane().add(customLayerToolBar, BorderLayout.WEST);
-            customLayerToolBarShowing = true;
-            
-            // Remove the "add custom layer button" from the regular layer panel
-            addLayerButtonPanel.setVisible(false);
+
+    private void registerCustomLayer(final CustomLayer layer, boolean activate) {
+        // Add to palette, creating it if necessary
+        Palette palette = paletteManager.register(layer);
+
+        // Show the palette if it is not showing yet
+        if (palette != null) {
+            dockingManager.addFrame(palette.getDockableFrame());
+            dockingManager.dockFrame(palette.getDockableFrame().getKey(), DockContext.DOCK_SIDE_WEST, 3);
+            if (activate) {
+                dockingManager.activateFrame(palette.getDockableFrame().getKey());
         }
-        
-        GridBagConstraints constraints = new GridBagConstraints();
-        constraints.gridwidth = GridBagConstraints.REMAINDER;
-        constraints.anchor = GridBagConstraints.FIRST_LINE_START;
-        constraints.weightx = 1.0;
-        constraints.insets = new Insets(1, 1, 1, 1);
+        }
+
+        if (activate) {
+            paletteManager.activate(layer);
+        }
+    }
+
+    private void unregisterCustomLayer(final CustomLayer layer) {
+        // Remove from palette
+        Palette palette = paletteManager.unregister(layer);
+
+        // Remove tracked GUI components
+        layerSoloCheckBoxes.remove(layer);
+
+        // If the palette is now empty, remove it too
+        if (palette.isEmpty()) {
+            paletteManager.delete(palette);
+            dockingManager.removeFrame(palette.getDockableFrame().getKey());
+//            validate();
+        }
+    }
+
+    // PaletteManager.ButtonProvider
+    
+    @Override
+    public JPanel createCustomLayerButton(final CustomLayer layer) {
         Operation operation;
         if (layer instanceof CombinedLayer) {
             operation = new CombinedLayerPaint(view, App.this, mapDragControl, (CombinedLayer) layer);
@@ -2784,6 +2815,33 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
                 });
                 popup.add(menuItem);
                 
+                JMenu paletteMenu = new JMenu("Move to palette");
+
+                for (final Palette palette: paletteManager.getPalettes()) {
+                    menuItem = new JMenuItem(palette.getName());
+                    menuItem.addActionListener(new ActionListener() {
+                        @Override
+                        public void actionPerformed(ActionEvent e) {
+                            moveLayerToPalette(layer, palette);
+                        }
+                    });
+                    if (palette.contains(layer)) {
+                        menuItem.setEnabled(false);
+                    }
+                    paletteMenu.add(menuItem);
+                }
+
+                menuItem = new JMenuItem("New palette...");
+                menuItem.addActionListener(new ActionListener() {
+                    @Override
+                    public void actionPerformed(ActionEvent e) {
+                        createNewLayerPalette(layer);
+                    }
+                });
+                paletteMenu.add(menuItem);
+
+                popup.add(paletteMenu);
+
                 List<Action> actions = layer.getActions();
                 if (actions != null) {
                     for (Action action: actions) {
@@ -2804,7 +2862,7 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
                 } else if (layer instanceof UndergroundPocketsLayer) {
                     dialog = new UndergroundPocketsDialog(App.this, (UndergroundPocketsLayer) layer, selectedColourScheme, dimension.getMaxHeight(), world.isExtendedBlockIds());
                 } else if (layer instanceof CombinedLayer) {
-                    dialog = new CombinedLayerDialog(App.this, biomeScheme, selectedColourScheme, customBiomeManager, (CombinedLayer) layer, new ArrayList<Layer>(getAllLayers()));
+                    dialog = new CombinedLayerDialog(App.this, autoBiomeScheme, selectedColourScheme, customBiomeManager, (CombinedLayer) layer, new ArrayList<Layer>(getAllLayers()));
                 } else if (layer instanceof TunnelLayer) {
                     final int baseHeight, waterLevel;
                     final TileFactory tileFactory = dimension.getTileFactory();
@@ -2852,16 +2910,7 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
                     } finally {
                         dimension.setEventsInhibited(false);
                     }
-                    customLayerPanel.remove(buttonPanel);
-                    customLayerButtons.remove(layer);
-                    
-                    // If there are no custom layers any more, remove the
-                    // toolbar and restore the original button
-                    if (customLayerButtons.isEmpty()) {
-                        getContentPane().remove(customLayerToolBar);
-                        customLayerToolBarShowing = false;
-                        addLayerButtonPanel.setVisible(true);
-                    }
+                    unregisterCustomLayer(layer);
                     
                     boolean visibleLayersChanged = false;
                     if (hiddenLayers.contains(layer)) {
@@ -2893,27 +2942,45 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
                 }
             }
         });
-        customLayerButtons.put(layer, buttonPanel);
-        customLayerPanel.add(buttonPanel, constraints, customLayerPanel.getComponentCount() - 1);
-        validate(); // Doesn't happen automatically for some reason; Swing bug?
+        return buttonPanel;
+    }
+
+    @Override
+    public JPanel createPopupMenuButton(String paletteName) {
+        final JPopupMenu customLayerMenu = createCustomLayerMenu(paletteName);
         
-        if (activate) {
-            button.setSelected(true);
-        }
+        final JButton addLayerButton = new JButton(loadIcon("plus"));
+        final JPanel addLayerButtonPanel = new JPanel();
+        addLayerButton.setToolTipText(strings.getString("add.a.custom.layer"));
+        addLayerButton.setMargin(new Insets(2, 2, 2, 2));
+        addLayerButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                customLayerMenu.show(addLayerButtonPanel, addLayerButton.getX() + addLayerButton.getWidth(), addLayerButton.getY());
+            }
+        });
+        ((FlowLayout) addLayerButtonPanel.getLayout()).setHgap(0);
+        ((FlowLayout) addLayerButtonPanel.getLayout()).setVgap(0);
+        JCheckBox checkBox = new JCheckBox();
+        JPanel spacer = new JPanel();
+        spacer.setPreferredSize(checkBox.getPreferredSize());
+        addLayerButtonPanel.add(spacer);
+        spacer = new JPanel();
+        spacer.setPreferredSize(checkBox.getPreferredSize());
+        addLayerButtonPanel.add(spacer);
+        addLayerButtonPanel.add(addLayerButton);
+
+        return addLayerButtonPanel;
     }
 
     private void updateHiddenLayers() {
         // Hide newly hidden layers
-        for (Iterator<Map.Entry<CustomLayer, Component>> i = customLayerButtons.entrySet().iterator(); i.hasNext(); ) {
-            Map.Entry<CustomLayer, Component> entry = i.next();
-            CustomLayer layer = entry.getKey();
+        for (CustomLayer layer: paletteManager.getLayers()) {
             if (layer.isHide()) {
                 if ((activeOperation instanceof LayerPaint) && (((LayerPaint) activeOperation).getLayer().equals(layer))) {
                     deselectTool();
                 }
-                customLayerPanel.remove(entry.getValue());
-                validate();
-                i.remove();
+                unregisterCustomLayer(layer);
                 hiddenLayers.remove(layer);
                 if (layer.equals(soloLayer)) {
                     soloLayer = null;
@@ -2926,12 +2993,39 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
             CustomLayer layer = i.next();
             if (! layer.isHide()) {
                 i.remove();
-                createCustomLayerButton(layer, false);
+                registerCustomLayer(layer, false);
             }
         }
         updateLayerVisibility();
     }
     
+    private void createNewLayerPalette(CustomLayer layer) {
+        String name;
+        if ((name = JOptionPane.showInputDialog(this, "Enter a unique name for the new palette:", "New Palette", JOptionPane.QUESTION_MESSAGE)) != null) {
+            if (paletteManager.getPalette(name) != null) {
+                JOptionPane.showMessageDialog(this, "There is already a palette with that name!", "Duplicate Name", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            Palette destPalette = paletteManager.create(name);
+            dockingManager.addFrame(destPalette.getDockableFrame());
+            dockingManager.dockFrame(destPalette.getDockableFrame().getKey(), DockContext.DOCK_SIDE_WEST, 3);
+//            validate();
+            moveLayerToPalette(layer, destPalette);
+            dockingManager.activateFrame(destPalette.getDockableFrame().getKey());
+        }
+    }
+
+    private void moveLayerToPalette(CustomLayer layer, Palette destPalette) {
+        Palette srcPalette = paletteManager.move(layer, destPalette);
+//        dockingManager.addFrame(destPalette);
+//        dockingManager.dockFrame(destPalette.getKey(), DockContext.DOCK_SIDE_WEST, 3);
+        if (srcPalette.isEmpty()) {
+            dockingManager.removeFrame(srcPalette.getDockableFrame().getKey());
+            paletteManager.delete(srcPalette);
+//            validate();
+        }
+    }
+
     private JMenuBar createMenuBar() {
         JMenuItem menuItem = new JMenuItem(ACTION_NEW_WORLD);
         menuItem.setMnemonic('n');
@@ -2943,7 +3037,7 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
         menuItem.setMnemonic('o');
         menu.add(menuItem);
 
-        Configuration config = Configuration.getInstance();
+        final Configuration config = Configuration.getInstance();
         if (! config.isEasyMode()) {
             menuItem = new JMenuItem(ACTION_IMPORT_MAP);
             menuItem.setMnemonic('m');
@@ -2973,7 +3067,7 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
             menu.add(menuItem);
         }
 
-        menu.add(new JSeparator());
+        menu.addSeparator();
 
         menuItem = new JMenuItem(ACTION_SAVE_WORLD);
         menuItem.setMnemonic('s');
@@ -3019,12 +3113,8 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
         menuItem.setMnemonic('m');
         menu.add(menuItem);
 
-        menuItem = new JMenuItem(ACTION_OVERLAY_RESOURCES);
-        menuItem.setMnemonic('m');
-        menu.add(menuItem);
-        
         if (! SystemUtils.isMac()) {
-            menu.add(new JSeparator());
+            menu.addSeparator();
 
             menuItem = new JMenuItem(ACTION_EXIT);
             menuItem.setMnemonic('x');
@@ -3044,7 +3134,7 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
         menuItem.setMnemonic('r');
         menu.add(menuItem);
 
-        menu.add(new JSeparator());
+        menu.addSeparator();
 
         extendedBlockIdsMenuItem = new JCheckBoxMenuItem("Extended block IDs");
         extendedBlockIdsMenuItem.setToolTipText("Allow block IDs from 0 to 4095 (inclusive) as used by some mods");
@@ -3071,155 +3161,8 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
             menuItem = new JMenuItem(ACTION_ROTATE_WORLD);
             menuItem.setMnemonic('o');
             menu.add(menuItem);
-        }
-        
-//        biomeSchemeMenu = new JMenu("Change biome scheme");
-//        biomeSchemeMenu.setMnemonic('b');
-//        biome0MenuItem = new JCheckBoxMenuItem("Minecraft Beta 1.6 - 1.7.3");
-//        biome1MenuItem = new JCheckBoxMenuItem("Minecraft Beta 1.8.1");
-//        biome2MenuItem = new JCheckBoxMenuItem("Minecraft Beta 1.9 prerelease 3 - 6 or RC2");
-//        biome3MenuItem = new JCheckBoxMenuItem("Minecraft 1.0.0");
-//        biome4MenuItem = new JCheckBoxMenuItem("Minecraft 1.1");
-//        biome5MenuItem = new JCheckBoxMenuItem("Minecraft 1.6.2 Default (or 1.2.3 - 1.5.2)");
-//        biome6MenuItem = new JCheckBoxMenuItem("Minecraft 1.6.2 (or 1.3.1 - 1.5.2) Large Biomes");
-        biome7MenuItem = new JCheckBoxMenuItem(strings.getString("auto.biomes"));
-        biome8MenuItem = new JCheckBoxMenuItem(strings.getString("custom.biomes"));
-        
-//        biome0MenuItem.addActionListener(new ActionListener() {
-//            @Override
-//            public void actionPerformed(ActionEvent e) {
-//                if (biome0MenuItem.isSelected()) {
-//                    if (customBiomesActive && (JOptionPane.showConfirmDialog(App.this, "This will reinitialise all the biomes and destroy your changes.\nDo you want to continue?", "Confirm Reinitialisation", JOptionPane.YES_NO_OPTION) != JOptionPane.YES_OPTION)) {
-//                        biome0MenuItem.setSelected(false);
-//                        return;
-//                    }
-//                    selectBiomeScheme(World2.BIOME_ALGORITHM_1_7_3);
-//                    if (customBiomesActive) {
-//                        world.setCustomBiomes(false);
-//                        setCustomBiomesActive(false);
-//                    }
-//                } else {
-//                    selectBiomeScheme(World2.BIOME_ALGORITHM_NONE);
-//                }
-//            }
-//        });
-//        
-//        biome1MenuItem.addActionListener(new ActionListener() {
-//            @Override
-//            public void actionPerformed(ActionEvent e) {
-//                if (biome1MenuItem.isSelected()) {
-//                    selectBiomeScheme(World2.BIOME_ALGORITHM_1_8_1);
-//                } else {
-//                    selectBiomeScheme(World2.BIOME_ALGORITHM_NONE);
-//                }
-//            }
-//        });
-//        
-//        biome2MenuItem.addActionListener(new ActionListener() {
-//            @Override
-//            public void actionPerformed(ActionEvent e) {
-//                if (biome2MenuItem.isSelected()) {
-//                    selectBiomeScheme(World2.BIOME_ALGORITHM_1_9);
-//                } else {
-//                    selectBiomeScheme(World2.BIOME_ALGORITHM_NONE);
-//                }
-//            }
-//        });
-//        
-//        biome3MenuItem.addActionListener(new ActionListener() {
-//            @Override
-//            public void actionPerformed(ActionEvent e) {
-//                if (biome3MenuItem.isSelected()) {
-//                    selectBiomeScheme(World2.BIOME_ALGORITHM_1_0_0);
-//                } else {
-//                    selectBiomeScheme(World2.BIOME_ALGORITHM_NONE);
-//                }
-//            }
-//        });
-//        
-//        biome4MenuItem.addActionListener(new ActionListener() {
-//            @Override
-//            public void actionPerformed(ActionEvent e) {
-//                if (biome4MenuItem.isSelected()) {
-//                    selectBiomeScheme(World2.BIOME_ALGORITHM_1_1);
-//                } else {
-//                    selectBiomeScheme(World2.BIOME_ALGORITHM_NONE);
-//                }
-//            }
-//        });
-//        
-//        biome5MenuItem.addActionListener(new ActionListener() {
-//            @Override
-//            public void actionPerformed(ActionEvent e) {
-//                if (biome5MenuItem.isSelected()) {
-//                    selectBiomeScheme(World2.BIOME_ALGORITHM_1_2_AND_1_3_DEFAULT);
-//                } else {
-//                    selectBiomeScheme(World2.BIOME_ALGORITHM_NONE);
-//                }
-//            }
-//        });
-//        
-//        biome6MenuItem.addActionListener(new ActionListener() {
-//            @Override
-//            public void actionPerformed(ActionEvent e) {
-//                if (biome6MenuItem.isSelected()) {
-//                    selectBiomeScheme(World2.BIOME_ALGORITHM_1_3_LARGE);
-//                } else {
-//                    selectBiomeScheme(World2.BIOME_ALGORITHM_NONE);
-//                }
-//            }
-//        });
-        
-        biome7MenuItem.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                if (biome7MenuItem.isSelected()) {
-                    selectBiomeScheme(World2.BIOME_ALGORITHM_AUTO_BIOMES);
-                } else {
-                    selectBiomeScheme(World2.BIOME_ALGORITHM_NONE);
-                }
-            }
-        });
-        
-        biome8MenuItem.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                if (biome8MenuItem.isSelected()) {
-                    setCustomBiomesActive(true);
-                    world.setCustomBiomes(true);
-                } else {
-                    if (world.isAllowMerging() && (biomeScheme != null) && (JOptionPane.showConfirmDialog(App.this, strings.getString("this.will.reinitialise.the.biomes"), strings.getString("confirm.reinitialisation"), JOptionPane.YES_NO_OPTION) != JOptionPane.YES_OPTION)) {
-                        biome8MenuItem.setSelected(true);
-                        return;
-                    }
-                    setCustomBiomesActive(false);
-                    world.setCustomBiomes(false);
-                    if (biomeScheme != null) {
-                        world.getDimension(DIM_NORMAL).recalculateBiomes(biomeScheme, App.this);
-                    }
-                }
-            }
-        });
-        
-//        biomeSchemeMenu.add(biome8MenuItem);
-//        biomeSchemeMenu.add(new JSeparator());
-//        biomeSchemeMenu.add(biome7MenuItem);
-//        biomeSchemeMenu.add(biome6MenuItem);
-//        biomeSchemeMenu.add(biome5MenuItem);
-//        biomeSchemeMenu.add(biome4MenuItem);
-//        biomeSchemeMenu.add(biome3MenuItem);
-//        biomeSchemeMenu.add(biome2MenuItem);
-//        biomeSchemeMenu.add(biome1MenuItem);
-//        biomeSchemeMenu.add(biome0MenuItem);
-//        menu.add(biomeSchemeMenu);
 
-        if (! config.isEasyMode()) {
-            menu.add(new JSeparator());
-
-            menu.add(biome8MenuItem);
-            menu.add(biome7MenuItem);
-
-            menu.add(new JSeparator());
+            menu.addSeparator();
         }
 
         menuItem = new JMenuItem(strings.getString("global.operations") + "...");
@@ -3233,7 +3176,7 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
         menuItem.setAccelerator(KeyStroke.getKeyStroke(VK_G, PLATFORM_COMMAND_MASK));
         menu.add(menuItem);
         
-        menu.add(new JSeparator());
+        menu.addSeparator();
 
         menuItem = new JMenuItem(ACTION_EDIT_TILES);
         menuItem.setMnemonic('t');
@@ -3259,7 +3202,7 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
         addEndMenuItem.setMnemonic('d');
         menu.add(addEndMenuItem);
         
-        menu.add(new JSeparator());
+        menu.addSeparator();
 
 //        final JMenuItem easyModeItem = new JCheckBoxMenuItem("Advanced mode");
 //        if (! config.isEasyMode()) {
@@ -3335,7 +3278,7 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
         menuItem.setMnemonic('r');
         menu.add(menuItem);
         
-        menu.add(new JSeparator());
+        menu.addSeparator();
         
         viewSurfaceMenuItem = new JCheckBoxMenuItem(strings.getString("view.surface"), true);
         viewSurfaceMenuItem.addActionListener(new ActionListener() {
@@ -3373,93 +3316,33 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
         viewEndMenuItem.setEnabled(false);
         menu.add(viewEndMenuItem);
         
-        menu.add(new JSeparator());
+        menu.addSeparator();
         
         JMenu colourSchemeMenu = new JMenu(strings.getString("change.colour.scheme"));
-        final JCheckBoxMenuItem scheme0MenuItem = new JCheckBoxMenuItem(strings.getString("default"));
-        final JCheckBoxMenuItem scheme1MenuItem = new JCheckBoxMenuItem("Flames"); // NOI18N
-        final JCheckBoxMenuItem scheme2MenuItem = new JCheckBoxMenuItem("Ovocean"); // NOI18N
-        final JCheckBoxMenuItem scheme3MenuItem = new JCheckBoxMenuItem("Sk89q"); // NOI18N
-
-        if (config.getColourschemeIndex() == 0) {
-            scheme0MenuItem.setSelected(true);
-        }
-        scheme0MenuItem.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                scheme0MenuItem.setSelected(true);
-                scheme1MenuItem.setSelected(false);
-                scheme2MenuItem.setSelected(false);
-                scheme3MenuItem.setSelected(false);
-                selectedColourScheme = colourSchemes[0];
-                view.setColourScheme(selectedColourScheme);
-                Configuration config = Configuration.getInstance();
-                if (config != null) {
-                    config.setColourschemeIndex(0);
-                }
+        String[] colourSchemeNames = {strings.getString("default"), "Flames", "Ovocean", "Sk89q", "DokuDark", "DokuHigh", "DokuLight", "Misa", "Sphax"};
+        final int schemeCount = colourSchemeNames.length;
+        final JCheckBoxMenuItem[] schemeMenuItems = new JCheckBoxMenuItem[schemeCount];
+        for (int i = 0; i < colourSchemeNames.length; i++) {
+            final int index = i;
+            schemeMenuItems[index] = new JCheckBoxMenuItem(colourSchemeNames[index]);
+            if (config.getColourschemeIndex() == index) {
+                schemeMenuItems[index].setSelected(true);
             }
-        });
-        colourSchemeMenu.add(scheme0MenuItem);
-        
-        if (config.getColourschemeIndex() == 1) {
-            scheme1MenuItem.setSelected(true);
-        }
-        scheme1MenuItem.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                scheme0MenuItem.setSelected(false);
-                scheme1MenuItem.setSelected(true);
-                scheme2MenuItem.setSelected(false);
-                scheme3MenuItem.setSelected(false);
-                selectedColourScheme = colourSchemes[1];
-                view.setColourScheme(selectedColourScheme);
-                Configuration config = Configuration.getInstance();
-                if (config != null) {
-                    config.setColourschemeIndex(1);
+            schemeMenuItems[index].addActionListener(new ActionListener() {
+                @Override
+                public void actionPerformed(ActionEvent e) {
+                    for (int i = 0; i < schemeCount; i++) {
+                        if ((i != index) && schemeMenuItems[i].isSelected()) {
+                            schemeMenuItems[i].setSelected(false);
+                        }
+                    }
+                    selectedColourScheme = colourSchemes[index];
+                    view.setColourScheme(selectedColourScheme);
+                    config.setColourschemeIndex(index);
                 }
-            }
-        });
-        colourSchemeMenu.add(scheme1MenuItem);
-
-        if (config.getColourschemeIndex() == 2) {
-            scheme2MenuItem.setSelected(true);
+            });
+            colourSchemeMenu.add(schemeMenuItems[index]);
         }
-        scheme2MenuItem.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                scheme0MenuItem.setSelected(false);
-                scheme1MenuItem.setSelected(false);
-                scheme2MenuItem.setSelected(true);
-                scheme3MenuItem.setSelected(false);
-                selectedColourScheme = colourSchemes[2];
-                view.setColourScheme(selectedColourScheme);
-                Configuration config = Configuration.getInstance();
-                if (config != null) {
-                    config.setColourschemeIndex(2);
-                }
-            }
-        });
-        colourSchemeMenu.add(scheme2MenuItem);
-        
-        if (config.getColourschemeIndex() == 3) {
-            scheme3MenuItem.setSelected(true);
-        }
-        scheme3MenuItem.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                scheme0MenuItem.setSelected(false);
-                scheme1MenuItem.setSelected(false);
-                scheme2MenuItem.setSelected(false);
-                scheme3MenuItem.setSelected(true);
-                selectedColourScheme = colourSchemes[3];
-                view.setColourScheme(selectedColourScheme);
-                Configuration config = Configuration.getInstance();
-                if (config != null) {
-                    config.setColourschemeIndex(3);
-                }
-            }
-        });
-        colourSchemeMenu.add(scheme3MenuItem);
         menu.add(colourSchemeMenu);
 
         menuItem = new JMenuItem(strings.getString("configure.view") + "...");
@@ -3477,20 +3360,35 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
         menuItem.setAccelerator(KeyStroke.getKeyStroke(VK_V, PLATFORM_COMMAND_MASK));
         menu.add(menuItem);
         
-        lockToolbarsMenuItem = new JCheckBoxMenuItem(strings.getString("lock.toolbars"));
-        if (toolbarsLocked) {
-            lockToolbarsMenuItem.setSelected(true);
-        }
-        lockToolbarsMenuItem.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                setToolbarsLocked(! isToolbarsLocked());
-            }
-        });
-        lockToolbarsMenuItem.setMnemonic('l');
-        menu.add(lockToolbarsMenuItem);
+//        lockToolbarsMenuItem = new JCheckBoxMenuItem(strings.getString("lock.toolbars"));
+//        if (toolbarsLocked) {
+//            lockToolbarsMenuItem.setSelected(true);
+//        }
+//        lockToolbarsMenuItem.addActionListener(new ActionListener() {
+//            @Override
+//            public void actionPerformed(ActionEvent e) {
+//                setToolbarsLocked(! isToolbarsLocked());
+//            }
+//        });
+//        lockToolbarsMenuItem.setMnemonic('l');
+//        menu.add(lockToolbarsMenuItem);
         
-        menu.add(new JSeparator());
+        menu.addSeparator();
+
+        menuItem = new JMenuItem(ACTION_RESET_DOCKS);
+        menuItem.setMnemonic('d');
+        menu.add(menuItem);
+
+        ACTION_LOAD_LAYOUT.setEnabled(config.getDefaultJideLayoutData() != null);
+        menuItem = new JMenuItem(ACTION_LOAD_LAYOUT);
+        menuItem.setMnemonic('d');
+        menu.add(menuItem);
+
+        menuItem = new JMenuItem(ACTION_SAVE_LAYOUT);
+        menuItem.setMnemonic('d');
+        menu.add(menuItem);
+
+        menu.addSeparator();
         
         menuItem = new JMenuItem(strings.getString("show.3d.view") + "...");
         menuItem.addActionListener(new ActionListener() {
@@ -3582,22 +3480,48 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
                     if (biomesViewerFrame != null) {
                         biomesViewerFrame.requestFocus();
                     } else {
-                        BiomeScheme viewerScheme = BiomeSchemeManager.getBiomeScheme(World2.BIOME_ALGORITHM_1_2_AND_1_3_DEFAULT, null, false);
-                        if (viewerScheme == null) {
-                            viewerScheme = BiomeSchemeManager.getBiomeScheme(World2.BIOME_ALGORITHM_1_1, null, false);
+                        BiomeScheme viewerScheme = null;
+                        boolean askedFor17 = false;
+                        if ((dimension != null) && (dimension.getDim() == DIM_NORMAL) && (dimension.getMaxHeight() == DEFAULT_MAX_HEIGHT_2)) {
+                            if (world.getGenerator() == Generator.LARGE_BIOMES) {
+                                viewerScheme = BiomeSchemeManager.getBiomeScheme(BiomeSchemeManager.BIOME_ALGORITHM_1_7_LARGE, null, false);
+                                if (viewerScheme == null) {
+                                    askedFor17 = true;
+                                    viewerScheme = BiomeSchemeManager.getBiomeScheme(BiomeSchemeManager.BIOME_ALGORITHM_1_7_LARGE, App.this, true);
+                                }
+                            } else {
+                                viewerScheme = BiomeSchemeManager.getBiomeScheme(BiomeSchemeManager.BIOME_ALGORITHM_1_7_DEFAULT, null, false);
+                                if (viewerScheme == null) {
+                                    askedFor17 = true;
+                                    viewerScheme = BiomeSchemeManager.getBiomeScheme(BiomeSchemeManager.BIOME_ALGORITHM_1_7_DEFAULT, App.this, true);
+                                }
+                            }
                         }
                         if (viewerScheme == null) {
-                            viewerScheme = BiomeSchemeManager.getBiomeScheme(World2.BIOME_ALGORITHM_1_2_AND_1_3_DEFAULT, App.this, true);
+                            viewerScheme = BiomeSchemeManager.getBiomeScheme(BiomeSchemeManager.BIOME_ALGORITHM_1_7_DEFAULT, null, false);
                         }
                         if (viewerScheme == null) {
-                            viewerScheme = BiomeSchemeManager.getBiomeScheme(World2.BIOME_ALGORITHM_1_1, App.this, true);
+                            viewerScheme = BiomeSchemeManager.getBiomeScheme(BiomeSchemeManager.BIOME_ALGORITHM_1_2_AND_1_3_DEFAULT, null, false);
+                        }
+                        if (viewerScheme == null) {
+                            viewerScheme = BiomeSchemeManager.getBiomeScheme(BiomeSchemeManager.BIOME_ALGORITHM_1_1, null, false);
+                        }
+                        if ((viewerScheme == null) && (! askedFor17)) {
+                            askedFor17 = true;
+                            viewerScheme = BiomeSchemeManager.getBiomeScheme(BiomeSchemeManager.BIOME_ALGORITHM_1_7_DEFAULT, App.this, true);
+                        }
+                        if (viewerScheme == null) {
+                            viewerScheme = BiomeSchemeManager.getBiomeScheme(BiomeSchemeManager.BIOME_ALGORITHM_1_2_AND_1_3_DEFAULT, App.this, true);
+                        }
+                        if (viewerScheme == null) {
+                            viewerScheme = BiomeSchemeManager.getBiomeScheme(BiomeSchemeManager.BIOME_ALGORITHM_1_1, App.this, true);
                         }
                         if (viewerScheme == null) {
                             JOptionPane.showMessageDialog(App.this, strings.getString("you.must.supply.an.original.minecraft.jar"), strings.getString("no.minecraft.jar.supplied"), JOptionPane.ERROR_MESSAGE);
                             return;
                         }
                         logger.info("Opening biomes viewer");
-                        biomesViewerFrame = new BiomesViewerFrame(dimension.getMinecraftSeed(), viewerScheme, App.this);
+                        biomesViewerFrame = new BiomesViewerFrame(dimension.getMinecraftSeed(), world.getSpawnPoint(), viewerScheme, colourSchemes[0], App.this);
                         biomesViewerFrame.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
                         biomesViewerFrame.addWindowListener(new WindowAdapter() {
                             @Override
@@ -3654,7 +3578,7 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
 //        menu.setMnemonic('h');
         menu.add(menuItem);
         
-        menu.add(new JSeparator());
+        menu.addSeparator();
         
         menuItem = new JMenuItem(strings.getString("about"));
         menuItem.setMnemonic('a');
@@ -3675,30 +3599,31 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
     
     private JToolBar createToolBar() {
         JToolBar toolBar = new JToolBar();
-        if (toolbarsLocked) {
-            toolBar.setFloatable(false);
-        }
+//        if (toolbarsLocked) {
+//            toolBar.setFloatable(false);
+//        }
         toolBar.add(ACTION_NEW_WORLD);
         toolBar.add(ACTION_OPEN_WORLD);
         toolBar.add(ACTION_SAVE_WORLD);
         toolBar.add(ACTION_EXPORT_WORLD);
-        toolBar.add(new JSeparator(JSeparator.VERTICAL));
+        toolBar.addSeparator();
         toolBar.add(ACTION_UNDO);
         toolBar.add(ACTION_REDO);
-        toolBar.add(new JSeparator(JSeparator.VERTICAL));
+        toolBar.addSeparator();
         toolBar.add(ACTION_ZOOM_OUT);
         toolBar.add(ACTION_ZOOM_RESET);
         toolBar.add(ACTION_ZOOM_IN);
-        toolBar.add(new JSeparator(JSeparator.VERTICAL));
+        toolBar.addSeparator();
         toolBar.add(ACTION_DIMENSION_PROPERTIES);
         if (! Configuration.getInstance().isEasyMode()) {
             toolBar.add(ACTION_CHANGE_HEIGHT);
             toolBar.add(ACTION_ROTATE_WORLD);
         }
         toolBar.add(ACTION_EDIT_TILES);
-        toolBar.add(new JSeparator(JSeparator.VERTICAL));
+        toolBar.addSeparator();
         toolBar.add(ACTION_MOVE_TO_SPAWN);
         toolBar.add(ACTION_MOVE_TO_ORIGIN);
+        toolBar.addSeparator();
         JToggleButton button = new JToggleButton(ACTION_GRID);
         button.setHideActionText(true);
         toolBar.add(button);
@@ -3754,7 +3679,7 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
                 world.addDimension(nether);
                 setDimension(nether);
                 setDimensionControlStates();
-                DimensionPropertiesDialog propertiesDialog = new DimensionPropertiesDialog(this, nether, biomeScheme, selectedColourScheme);
+                DimensionPropertiesDialog propertiesDialog = new DimensionPropertiesDialog(this, nether, selectedColourScheme);
                 propertiesDialog.setVisible(true);
             } catch (OperationCancelled e) {
                 throw new RuntimeException("Operation cancelled by user", e);
@@ -3876,8 +3801,8 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
         }
         button.addItemListener(new ItemListener() {
             @Override
-            public void itemStateChanged(ItemEvent e) {
-                if (e.getStateChange() == ItemEvent.DESELECTED) {
+            public void itemStateChanged(ItemEvent event) {
+                if (event.getStateChange() == ItemEvent.DESELECTED) {
                     if (operation instanceof RadiusOperation) {
                         view.setDrawRadius(false);
                         if (operation instanceof LayerPaint) {
@@ -3888,9 +3813,24 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
                         }
                     }
                     if (operation instanceof BiomePaint) {
-                        getContentPane().remove(biomesToolBar);
-                        App.this.validate(); // Doesn't happen automatically for some reason; Swing bug?
-                        getContentPane().repaint(); // Otherwise a ghost image is left behind for some reason; Swing bug?
+//                        try {
+                            dockingManager.hideFrame("biomes");
+//                        } catch (PropertyVetoException ex) {
+//                            throw new RuntimeException(ex);
+//                        }
+//                        getContentPane().remove(biomesToolBar);
+//                        App.this.validate(); // Doesn't happen automatically for some reason; Swing bug?
+//                        getContentPane().repaint(); // Otherwise a ghost image is left behind for some reason; Swing bug?
+                    } else if (operation instanceof Annotate) {
+//                        try {
+                            dockingManager.hideFrame("annotations");
+//                            annotationsToolBar.setHidden(true);
+//                        } catch (PropertyVetoException ex) {
+//                            throw new RuntimeException(ex);
+//                        }
+//                        getContentPane().remove(annotationsToolBar);
+//                        App.this.validate(); // Doesn't happen automatically for some reason; Swing bug?
+//                        getContentPane().repaint(); // Otherwise a ghost image is left behind for some reason; Swing bug?
                     }
                     operation.setActive(false);
                     activeOperation = null;
@@ -3920,14 +3860,26 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
                             }
                             brushOptions.setFilter(toolFilter);
                         }
-                        if (operation instanceof BiomeOperation) {
-                            ((BiomeOperation) operation).setBiomeScheme(biomeScheme);
-                        }
                         if (operation instanceof BiomePaint) {
-                            biomesToolBar.setFloatable(! toolbarsLocked);
-                            getContentPane().add(biomesToolBar, BorderLayout.WEST);
-                            App.this.validate(); // Doesn't happen automatically for some reason; Swing bug?
-                            biomesToolBar.repaint(); // Otherwise it doesn't show up the second time it is displayed on Windows; yet another Swing bug?
+//                            try  {
+                                dockingManager.showFrame("biomes");
+//                            } catch (PropertyVetoException ex) {
+//                                throw new RuntimeException(ex);
+//                            }
+//                            biomesToolBar.setFloatable(! toolbarsLocked);
+//                            getContentPane().add(biomesToolBar, BorderLayout.WEST);
+//                            App.this.validate(); // Doesn't happen automatically for some reason; Swing bug?
+//                            biomesToolBar.repaint(); // Otherwise it doesn't show up the second time it is displayed on Windows; yet another Swing bug?
+                        } else if (operation instanceof Annotate) {
+//                            try  {
+                                dockingManager.showFrame("annotations");
+//                            } catch (PropertyVetoException ex) {
+//                                throw new RuntimeException(ex);
+//                            }
+//                            annotationsToolBar.setFloatable(! toolbarsLocked);
+//                            getContentPane().add(annotationsToolBar, BorderLayout.WEST);
+//                            App.this.validate(); // Doesn't happen automatically for some reason; Swing bug?
+//                            annotationsToolBar.repaint(); // Otherwise it doesn't show up the second time it is displayed on Windows; yet another Swing bug?
                         }
                         if (operation instanceof RadiusOperation) {
                             view.setDrawRadius(true);
@@ -3959,9 +3911,6 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
                             }
                         }
                     }
-                    if (operation instanceof AutoBiomeOperation) {
-                        ((AutoBiomeOperation) operation).setAutoBiomesEnabled(biomeScheme instanceof AutoBiomeScheme);
-                    }
                     activeOperation = operation;
                     updateLayerVisibility();
                     updateBrushRotation();
@@ -3972,8 +3921,10 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
         toolButtonGroup.add(button);
         if (layerCheckbox) {
             JPanel panel = new JPanel();
-            ((FlowLayout) panel.getLayout()).setHgap(0);
-            ((FlowLayout) panel.getLayout()).setVgap(0);
+            FlowLayout layout = (FlowLayout) panel.getLayout();
+            layout.setHgap(0);
+            layout.setVgap(0);
+            layout.setAlignment(FlowLayout.LEFT);
             final JCheckBox checkBox = new JCheckBox();
             if (readOnlyOperation) {
                 readOnlyCheckBox = checkBox;
@@ -4191,118 +4142,24 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
     }
     
     private void enableImportedWorldOperation() {
-        readOnlyCheckBox.setEnabled(true);
-        readOnlyToggleButton.setEnabled(true);
-        readOnlySoloCheckBox.setEnabled(true);
+        if (! alwaysEnableReadOnly) {
+            readOnlyCheckBox.setEnabled(true);
+            readOnlyToggleButton.setEnabled(true);
+            readOnlySoloCheckBox.setEnabled(true);
+        }
     }
 
     private void disableImportedWorldOperation() {
-        readOnlyCheckBox.setEnabled(false);
-        readOnlyToggleButton.setEnabled(false);
-        readOnlySoloCheckBox.setEnabled(false);
-        if (readOnlySoloCheckBox.isSelected()) {
-            readOnlySoloCheckBox.setSelected(false);
-            soloLayer = null;
-            updateLayerVisibility();
-        }
-    }
-
-    private void setBiomeControlStates() {
-        boolean checkBoxShouldBeActive = false;
-        boolean browserButtonShouldBeActive = false, toggleButtonShouldBeActive = false;
-        boolean biomeCalculationDisabled = (world != null) && (! world.isAllowMerging());
-        boolean surface = (dimension != null) && (dimension.getDim() == DIM_NORMAL);
-        String tooltip;
-        if (! surface) {
-            // Biomes inactive
-            if ((dimension != null) && (world != null)) {
-                tooltip = MessageFormat.format(strings.getString("biome.editing.not.applicable.to.0.dimension"), dimension.getName());
-                logger.info(dimension.getName() + " is not surface dimension; biome viewing and editing disabled for world " + world.getName());
-            } else {
-                tooltip = strings.getString("no.dimension.loaded");
-            }
-        } else if (biomeCalculationDisabled && (! customBiomesActive) && (world.getBiomeAlgorithm() != World2.BIOME_ALGORITHM_AUTO_BIOMES)) {
-            // Biomes inactive
-            tooltip = strings.getString("enable.custom.biomes.in.the.edit.menu");
-            logger.info("Pre-0.8 world and no custom or automatic biomes selected; biome viewing and editing disabled for world " + world.getName());
-        } else if (customBiomesActive) {
-            tooltip = strings.getString("click.to.edit.the.biomes");
-            checkBoxShouldBeActive = true;
-            toggleButtonShouldBeActive = true;
-            if (world != null) {
-                logger.info("Custom biomes activated; biome viewing and editing enabled for world " + world.getName());
-            }
-        } else if (biomeScheme != null) {
-            tooltip = strings.getString("enable.custom.biomes.in.the.edit.menu");
-            checkBoxShouldBeActive = true;
-            browserButtonShouldBeActive = ! (biomeScheme instanceof AutoBiomeScheme);
-            if (browserButtonShouldBeActive) {
-                logger.info("Custom biomes not activated but automatic biomes activated, biome viewing and browsing enabled for world " + world.getName());
-            } else {
-                logger.info("Custom biomes and automatic biomes not activated, only biome viewing enabled for world " + world.getName());
-            }
-        } else {
-            tooltip = strings.getString("enable.custom.biomes.in.the.edit.menu");
-            // Biomes inactive
-            if (world != null) {
-                logger.info("World has no biome scheme, biome viewing and editing disabled for world " + world.getName());
-            }
-        }
-        if (! checkBoxShouldBeActive) {
-            if (biomesCheckBox.isSelected()) {
-                biomesCheckBox.setSelected(false);
-                hiddenLayers.add(Biome.INSTANCE);
-            }
-            if (biomesSoloCheckBox.isSelected()) {
-                biomesSoloCheckBox.setSelected(false);
+        if (! alwaysEnableReadOnly) {
+            readOnlyCheckBox.setEnabled(false);
+            readOnlyToggleButton.setEnabled(false);
+            readOnlySoloCheckBox.setEnabled(false);
+            if (readOnlySoloCheckBox.isSelected()) {
+                readOnlySoloCheckBox.setSelected(false);
                 soloLayer = null;
+                updateLayerVisibility();
             }
-            updateLayerVisibility();
-        } else if (checkBoxShouldBeActive && (! hiddenLayers.contains(Biome.INSTANCE))) {
-            biomesCheckBox.setSelected(true);
-            hiddenLayers.remove(Biome.INSTANCE);
-            updateLayerVisibility();
         }
-        if ((! toggleButtonShouldBeActive) && biomesToggleButton.isSelected()) {
-            toolButtonGroup.clearSelection();
-        }
-        biomesCheckBox.setEnabled(checkBoxShouldBeActive);
-        biomesSoloCheckBox.setEnabled(checkBoxShouldBeActive);
-        biomesToggleButton.setEnabled(toggleButtonShouldBeActive);
-        biomesBrowserButton.setEnabled(browserButtonShouldBeActive);
-        biomesToggleButton.setToolTipText(tooltip);
-        biomesBrowserButton.setToolTipText(tooltip);
-        if (toggleButtonShouldBeActive && (biomesToggleButton.getParent() == null)) {
-            biomeButtonContainer.removeAll();
-            biomeButtonContainer.add(biomesToggleButton);
-            App.this.validate(); // Doesn't happen automatically for some reason; Swing bug?
-        } else if (browserButtonShouldBeActive && (biomesBrowserButton.getParent() == null)) {
-            if (biomesToggleButton.isSelected()) {
-                toolButtonGroup.clearSelection();
-            }
-            biomeButtonContainer.removeAll();
-            biomeButtonContainer.add(biomesBrowserButton);
-            App.this.validate(); // Doesn't happen automatically for some reason; Swing bug?
-        }
-//        biomeSchemeMenu.setEnabled(surface);
-//        biome0MenuItem.setEnabled(! biomeCalculationDisabled);
-//        biome0MenuItem.setSelected(biomeScheme instanceof Minecraft1_7_3BiomeScheme);
-//        biome1MenuItem.setEnabled(! biomeCalculationDisabled);
-//        biome1MenuItem.setSelected(biomeScheme instanceof Minecraft1_8_1BiomeScheme);
-//        biome2MenuItem.setEnabled(! biomeCalculationDisabled);
-//        biome2MenuItem.setSelected(biomeScheme instanceof Minecraft1_9BiomeScheme);
-//        biome3MenuItem.setEnabled(! biomeCalculationDisabled);
-//        biome3MenuItem.setSelected(biomeScheme instanceof Minecraft1_0BiomeScheme);
-//        biome4MenuItem.setEnabled(! biomeCalculationDisabled);
-//        biome4MenuItem.setSelected(biomeScheme instanceof Minecraft1_1BiomeScheme);
-//        biome5MenuItem.setEnabled((! biomeCalculationDisabled) && (dimension != null) && (dimension.getMaxHeight() == DEFAULT_MAX_HEIGHT_2));
-//        biome5MenuItem.setSelected(biomeScheme instanceof Minecraft1_2BiomeScheme);
-//        biome6MenuItem.setEnabled((! biomeCalculationDisabled) && (dimension != null) && (dimension.getMaxHeight() == DEFAULT_MAX_HEIGHT_2));
-//        biome6MenuItem.setSelected(biomeScheme instanceof Minecraft1_3LargeBiomeScheme);
-        biome7MenuItem.setEnabled((dimension != null) && (dimension.getMaxHeight() == DEFAULT_MAX_HEIGHT_2));
-        biome7MenuItem.setSelected(biomeScheme instanceof AutoBiomeScheme);
-        biome8MenuItem.setEnabled((dimension != null) && (dimension.getMaxHeight() == DEFAULT_MAX_HEIGHT_2) && (! (biomeScheme instanceof Minecraft1_7_3BiomeScheme)));
-        biome8MenuItem.setSelected(customBiomesActive);
     }
     
     private World2 migrate(Object object) {
@@ -4327,7 +4184,6 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
             newWorld.setUpIs(Direction.WEST);
             newWorld.setAskToRotate(true);
             newWorld.setAllowMerging(false);
-            newWorld.setBiomeAlgorithm(World2.BIOME_ALGORITHM_NONE);
             dim0.setEventsInhibited(true);
             try {
                 dim0.setBedrockWall(oldWorld.isBedrockWall());
@@ -4675,26 +4531,19 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
     private void showGlobalOperations() {
         Set<Layer> allLayers = getAllLayers();
         List<Integer> allBiomes = new ArrayList<Integer>();
-        if (customBiomesActive) {
-            int biomeCount = (biomeScheme != null) ? biomeScheme.getBiomeCount() : new AutoBiomeScheme(null).getBiomeCount();
-            for (int biome = 0; biome < biomeCount; biome++) {
+        final int biomeCount = autoBiomeScheme.getBiomeCount();
+        for (int biome = 0; biome < biomeCount; biome++) {
+            if (autoBiomeScheme.isBiomePresent(biome)) {
                 allBiomes.add(biome);
             }
-            if (customBiomeManager.getCustomBiomes() != null) {
-                for (CustomBiome customBiome: customBiomeManager.getCustomBiomes()) {
-                    allBiomes.add(customBiome.getId());
-                }
-            }
-        }        
-        FillDialog dialog = new FillDialog(App.this, dimension, customBiomesActive, allLayers.toArray(new Layer[allLayers.size()]), selectedColourScheme, allBiomes.toArray(new Integer[allBiomes.size()]), customBiomeManager);
-        dialog.setVisible(true);
-    }
-
-    private void setCustomBiomesActive(boolean customBiomesActive) {
-        if (customBiomesActive != this.customBiomesActive) {
-            this.customBiomesActive = customBiomesActive;
-            setBiomeControlStates();
         }
+        if (customBiomeManager.getCustomBiomes() != null) {
+            for (CustomBiome customBiome: customBiomeManager.getCustomBiomes()) {
+                allBiomes.add(customBiome.getId());
+            }
+        }
+        FillDialog dialog = new FillDialog(App.this, dimension, allLayers.toArray(new Layer[allLayers.size()]), selectedColourScheme, allBiomes.toArray(new Integer[allBiomes.size()]), customBiomeManager);
+        dialog.setVisible(true);
     }
 
     private void exportImage() {
@@ -4863,7 +4712,7 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
         }
     }
     
-    private void importLayers() {
+    private void importLayers(String paletteName) {
         Configuration config = Configuration.getInstance();
         File layerDirectory = config.getLayerDirectory();
         if ((layerDirectory == null) || (! layerDirectory.isDirectory())) {
@@ -4885,6 +4734,7 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
         fileChooser.setMultiSelectionEnabled(true);
         if (fileChooser.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
             File[] selectedFiles = fileChooser.getSelectedFiles();
+            boolean updateCustomTerrainButtons = false;
             for (File selectedFile: selectedFiles) {
                 try {
                     ObjectInputStream in = new ObjectInputStream(new GZIPInputStream(new BufferedInputStream(new FileInputStream(selectedFile))));
@@ -4896,9 +4746,19 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
                                 return;
                             }
                         }
-                        createCustomLayerButton(layer, true);
+                        if (paletteName != null) {
+                            layer.setPalette(paletteName);
+                        }
+                        registerCustomLayer(layer, true);
                         if (layer instanceof CombinedLayer) {
-                            addLayersFromCombinedLayer((CombinedLayer) layer);
+                            CombinedLayer combinedLayer = (CombinedLayer) layer;
+                            addLayersFromCombinedLayer(combinedLayer);
+                            if (combinedLayer.isMissingTerrainWarning()) {
+                                JOptionPane.showMessageDialog(this, "The layer contained a Custom Terrain which is not present in this world. The terrain has been reset.", "Missing Custom Terrain", JOptionPane.WARNING_MESSAGE);
+                                combinedLayer.resetMissingTerrainWarning();
+                            } else if ((combinedLayer.getTerrain() != null) && combinedLayer.getTerrain().isCustom()) {
+                                updateCustomTerrainButtons = true;
+                            }
                         }
                     } finally {
                         in.close();
@@ -4909,17 +4769,33 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
                     throw new RuntimeException("Class not found exception while reading " + selectedFile, e);
                 }
             }
+            if (updateCustomTerrainButtons) {
+                updateCustomTerrainButtons();
+            }
         }        
+    }
+    
+    private void updateCustomTerrainButtons() {
+        for (int i = 0; i < Terrain.CUSTOM_TERRAIN_COUNT; i++) {
+            if (Terrain.getCustomMaterial(i) != null) {
+                MixedMaterial material = Terrain.getCustomMaterial(i);
+                customMaterialButtons[i].setIcon(new ImageIcon(material.getIcon(selectedColourScheme)));
+                customMaterialButtons[i].setToolTipText(MessageFormat.format(strings.getString("customMaterial.0.right.click.to.change"), material));
+            } else {
+                customMaterialButtons[i].setIcon(ICON_UNKNOWN_PATTERN);
+                customMaterialButtons[i].setToolTipText(strings.getString("not.set.click.to.set"));
+            }
+        }
     }
     
     private void addLayersFromCombinedLayer(CombinedLayer combinedLayer) {
         for (Layer layer: combinedLayer.getLayers()) {
-            if ((layer instanceof CustomLayer) && (! customLayerButtons.containsKey(layer)) && (! layersWithNoButton.contains(layer))) {
+            if ((layer instanceof CustomLayer) && (! paletteManager.contains(layer)) && (! layersWithNoButton.contains(layer))) {
                 CustomLayer customLayer = (CustomLayer) layer;
                 if (customLayer.isHide()) {
                     layersWithNoButton.add(customLayer);
                 } else {
-                    createCustomLayerButton(customLayer, false);
+                    registerCustomLayer((CustomLayer) customLayer, false);
                 }
                 if (layer instanceof CombinedLayer) {
                     addLayersFromCombinedLayer((CombinedLayer) customLayer);
@@ -4983,7 +4859,92 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
             event.setAttribute(new AttributeKeyVO<String>(prefix + "layers"), sb.toString());
         }
     }
+
+    static DockableFrame createDockableFrame(Component component, String title, int side, int index) {
+        String id = Character.toLowerCase(title.charAt(0)) + title.substring(1);
+        return createDockableFrame(component, id, title, side, index);
+    }
     
+    static DockableFrame createDockableFrame(Component component, String id, String title, int side, int index) {
+        DockableFrame dockableFrame = new DockableFrame(id);
+        
+        JPanel panel = new JPanel(new GridBagLayout());
+        GridBagConstraints constraints = new GridBagConstraints();
+        constraints.gridwidth = GridBagConstraints.REMAINDER;
+        constraints.weightx = 1.0;
+        constraints.fill = GridBagConstraints.HORIZONTAL;
+        panel.add(component, constraints);
+        constraints.weighty = 1.0;
+        panel.add(new JPanel(), constraints);
+        dockableFrame.add(panel, BorderLayout.CENTER);
+        
+        // Use title everywhere
+        dockableFrame.setTitle(title);
+        dockableFrame.setSideTitle(title);
+        dockableFrame.setTabTitle(title);
+        dockableFrame.setToolTipText(title);
+
+        // Try to find an icon to use for the tab
+        if (component instanceof Container) {
+            Icon icon = findIcon((Container) component);
+            if (icon != null) {
+                if (((icon.getIconHeight() > 16) || (icon.getIconWidth() > 16))
+                        && (icon instanceof ImageIcon)
+                        && (((ImageIcon) icon).getImage() instanceof BufferedImage)) {
+                    float s;
+                    if (icon.getIconWidth() > icon.getIconHeight()) {
+                        // Wide icon
+                        s = 16f / icon.getIconWidth();
+                    } else {
+                        // Tall (or square) icon
+                        s = 16f / icon.getIconHeight();
+            }
+                    BufferedImageOp op = new AffineTransformOp(AffineTransform.getScaleInstance(s, s), AffineTransformOp.TYPE_BICUBIC);
+                    BufferedImage iconImage = op.filter((BufferedImage) ((ImageIcon) icon).getImage(), null);
+                    icon = new ImageIcon(iconImage);
+            }
+                dockableFrame.setFrameIcon(icon);
+            }
+            }
+
+        // Use preferred size of component as much as possible
+        final java.awt.Dimension preferredSize = component.getPreferredSize();
+        dockableFrame.setAutohideWidth(preferredSize.width);
+        dockableFrame.setDockedWidth(preferredSize.width);
+        dockableFrame.setDockedHeight(preferredSize.height);
+        dockableFrame.setUndockedBounds(new Rectangle(-1, -1, preferredSize.width, preferredSize.height));
+
+        // Make hidable, but don't display hide button, so incidental panels can
+        // be hidden on the fly
+        dockableFrame.setHidable(true);
+        dockableFrame.setAvailableButtons(BUTTON_FLOATING | BUTTON_AUTOHIDE | BUTTON_HIDE_AUTOHIDE);
+        dockableFrame.setShowContextMenu(false); // Disable the context menu because it contains the Close option with no way to hide it
+
+        // Initial location of panel
+        dockableFrame.setInitMode(DockContext.STATE_FRAMEDOCKED);
+        dockableFrame.setInitSide(side);
+        dockableFrame.setInitIndex(index);
+
+        // Other flags
+        dockableFrame.setAutohideWhenActive(true);
+        dockableFrame.setMaximizable(false);
+        return dockableFrame;
+    }
+
+    static Icon findIcon(Container container) {
+        for (Component component: container.getComponents()) {
+            if ((component instanceof AbstractButton) && (((AbstractButton) component).getIcon() != null)) {
+                return ((AbstractButton) component).getIcon();
+            } else if (component instanceof Container) {
+                Icon icon = findIcon((Container) component);
+                if (icon != null) {
+                    return icon;
+                }
+            }
+        }
+        return null;
+    }
+
     public final IntensityAction ACTION_INTENSITY_10_PERCENT  = new IntensityAction(  2, VK_1); // 9 so that it will round to level 1 for nibble sized layers
     public final IntensityAction ACTION_INTENSITY_20_PERCENT  = new IntensityAction( 16, VK_2);
     public final IntensityAction ACTION_INTENSITY_30_PERCENT  = new IntensityAction( 23, VK_3);
@@ -5065,7 +5026,7 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
                     return;
                 }
             }
-            ExportWorldDialog dialog = new ExportWorldDialog(App.this, world, biomeScheme, selectedColourScheme, customBiomeManager, hiddenLayers, false, view.getLightOrigin(), view);
+            ExportWorldDialog dialog = new ExportWorldDialog(App.this, world, autoBiomeScheme, selectedColourScheme, customBiomeManager, hiddenLayers, false, view.getLightOrigin(), view);
             dialog.setVisible(true);
         }
 
@@ -5100,20 +5061,6 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
         private static final long serialVersionUID = 1L;
     };
 
-    private final BetterAction ACTION_OVERLAY_RESOURCES = new BetterAction("overlayResources", strings.getString("overlay.Resources") + "...", false) {
-        {
-            //setAcceleratorKey(KeyStroke.getKeyStroke(VK_R, PLATFORM_COMMAND_MASK));
-            setShortDescription("Use a bitmap as a mask to edit specific tiles.");
-        }
-
-        @Override
-        public void performAction(ActionEvent e) {
-            overlayResources();
-        }
-
-        private static final long serialVersionUID = 1L;
-    };
-    
     private final BetterAction ACTION_EXIT = new BetterAction("exit", strings.getString("exit") + "...", ICON_EXIT) {
         {
             setShortDescription(strings.getString("shut.down.worldpainter"));
@@ -5311,22 +5258,10 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
         
         @Override
         public void performAction(ActionEvent e) {
-            if (threeDeeFrame != null) {
-                threeDeeFrame.dispose();
-                threeDeeFrame = null;
-            }
             ChangeHeightDialog dialog = new ChangeHeightDialog(App.this, world);
             dialog.setVisible(true);
-            if (world.getMaxHeight() != DEFAULT_MAX_HEIGHT_2) {
-//                biome5MenuItem.setEnabled(false);
-//                biome6MenuItem.setEnabled(false);
-                biome7MenuItem.setEnabled(false);
-                biome8MenuItem.setEnabled(false);
-            } else {
-//                biome5MenuItem.setEnabled(true);
-//                biome6MenuItem.setEnabled(true);
-                biome7MenuItem.setEnabled(true);
-                biome8MenuItem.setEnabled(true);
+            if (threeDeeFrame != null) {
+                threeDeeFrame.refresh();
             }
         }
 
@@ -5343,18 +5278,12 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
             if ((world.getImportedFrom() != null) && (JOptionPane.showConfirmDialog(App.this, strings.getString("this.world.was.imported.from.an.existing.map"), strings.getString("imported"), JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE) != JOptionPane.YES_OPTION)) {
                 return;
             }
-            if (threeDeeFrame != null) {
-                threeDeeFrame.dispose();
-                threeDeeFrame = null;
-            }
             RotateWorldDialog dialog = new RotateWorldDialog(App.this, world);
             dialog.setVisible(true);
             if (! dialog.isCancelled()) {
-                setWorld(dialog.getWorld(), true);
-                if ((! world.isCustomBiomes()) && (world.getBiomeAlgorithm() != World2.BIOME_ALGORITHM_AUTO_BIOMES) && (world.getBiomeAlgorithm() != World2.BIOME_ALGORITHM_NONE) && world.isAllowMerging()) {
-                    if (biomeScheme != null) {
-                        dimension.recalculateBiomes(biomeScheme, App.this);
-                    }
+                setWorld(dialog.getWorld());
+                if (threeDeeFrame != null) {
+                    threeDeeFrame.setDimension(dimension);
                 }
             }
         }
@@ -5370,8 +5299,18 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
         
         @Override
         public void performAction(ActionEvent e) {
-            DimensionPropertiesDialog dialog = new DimensionPropertiesDialog(App.this, dimension, biomeScheme, selectedColourScheme);
+            boolean previousCoverSteepTerrain = dimension.isCoverSteepTerrain();
+            int previousTopLayerMinDepth = dimension.getTopLayerMinDepth();
+            int previousTopLayerVariation = dimension.getTopLayerVariation();
+            DimensionPropertiesDialog dialog = new DimensionPropertiesDialog(App.this, dimension, selectedColourScheme);
             dialog.setVisible(true);
+            if ((dimension.isCoverSteepTerrain() != previousCoverSteepTerrain)
+                    || (dimension.getTopLayerMinDepth() != previousTopLayerMinDepth)
+                    || (dimension.getTopLayerVariation() != previousTopLayerVariation)) {
+                if (threeDeeFrame != null) {
+                    threeDeeFrame.refresh();
+                }
+            }
         }
 
         private static final long serialVersionUID = 1L;
@@ -5481,7 +5420,7 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
     private final BetterAction ACTION_IMPORT_LAYER = new BetterAction("importLayer", "Import custom layer(s)") {
         @Override
         protected void performAction(ActionEvent e) {
-            importLayers();
+            importLayers(null);
         }
 
         private static final long serialVersionUID = 1L;
@@ -5586,6 +5525,36 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
             updateBrushRotation();
         }
     };
+    
+    private final BetterAction ACTION_RESET_DOCKS = new BetterAction("resetDockLayout", "Reset workspace layout") {
+        @Override
+        protected void performAction(ActionEvent e) {
+            dockingManager.resetToDefault();
+            Configuration config = Configuration.getInstance();
+            config.setDefaultJideLayoutData(null);
+            ACTION_LOAD_LAYOUT.setEnabled(false);
+        }
+    };
+
+    private final BetterAction ACTION_LOAD_LAYOUT = new BetterAction("loadDockLayout", "Load workspace layout") {
+        @Override
+        protected void performAction(ActionEvent e) {
+            Configuration config = Configuration.getInstance();
+            if (config.getDefaultJideLayoutData() != null) {
+                dockingManager.loadLayoutFrom(new ByteArrayInputStream(config.getDefaultJideLayoutData()));
+            }
+        }
+    };
+
+    private final BetterAction ACTION_SAVE_LAYOUT = new BetterAction("resetDocks", "Save workspace layout") {
+        @Override
+        protected void performAction(ActionEvent e) {
+            Configuration config = Configuration.getInstance();
+            config.setDefaultJideLayoutData(dockingManager.getLayoutRawData());
+            ACTION_LOAD_LAYOUT.setEnabled(true);
+            JOptionPane.showMessageDialog(App.this, "Workspace layout saved", "Workspace layout saved", JOptionPane.INFORMATION_MESSAGE);
+        }
+    };
 
     private World2 world;
     private Dimension dimension;
@@ -5597,61 +5566,51 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
     private final ButtonGroup toolButtonGroup = new ButtonGroup(), brushButtonGroup = new ButtonGroup();
     private Brush brush = SymmetricBrush.PLATEAU_CIRCLE, toolBrush = SymmetricBrush.COSINE_CIRCLE;
     private final Map<Brush, JToggleButton> brushButtons = new HashMap<Brush, JToggleButton>();
-    private boolean programmaticChange, customBiomesActive, toolbarsLocked = false, customLayerToolBarShowing;
-//    private BrushShape toolBrushShape = BrushShape.CIRCLE, brushShape = BrushShape.CIRCLE;
-//    private final Map<BrushShape, JRadioButton> brushShapeButtons = new EnumMap<BrushShape, JRadioButton>(BrushShape.class);
+    private boolean programmaticChange;
     private UndoManager undoManager;
     private JSlider levelSlider, brushRotationSlider;
     private float level = 0.51f, toolLevel = 0.51f;
     private Set<Layer> hiddenLayers = new HashSet<Layer>();
     private int zoom = 0, maxRadius = DEFAULT_MAX_RADIUS, brushRotation = 0, toolBrushRotation = 0, previousBrushRotation = 0;
     private GlassPane glassPane;
-    private JCheckBox readOnlyCheckBox, biomesCheckBox, readOnlySoloCheckBox, biomesSoloCheckBox;
-    private JToggleButton readOnlyToggleButton, biomesToggleButton, setSpawnPointToggleButton;
+    private JCheckBox readOnlyCheckBox, biomesCheckBox, annotationsCheckBox, readOnlySoloCheckBox, biomesSoloCheckBox, annotationsSoloCheckBox;
+    private JToggleButton readOnlyToggleButton, biomesToggleButton, annotationsToggleButton, setSpawnPointToggleButton;
     private JMenuItem addNetherMenuItem, addEndMenuItem;
-    private JCheckBoxMenuItem viewSurfaceMenuItem, viewNetherMenuItem, viewEndMenuItem, lockToolbarsMenuItem, extendedBlockIdsMenuItem;
-    private JButton biomesBrowserButton;
-    private JToggleButton[] customMaterialButtons = new JToggleButton[Terrain.CUSTOM_TERRAIN_COUNT];
+    private JCheckBoxMenuItem viewSurfaceMenuItem, viewNetherMenuItem, viewEndMenuItem, extendedBlockIdsMenuItem;
+    private final JToggleButton[] customMaterialButtons = new JToggleButton[Terrain.CUSTOM_TERRAIN_COUNT];
     private final ColourScheme[] colourSchemes;
     private ColourScheme selectedColourScheme;
-    private BiomeScheme biomeScheme;
     private final String[] biomeNames = new String[256];
-//    private JCheckBoxMenuItem biome0MenuItem;
-//    private JCheckBoxMenuItem biome1MenuItem;
-//    private JCheckBoxMenuItem biome2MenuItem;
-//    private JCheckBoxMenuItem biome3MenuItem;
-//    private JCheckBoxMenuItem biome4MenuItem;
-//    private JCheckBoxMenuItem biome5MenuItem;
-    private JCheckBoxMenuItem biome7MenuItem;
-    private JCheckBoxMenuItem biome8MenuItem;
-//    private JCheckBoxMenuItem biome6MenuItem;
-//    private JMenu biomeSchemeMenu;
-    private JPanel brushPanel, customLayerPanel, biomeButtonContainer, addLayerButtonPanel, biomesPanel;
+//    private JPanel brushPanel, addLayerButtonPanel;
     private SortedMap<String, List<Brush>> customBrushes;
     private final List<Layer> layers = LayerManager.getInstance().getLayers();
     private final List<Operation> operations;
     private ThreeDeeFrame threeDeeFrame;
     private BiomesViewerFrame biomesViewerFrame;
-    private final Map<CustomLayer, Component> customLayerButtons = new HashMap<CustomLayer, Component>();
     private MapDragControl mapDragControl;
     private BiomePaint biomePaintOp;
-    private JToolBar biomesToolBar, layerToolBar, customLayerToolBar;
+    private Annotate annotateOp;
+    private DockableFrame biomesToolBar, annotationsToolBar;
     private final boolean devMode = "true".equalsIgnoreCase(System.getProperty("org.pepsoft.worldpainter.devMode")); // NOI18N
+    private final boolean alwaysEnableReadOnly = "true".equalsIgnoreCase(System.getProperty("org.pepsoft.worldpainter.alwaysEnableReadOnly")); // NOI18N
     private final BiomeScheme autoBiomeScheme = new AutoBiomeScheme(null);
     private JScrollPane scrollPane = new JScrollPane();
-    private JPopupMenu customLayerMenu;
+//    private JPopupMenu customLayerMenu;
     private Filter filter, toolFilter;
     private final BrushOptions brushOptions;
     private final CustomBiomeManager customBiomeManager = new CustomBiomeManager(this);
     private final Set<CustomLayer> layersWithNoButton = new HashSet<CustomLayer>();
     private final Map<Layer, JCheckBox> layerSoloCheckBoxes = new HashMap<Layer, JCheckBox>();
     private Layer soloLayer;
+    private final PaletteManager paletteManager = new PaletteManager(this);
+    private DockingManager dockingManager;
 
     public static final Image ICON = IconUtils.loadImage("org/pepsoft/worldpainter/icons/shovel-icon.png");
     
     public static final int DEFAULT_MAX_RADIUS = 300;
 
     private static App instance;
+    private static Mode mode = Mode.WORLDPAINTER;
 
     private static final String ACTION_NAME_INCREASE_RADIUS        = "increaseRadius"; // NOI18N
     private static final String ACTION_NAME_INCREASE_RADIUS_BY_ONE = "increaseRadiusByOne"; // NOI18N
@@ -5891,4 +5850,6 @@ public final class App extends JFrame implements RadiusControl, BiomesViewerFram
          */
         private static final int KEY_REPEAT_GUARD_TIME = 10;
     }
+    
+    public enum Mode {WORLDPAINTER, MINECRAFTMAPEDITOR}
 }

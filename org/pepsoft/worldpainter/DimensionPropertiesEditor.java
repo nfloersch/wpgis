@@ -19,7 +19,6 @@ import javax.swing.JOptionPane;
 import javax.swing.JSpinner;
 import javax.swing.JSpinner.NumberEditor;
 import javax.swing.SpinnerNumberModel;
-import javax.swing.SwingUtilities;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 
@@ -39,7 +38,9 @@ import org.pepsoft.worldpainter.layers.exporters.TreesExporter.TreeLayerSettings
 import org.pepsoft.worldpainter.themes.TerrainListCellRenderer;
 
 import static org.pepsoft.minecraft.Constants.*;
+import org.pepsoft.worldpainter.layers.Annotations;
 import org.pepsoft.worldpainter.themes.SimpleTheme;
+import org.pepsoft.worldpainter.layers.exporters.AnnotationsExporter.AnnotationsSettings;
 
 /**
  *
@@ -157,14 +158,6 @@ public class DimensionPropertiesEditor extends javax.swing.JPanel {
         }
     }
 
-    public BiomeScheme getBiomeScheme() {
-        return biomeScheme;
-    }
-
-    public void setBiomeScheme(BiomeScheme biomeScheme) {
-        this.biomeScheme = biomeScheme;
-    }
-    
     @Override
     public void setEnabled(boolean enabled) {
         super.setEnabled(enabled);
@@ -228,6 +221,9 @@ public class DimensionPropertiesEditor extends javax.swing.JPanel {
         spinnerCavernsMaxLevel.setEnabled(enabled);
         spinnerChasmsMinLevel.setEnabled(enabled);
         spinnerChasmsMaxLevel.setEnabled(enabled);
+        checkBoxCoverSteepTerrain.setEnabled(enabled);
+        checkBoxExportAnnotations.setEnabled(enabled);
+        checkBoxSnowUnderTrees.setEnabled(enabled);
         setControlStates();
     }
     
@@ -261,12 +257,10 @@ public class DimensionPropertiesEditor extends javax.swing.JPanel {
         long newSeed = ((Number) spinnerMinecraftSeed.getValue()).longValue();
         if (newSeed != previousSeed) {
             dimension.setMinecraftSeed(newSeed);
-            if ((biomeScheme != null) && (dimension.getDim() == Constants.DIM_NORMAL) && ((! dimension.getWorld().isCustomBiomes()) || (JOptionPane.showConfirmDialog(this, "Do you want to reinitialise the biomes?\nThis will destroy all your manual changes!", "Confirm Reinitialisation", JOptionPane.YES_NO_OPTION) == JOptionPane.YES_OPTION))) {
-                dimension.recalculateBiomes(biomeScheme, SwingUtilities.getWindowAncestor(this));
-            }
         }
         dimension.setBottomless(checkBoxBottomless.isSelected());
-        
+        dimension.setCoverSteepTerrain(checkBoxCoverSteepTerrain.isSelected());
+
         // caverns
         CavernsSettings cavernsSettings = (CavernsSettings) dimension.getLayerSettings(Caverns.INSTANCE);
         if (cavernsSettings == null) {
@@ -426,6 +420,14 @@ public class DimensionPropertiesEditor extends javax.swing.JPanel {
         resourcesSettings.setMaxLevel(BLK_EMERALD_ORE, (Integer) jSpinner23.getValue());
         dimension.setLayerSettings(Resources.INSTANCE, resourcesSettings);
         
+        // annotations
+        AnnotationsSettings annotationsSettings = (AnnotationsSettings) dimension.getLayerSettings(Annotations.INSTANCE);
+        if (annotationsSettings == null) {
+            annotationsSettings = new AnnotationsSettings();
+        }
+        annotationsSettings.setExport(checkBoxExportAnnotations.isSelected());
+        dimension.setLayerSettings(Annotations.INSTANCE, annotationsSettings);
+        
         return true;
     }
     
@@ -460,11 +462,12 @@ public class DimensionPropertiesEditor extends javax.swing.JPanel {
         checkBoxBedrockWall.setSelected(dimension.isBedrockWall());
         spinnerMinecraftSeed.setValue(dimension.getMinecraftSeed());
         checkBoxBottomless.setSelected(dimension.isBottomless());
-        
+        checkBoxCoverSteepTerrain.setSelected(dimension.isCoverSteepTerrain());
+
         List<Terrain> materialList = new ArrayList<Terrain>(Arrays.asList(Terrain.VALUES));
         for (Iterator<Terrain> i = materialList.iterator(); i.hasNext(); ) {
             Terrain terrain = i.next();
-            if ((terrain.isCustom() && (! terrain.isConfigured())) || (terrain == Terrain.GRASS)) {
+            if ((terrain.isCustom() && (! terrain.isConfigured())) || (terrain == Terrain.GRASS) || (terrain == Terrain.DESERT)) {
                 i.remove();
             }
         }
@@ -650,7 +653,6 @@ public class DimensionPropertiesEditor extends javax.swing.JPanel {
         jSpinner23.setValue(clamp(resourcesSettings.getMaxLevel(BLK_EMERALD_ORE), maxHeight));
         
         // terrain ranges
-        
         if (! exportMode) {
             if ((dimension.getTileFactory() instanceof HeightMapTileFactory)
                     && (((HeightMapTileFactory) dimension.getTileFactory()).getTheme() instanceof SimpleTheme)
@@ -660,6 +662,13 @@ public class DimensionPropertiesEditor extends javax.swing.JPanel {
                 jTabbedPane1.setEnabledAt(1, false);
             }
         }
+        
+        // annotations
+        AnnotationsSettings annotationsSettings = (AnnotationsSettings) dimension.getLayerSettings(Annotations.INSTANCE);
+        if (annotationsSettings == null) {
+            annotationsSettings = new AnnotationsSettings();
+        }
+        checkBoxExportAnnotations.setSelected(annotationsSettings.isExport());
         
         setControlStates();
     }
@@ -750,6 +759,7 @@ public class DimensionPropertiesEditor extends javax.swing.JPanel {
         spinnerMaxSurfaceDepth = new javax.swing.JSpinner();
         checkBoxBottomless = new javax.swing.JCheckBox();
         jLabel67 = new javax.swing.JLabel();
+        checkBoxCoverSteepTerrain = new javax.swing.JCheckBox();
         jPanel5 = new javax.swing.JPanel();
         themeEditor = new org.pepsoft.worldpainter.themes.SimpleThemeEditor();
         jLabel45 = new javax.swing.JLabel();
@@ -882,6 +892,7 @@ public class DimensionPropertiesEditor extends javax.swing.JPanel {
         jLabel69 = new javax.swing.JLabel();
         jSlider6 = new javax.swing.JSlider();
         checkBoxSnowUnderTrees = new javax.swing.JCheckBox();
+        checkBoxExportAnnotations = new javax.swing.JCheckBox();
 
         buttonGroup1.add(radioButtonWaterBorder);
         radioButtonWaterBorder.setText("Water");
@@ -977,6 +988,9 @@ public class DimensionPropertiesEditor extends javax.swing.JPanel {
         jLabel67.setIcon(new javax.swing.ImageIcon(getClass().getResource("/org/pepsoft/worldpainter/icons/information.png"))); // NOI18N
         jLabel67.setToolTipText("<html>Generate a bottomless map:\n<ul><li>No bedrock at the bottom of the map\n<li>Caverns and chasms are open to the void</html>");
 
+        checkBoxCoverSteepTerrain.setText("keep steep terrain covered");
+        checkBoxCoverSteepTerrain.setToolTipText("<html>Enable this to extend the top layer<br>\ndownwards on steep terrain such as cliffs <br>\nso that the underground material is never exposed.</html>");
+
         javax.swing.GroupLayout jPanel1Layout = new javax.swing.GroupLayout(jPanel1);
         jPanel1.setLayout(jPanel1Layout);
         jPanel1Layout.setHorizontalGroup(
@@ -1020,12 +1034,14 @@ public class DimensionPropertiesEditor extends javax.swing.JPanel {
                         .addGap(0, 0, 0)
                         .addComponent(jLabel66)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(spinnerMaxSurfaceDepth, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                        .addComponent(spinnerMaxSurfaceDepth, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addGap(18, 18, 18)
+                        .addComponent(checkBoxCoverSteepTerrain))
                     .addGroup(jPanel1Layout.createSequentialGroup()
                         .addComponent(checkBoxBottomless)
                         .addGap(0, 0, 0)
                         .addComponent(jLabel67)))
-                .addContainerGap(263, Short.MAX_VALUE))
+                .addContainerGap(110, Short.MAX_VALUE))
         );
         jPanel1Layout.setVerticalGroup(
             jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -1035,7 +1051,8 @@ public class DimensionPropertiesEditor extends javax.swing.JPanel {
                     .addComponent(jLabel65)
                     .addComponent(spinnerMinSurfaceDepth, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addComponent(jLabel66)
-                    .addComponent(spinnerMaxSurfaceDepth, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addComponent(spinnerMaxSurfaceDepth, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(checkBoxCoverSteepTerrain))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(jLabel6)
@@ -1069,7 +1086,7 @@ public class DimensionPropertiesEditor extends javax.swing.JPanel {
                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(jLabel7)
                     .addComponent(spinnerMinecraftSeed, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-                .addContainerGap(35, Short.MAX_VALUE))
+                .addContainerGap(25, Short.MAX_VALUE))
         );
 
         jTabbedPane1.addTab("General", jPanel1);
@@ -1085,7 +1102,7 @@ public class DimensionPropertiesEditor extends javax.swing.JPanel {
             .addGroup(jPanel5Layout.createSequentialGroup()
                 .addContainerGap()
                 .addGroup(jPanel5Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addComponent(themeEditor, javax.swing.GroupLayout.DEFAULT_SIZE, 583, Short.MAX_VALUE)
+                    .addComponent(themeEditor, javax.swing.GroupLayout.DEFAULT_SIZE, 587, Short.MAX_VALUE)
                     .addGroup(jPanel5Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING, false)
                         .addComponent(jLabel46, javax.swing.GroupLayout.Alignment.LEADING)
                         .addComponent(jLabel45, javax.swing.GroupLayout.Alignment.LEADING, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)))
@@ -1099,7 +1116,7 @@ public class DimensionPropertiesEditor extends javax.swing.JPanel {
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(jLabel46)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(themeEditor, javax.swing.GroupLayout.DEFAULT_SIZE, 272, Short.MAX_VALUE)
+                .addComponent(themeEditor, javax.swing.GroupLayout.DEFAULT_SIZE, 263, Short.MAX_VALUE)
                 .addContainerGap())
         );
 
@@ -1229,7 +1246,7 @@ public class DimensionPropertiesEditor extends javax.swing.JPanel {
                                 .addComponent(jLabel73)
                                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                                 .addComponent(spinnerChasmsMinLevel, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)))))
-                .addContainerGap(107, Short.MAX_VALUE))
+                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
         );
         jPanel3Layout.setVerticalGroup(
             jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -1759,7 +1776,7 @@ public class DimensionPropertiesEditor extends javax.swing.JPanel {
                             .addComponent(jLabel53)
                             .addComponent(jSpinner29, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                             .addComponent(jLabel59)))
-                    .addComponent(jSeparator3, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, 194, Short.MAX_VALUE))
+                    .addComponent(jSeparator3, javax.swing.GroupLayout.Alignment.TRAILING))
                 .addContainerGap())
         );
 
@@ -1839,6 +1856,13 @@ public class DimensionPropertiesEditor extends javax.swing.JPanel {
 
         checkBoxSnowUnderTrees.setText("Frost under trees (also applies to hand-painted Frost layer)");
 
+        checkBoxExportAnnotations.setText("Export the annotations (as coloured wool)");
+        checkBoxExportAnnotations.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                checkBoxExportAnnotationsActionPerformed(evt);
+            }
+        });
+
         javax.swing.GroupLayout jPanel2Layout = new javax.swing.GroupLayout(jPanel2);
         jPanel2.setLayout(jPanel2Layout);
         jPanel2Layout.setHorizontalGroup(
@@ -1886,8 +1910,9 @@ public class DimensionPropertiesEditor extends javax.swing.JPanel {
                                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                                 .addComponent(jLabel49)))
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(jLabel48)))
-                .addContainerGap(106, Short.MAX_VALUE))
+                        .addComponent(jLabel48))
+                    .addComponent(checkBoxExportAnnotations))
+                .addContainerGap(112, Short.MAX_VALUE))
         );
         jPanel2Layout.setVerticalGroup(
             jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -1934,7 +1959,9 @@ public class DimensionPropertiesEditor extends javax.swing.JPanel {
                 .addComponent(jCheckBox9)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(checkBoxSnowUnderTrees)
-                .addContainerGap(65, Short.MAX_VALUE))
+                .addGap(18, 18, 18)
+                .addComponent(checkBoxExportAnnotations)
+                .addContainerGap(28, Short.MAX_VALUE))
         );
 
         jTabbedPane1.addTab("Other Layers", jPanel2);
@@ -1943,11 +1970,11 @@ public class DimensionPropertiesEditor extends javax.swing.JPanel {
         this.setLayout(layout);
         layout.setHorizontalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addComponent(jTabbedPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 608, Short.MAX_VALUE)
+            .addComponent(jTabbedPane1)
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addComponent(jTabbedPane1)
+            .addComponent(jTabbedPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 356, Short.MAX_VALUE)
         );
     }// </editor-fold>//GEN-END:initComponents
 
@@ -2052,6 +2079,10 @@ public class DimensionPropertiesEditor extends javax.swing.JPanel {
         setControlStates();
     }//GEN-LAST:event_checkBoxSwamplandEverywhereActionPerformed
 
+    private void checkBoxExportAnnotationsActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_checkBoxExportAnnotationsActionPerformed
+        setControlStates();
+    }//GEN-LAST:event_checkBoxExportAnnotationsActionPerformed
+
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.ButtonGroup buttonGroup1;
     private javax.swing.JCheckBox checkBoxBedrockWall;
@@ -2062,7 +2093,9 @@ public class DimensionPropertiesEditor extends javax.swing.JPanel {
     private javax.swing.JCheckBox checkBoxCavernsRemoveWater;
     private javax.swing.JCheckBox checkBoxChasmsBreakSurface;
     private javax.swing.JCheckBox checkBoxChasmsEverywhere;
+    private javax.swing.JCheckBox checkBoxCoverSteepTerrain;
     private javax.swing.JCheckBox checkBoxDeciduousEverywhere;
+    private javax.swing.JCheckBox checkBoxExportAnnotations;
     private javax.swing.JCheckBox checkBoxFloodCaverns;
     private javax.swing.JCheckBox checkBoxJungleEverywhere;
     private javax.swing.JCheckBox checkBoxPineEverywhere;
@@ -2213,7 +2246,6 @@ public class DimensionPropertiesEditor extends javax.swing.JPanel {
     // End of variables declaration//GEN-END:variables
 
     private Dimension dimension;
-    private BiomeScheme biomeScheme;
     private boolean exportMode, defaultSettingsMode;
     
     private static final long serialVersionUID = 1L;

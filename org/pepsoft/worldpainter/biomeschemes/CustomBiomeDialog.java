@@ -68,7 +68,7 @@ public class CustomBiomeDialog extends WorldPainterDialog {
 
         jLabel2.setText("ID:");
 
-        spinnerID.setModel(new javax.swing.SpinnerNumberModel(23, 23, 255, 1));
+        spinnerID.setModel(new javax.swing.SpinnerNumberModel(40, 40, 255, 1));
 
         jLabel3.setText("Name:");
 

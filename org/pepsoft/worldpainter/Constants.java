@@ -68,6 +68,7 @@ public final class Constants {
     public static final String EVENT_KEY_ACTION_MIGRATE_HEIGHT    = "action.migrateHeight";
     public static final String EVENT_KEY_ACTION_MIGRATE_ROTATION  = "action.migrateRotation";
     public static final String EVENT_KEY_DONATION_DONATE          = "donation.donate";
+    public static final String EVENT_KEY_DONATION_DONATE_BITCOIN  = "donation.donateBitcoin";
     public static final String EVENT_KEY_DONATION_ALREADY_DONATED = "donation.alreadyDonated";
     public static final String EVENT_KEY_DONATION_ASK_LATER       = "donation.askLater";
     public static final String EVENT_KEY_DONATION_NO_THANKS       = "donation.noThanks";

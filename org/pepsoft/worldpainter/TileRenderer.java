@@ -43,10 +43,9 @@ public final class TileRenderer {
     }
 
     public TileRenderer(TileProvider tileProvider, ColourScheme colourScheme, BiomeScheme biomeScheme, CustomBiomeManager customBiomeManager, boolean dry) {
-        biomeRenderer = new BiomeRenderer(customBiomeManager);
+        biomeRenderer = new BiomeRenderer(biomeScheme, customBiomeManager);
         setTileProvider(tileProvider);
         setColourScheme(colourScheme);
-        setBiomeScheme(biomeScheme);
         this.dry = dry;
     }
 
@@ -58,6 +57,7 @@ public final class TileRenderer {
         this.tileProvider = tileProvider;
         if (tileProvider instanceof Dimension) {
             seed = ((Dimension) tileProvider).getSeed();
+            bottomless = ((Dimension) tileProvider).isBottomless();
         }
     }
 
@@ -67,15 +67,9 @@ public final class TileRenderer {
 
     public final void setColourScheme(ColourScheme colourScheme) {
         this.colourScheme = colourScheme;
-    }
-
-    public final BiomeScheme getBiomeScheme() {
-        return biomeScheme;
-    }
-
-    public final void setBiomeScheme(BiomeScheme biomeScheme) {
-        this.biomeScheme = biomeScheme;
-        biomeRenderer.setBiomeScheme(biomeScheme);
+        waterColour = colourScheme.getColour(BLK_WATER);
+        lavaColour = colourScheme.getColour(BLK_LAVA);
+        bedrockColour = colourScheme.getColour(BLK_BEDROCK);
     }
 
     public void addHiddenLayers(Collection<Layer> hiddenLayers) {
@@ -105,7 +99,9 @@ public final class TileRenderer {
         this.tile = tile;
         for (int x = 0; x < TILE_SIZE; x++) {
             for (int y = 0; y < TILE_SIZE; y++) {
-                intHeightCache[x + y * TILE_SIZE] = tile.getIntHeight(x, y);
+                final float height = tile.getHeight(x, y);
+                floatHeightCache[x + y * TILE_SIZE] = height;
+                intHeightCache[x + y * TILE_SIZE] = (int) (height + 0.5f);
             }
         }
     }
@@ -247,21 +243,21 @@ public final class TileRenderer {
 
     private int getPixelColour(int tileX, int tileY, int x, int y, Layer[] layers, LayerRenderer[] renderers, boolean contourLines) {
         final int offset = x + y * TILE_SIZE;
-        final int height = intHeightCache[offset];
+        final int intHeight = intHeightCache[offset];
 //        heights[0][0] = getNeighbourHeight(x, y, -1, -1);
 //        deltas [0][0] = heights[0][0] - height;
         heights[1][0] = getNeighbourHeight(x, y,  0, -1);
-        deltas [1][0] = heights[1][0] - height;
+        deltas [1][0] = heights[1][0] - intHeight;
 //        heights[2][0] = getNeighbourHeight(x, y,  1, -1);
 //        deltas [2][0] = heights[2][0] - height;
         heights[0][1] = getNeighbourHeight(x, y, -1,  0);
-        deltas [0][1] = heights[0][1] - height;
+        deltas [0][1] = heights[0][1] - intHeight;
         heights[2][1] = getNeighbourHeight(x, y,  1,  0);
-        deltas [2][1] = heights[2][1] - height;
+        deltas [2][1] = heights[2][1] - intHeight;
 //        heights[0][2] = getNeighbourHeight(x, y, -1,  1);
 //        deltas [0][2] = heights[0][2] - height;
         heights[1][2] = getNeighbourHeight(x, y,  0,  1);
-        deltas [1][2] = heights[1][2] - height;
+        deltas [1][2] = heights[1][2] - intHeight;
 //        heights[2][2] = getNeighbourHeight(x, y,  1,  1);
 //        deltas [2][2] = heights[2][2] - height;
 //        if (       (deltas[0][0] >= 0) || (deltas[0][0] < -1)
@@ -280,7 +276,7 @@ public final class TileRenderer {
 //            }
 //            return RED;
 //        }
-        if (contourLines && ((height % contourSeparation) == 0)
+        if (contourLines && ((intHeight % contourSeparation) == 0)
                 && ((deltas[0][1] < 0)
                     || (deltas[2][1] < 0)
                     || (deltas[1][0] < 0)
@@ -290,14 +286,15 @@ public final class TileRenderer {
         final int waterLevel = tile.getWaterLevel(x, y);
         int colour;
         final int worldX = tileX | x, worldY = tileY | y;
-        if ((! dry) && (waterLevel > height)) {
+        if ((! dry) && (waterLevel > intHeight)) {
             if (tile.getBitLayerValue(FloodWithLava.INSTANCE, x, y)) {
-                colour = colourScheme.getColour(BLK_LAVA);
+                colour = lavaColour;
             } else {
-                colour = colourScheme.getColour(BLK_WATER);
+                colour = waterColour;
             }
         } else {
-            colour = tile.getTerrain(x, y).getColour(seed, worldX, worldY, height, height, colourScheme);
+            final float height = floatHeightCache[offset];
+            colour = ((! bottomless) && (intHeight == 0)) ? bedrockColour : tile.getTerrain(x, y).getColour(seed, worldX, worldY, height, intHeight, colourScheme);
         }
         for (int i = 0; i < layers.length; i++) {
             final Layer layer = layers[i];
@@ -388,6 +385,7 @@ public final class TileRenderer {
     private final BiomeRenderer biomeRenderer;
     private final Set<Layer> hiddenLayers = new HashSet<Layer>(Arrays.asList(FloodWithLava.INSTANCE));
     private final int[] intHeightCache = new int[TILE_SIZE * TILE_SIZE];
+    private final float[] floatHeightCache = new float[TILE_SIZE * TILE_SIZE];
     private final int[] renderBuffer = new int[TILE_SIZE * TILE_SIZE];
     private final boolean dry;
     private final int[][] heights = new int[3][3], deltas = new int[3][3];
@@ -396,10 +394,9 @@ public final class TileRenderer {
     private long seed;
     private Tile tile;
     private ColourScheme colourScheme;
-    private BiomeScheme biomeScheme;
     private int zoom = 1;
-    private boolean contourLines = true;
-    private int contourSeparation = 10;
+    private boolean contourLines = true, bottomless;
+    private int contourSeparation = 10, waterColour, lavaColour, bedrockColour;
     private LightOrigin lightOrigin = LightOrigin.NORTHWEST;
     
     private static final int BLACK = 0x000000, RED = 0xFF0000;

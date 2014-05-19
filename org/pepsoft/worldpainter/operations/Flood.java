@@ -16,62 +16,49 @@ import org.pepsoft.worldpainter.layers.FloodWithLava;
  *
  * @author pepijn
  */
-public class Flood extends MouseOrTabletOperation implements AutoBiomeOperation {
+public class Flood extends MouseOrTabletOperation {
     public Flood(WorldPainter view, boolean floodWithLava) {
         super(floodWithLava ? "Lava" : "Flood", "Flood an area with " + (floodWithLava ? "lava" : "water"), view, "operation.flood." + (floodWithLava ? "lava" : "water"));
         this.floodWithLava = floodWithLava;
     }
     
-    // AutoBiomeOperation
-
     @Override
-    public boolean isAutoBiomesEnabled() {
-        return autoBiomesEnabled;
-    }
-
-    @Override
-    public void setAutoBiomesEnabled(boolean autoBiomesEnabled) {
-        this.autoBiomesEnabled = autoBiomesEnabled;
-    }
-
-    @Override
-    protected void tick(int x, int y, boolean undo, boolean first, float dynamicLevel) {
+    protected void tick(int centreX, int centreY, boolean inverse, boolean first, float dynamicLevel) {
         Dimension dimension = getDimension();
-        int terrainHeight = dimension.getIntHeightAt(x, y);
+        int terrainHeight = dimension.getIntHeightAt(centreX, centreY);
         if (terrainHeight == -1) {
             // Not on a tile
             return;
         }
-        int waterLevel = dimension.getWaterLevelAt(x, y);
+        int waterLevel = dimension.getWaterLevelAt(centreX, centreY);
         boolean fluidPresent = waterLevel > terrainHeight;
-        if (undo && (! fluidPresent)) {
+        if (inverse && (! fluidPresent)) {
             // No point lowering the water level if there is no water...
             return;
         }
         int height = Math.max(terrainHeight, waterLevel);
         int floodToHeight;
-        if (fluidPresent && (floodWithLava != dimension.getBitLayerValueAt(FloodWithLava.INSTANCE, x, y))) {
+        if (fluidPresent && (floodWithLava != dimension.getBitLayerValueAt(FloodWithLava.INSTANCE, centreX, centreY))) {
             // There is fluid present of a different type; don't change the
             // height, just change the type
             floodToHeight = height;
-            undo = false;
+            inverse = false;
         } else {
-            if (undo ? (height <= 0) : (height >= (dimension.getMaxHeight() - 1))) {
+            if (inverse ? (height <= 0) : (height >= (dimension.getMaxHeight() - 1))) {
                 // Already at the lowest or highest possible point
                 return;
             }
-            floodToHeight = undo ? height : (height + 1);
+            floodToHeight = inverse ? height : (height + 1);
         }
         synchronized (dimension) {
             dimension.setEventsInhibited(true);
-            dimension.setAutoUpdateBiomes(autoBiomesEnabled);
         }
         try {
             synchronized (dimension) {
                 dimension.rememberChanges();
             }
-            QueueLinearFloodFiller flooder = new QueueLinearFloodFiller(dimension, floodToHeight, floodWithLava, undo);
-            Point imageCoords = worldToImageCoordinates(x, y);
+            QueueLinearFloodFiller flooder = new QueueLinearFloodFiller(dimension, floodToHeight, floodWithLava, inverse);
+            Point imageCoords = worldToImageCoordinates(centreX, centreY);
             if (! flooder.floodFill(imageCoords.x, imageCoords.y, SwingUtilities.getWindowAncestor(getView()))) {
                 // Cancelled by user
                 synchronized (dimension) {
@@ -83,12 +70,10 @@ public class Flood extends MouseOrTabletOperation implements AutoBiomeOperation 
             }
         } finally {
             synchronized (dimension) {
-                dimension.setAutoUpdateBiomes(false);
                 dimension.setEventsInhibited(false);
             }
         }
     }
 
     private final boolean floodWithLava;
-    private boolean autoBiomesEnabled;
 }

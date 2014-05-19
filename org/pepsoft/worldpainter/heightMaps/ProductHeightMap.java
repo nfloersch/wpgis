@@ -25,6 +25,13 @@ public class ProductHeightMap extends CombiningHeightMap {
     public float getBaseHeight() {
         return heightMap1.getBaseHeight() * heightMap2.getBaseHeight();
     }
+    
+    @Override
+    public ProductHeightMap clone() {
+        ProductHeightMap clone = new ProductHeightMap(heightMap1.clone(), heightMap2.clone());
+        clone.setSeed(getSeed());
+        return clone;
+    }
 
     private static final long serialVersionUID = 1L;
 }

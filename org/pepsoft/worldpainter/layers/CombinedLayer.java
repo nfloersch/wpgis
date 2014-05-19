@@ -5,6 +5,9 @@
 package org.pepsoft.worldpainter.layers;
 
 import java.awt.event.ActionEvent;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -16,6 +19,7 @@ import javax.swing.Action;
 import org.pepsoft.worldpainter.App;
 import static org.pepsoft.worldpainter.Constants.*;
 import org.pepsoft.worldpainter.Dimension;
+import org.pepsoft.worldpainter.MixedMaterial;
 import org.pepsoft.worldpainter.Terrain;
 import org.pepsoft.worldpainter.Tile;
 import org.pepsoft.worldpainter.exporting.LayerExporter;
@@ -144,8 +148,62 @@ public class CombinedLayer extends CustomLayer implements LayerContainer {
         });
         return actions;
     }
+    
+    public boolean isMissingTerrainWarning() {
+        return missingTerrainWarning;
+    }
+    
+    public void resetMissingTerrainWarning() {
+        missingTerrainWarning = false;
+    }
+    
+    private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
+        in.defaultReadObject();
+        if (customTerrainPresent) {
+            MixedMaterial customTerrain = (MixedMaterial) in.readObject();
+            if (customTerrain.equals(Terrain.getCustomMaterial(terrain.getCustomTerrainIndex()))) {
+                // The exact same custom terrain is present, in the same slot.
+                // Keep using it
+            } else if (Terrain.getCustomMaterial(terrain.getCustomTerrainIndex()) == null) {
+                // The slot that was previously used is empty, store the custom
+                // terrain in it
+                Terrain.setCustomMaterial(terrain.getCustomTerrainIndex(), customTerrain);
+            } else {
+                // The slot that was previously used contains a different mixed
+                // material. Find another empty slot
+                for (int i = 0; i < Terrain.CUSTOM_TERRAIN_COUNT; i++) {
+                    if (Terrain.getCustomMaterial(i) == null) {
+                        Terrain.setCustomMaterial(i, customTerrain);
+                        terrain = Terrain.getCustomTerrain(i);
+                        return;
+                    }
+                }
+                // No more slots available. Not much we can do
+                terrain = null;
+                missingTerrainWarning = true;
+            }
+        } else if ((terrain != null) && terrain.isCustom()) {
+            // This is an old layer, saved when WorldPainter did not yet store
+            // the actual custom terrain settings with the layer. Not much we
+            // can do
+            terrain = null;
+            missingTerrainWarning = true;
+        }
+    }
+    
+    private void writeObject(ObjectOutputStream out) throws IOException {
+        // Make sure that the custom terrain definition gets saved along with
+        // the layer
+        customTerrainPresent = (terrain != null) && terrain.isCustom();
+        out.defaultWriteObject();
+        if (customTerrainPresent) {
+            out.writeObject(Terrain.getCustomMaterial(terrain.getCustomTerrainIndex()));
+        }
+    }
+    
     private static final long serialVersionUID = 1L;
     private Terrain terrain;
     private List<Layer> layers = Collections.emptyList();
     private Map<Layer, Float> factors = Collections.emptyMap();
+    private boolean customTerrainPresent, missingTerrainWarning;
 }

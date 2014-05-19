@@ -27,7 +27,6 @@ import org.pepsoft.worldpainter.BiomeScheme;
 import org.pepsoft.worldpainter.ColourScheme;
 import org.pepsoft.worldpainter.Configuration;
 import org.pepsoft.worldpainter.Dimension;
-import static org.pepsoft.worldpainter.World2.*;
 import org.pepsoft.worldpainter.util.MinecraftUtil;
 
 /**
@@ -71,10 +70,16 @@ public class BiomeSchemeManager {
                 version = "1.1";
                 break;
             case BIOME_ALGORITHM_1_2_AND_1_3_DEFAULT:
-                version = "1.6.2 or 1.2.3 - 1.5.2";
+                version = "1.6.4 or 1.2.3 - 1.6.2";
                 break;
             case BIOME_ALGORITHM_1_3_LARGE:
-                version = "1.6.2 or 1.3.1 - 1.5.2";
+                version = "1.6.4 or 1.3.1 - 1.6.2";
+                break;
+            case BIOME_ALGORITHM_1_7_DEFAULT:
+                version = "1.7.2";
+                break;
+            case BIOME_ALGORITHM_1_7_LARGE:
+                version = "1.7.2";
                 break;
             default:
                 throw new IllegalArgumentException();
@@ -220,6 +225,19 @@ public class BiomeSchemeManager {
     
     private static final Map<Checksum, Set<BiomeSchemeDescriptor>> DESCRIPTORS = new HashMap<Checksum, Set<BiomeSchemeDescriptor>>();
 
+    public static final int BIOME_ALGORITHM_1_7_3               =  0;
+    public static final int BIOME_ALGORITHM_1_9                 =  1;
+    public static final int BIOME_ALGORITHM_1_8_1               =  2;
+    public static final int BIOME_ALGORITHM_1_0_0               =  3;
+    public static final int BIOME_ALGORITHM_1_1                 =  4;
+    public static final int BIOME_ALGORITHM_1_2_AND_1_3_DEFAULT =  5;
+    public static final int BIOME_ALGORITHM_AUTO_BIOMES         =  7; 
+    public static final int BIOME_ALGORITHM_1_3_LARGE           =  8;
+    public static final int BIOME_ALGORITHM_1_7_DEFAULT         =  9;
+    public static final int BIOME_ALGORITHM_1_7_LARGE           = 10;
+    
+    public static final String[] BIOME_ALGORITHM_NAMES = {"Beta 1.7.3", "Beta 1.9", "Beta 1.8.1", "1.0.0", "1.1", "1.2-1.3 Default", "Custom", "Auto", "1.3-1.6 Large", "1.7 Default", "1.7 Large"};
+    
     static {
         addDescriptor(new Checksum(new byte[] {(byte) -8, (byte) -59, (byte) -94, (byte) -52, (byte) -45, (byte) -68, (byte) -103, (byte) 103, (byte) -110, (byte) -69, (byte) -28, (byte) 54, (byte) -40, (byte) -52, (byte) 8, (byte) -68}), new BiomeSchemeDescriptor(new Version(0, 1, 8, 1), BIOME_ALGORITHM_1_8_1, Minecraft1_8_1BiomeScheme.class, false));
 
@@ -250,8 +268,14 @@ public class BiomeSchemeManager {
         addDescriptor(new Checksum(new byte[] {(byte) 104, (byte) -105, (byte) -61, (byte) 40, (byte) 127, (byte) -71, (byte) 113, (byte) -55, (byte) -13, (byte) 98, (byte) -21, (byte) 58, (byte) -78, (byte) 15, (byte) 93, (byte) -35}),    new BiomeSchemeDescriptor(new Version(1, 5, 2), BIOME_ALGORITHM_1_3_LARGE, Minecraft1_3LargeBiomeScheme.class, false));
 
         addDescriptor(new Checksum(new byte[] {(byte) 29, (byte) 67, (byte) -51, (byte) -70, (byte) -117, (byte) -105, (byte) 82, (byte) -41, (byte) -11, (byte) 87, (byte) -85, (byte) 125, (byte) 62, (byte) 54, (byte) 89, (byte) 100}),     new BiomeSchemeDescriptor(new Version(1, 6, 2), BIOME_ALGORITHM_1_2_AND_1_3_DEFAULT, Minecraft1_6BiomeScheme.class, true));
+        addDescriptor(new Checksum(new byte[] {(byte) 46, (byte) 80, (byte) 68, (byte) -11, (byte) 53, (byte) -98, (byte) -126, (byte) 36, (byte) 85, (byte) 81, (byte) 22, (byte) 122, (byte) 35, (byte) 127, (byte) 49, (byte) 103}),         new BiomeSchemeDescriptor(new Version(1, 6, 4), BIOME_ALGORITHM_1_2_AND_1_3_DEFAULT, Minecraft1_6BiomeScheme.class, true));
 
         addDescriptor(new Checksum(new byte[] {(byte) 29, (byte) 67, (byte) -51, (byte) -70, (byte) -117, (byte) -105, (byte) 82, (byte) -41, (byte) -11, (byte) 87, (byte) -85, (byte) 125, (byte) 62, (byte) 54, (byte) 89, (byte) 100}),     new BiomeSchemeDescriptor(new Version(1, 6, 2), BIOME_ALGORITHM_1_3_LARGE, Minecraft1_6LargeBiomeScheme.class, true));
+        addDescriptor(new Checksum(new byte[] {(byte) 46, (byte) 80, (byte) 68, (byte) -11, (byte) 53, (byte) -98, (byte) -126, (byte) 36, (byte) 85, (byte) 81, (byte) 22, (byte) 122, (byte) 35, (byte) 127, (byte) 49, (byte) 103}),         new BiomeSchemeDescriptor(new Version(1, 6, 4), BIOME_ALGORITHM_1_3_LARGE, Minecraft1_6LargeBiomeScheme.class, true));
+
+        addDescriptor(new Checksum(new byte[] {(byte) 122, (byte) 48, (byte) 69, (byte) 84, (byte) -3, (byte) -22, (byte) -121, (byte) -102, (byte) 121, (byte) -98, (byte) -2, (byte) 110, (byte) -82, (byte) -35, (byte) -116, (byte) -107}), new BiomeSchemeDescriptor(new Version(1, 7, 2), BIOME_ALGORITHM_1_7_DEFAULT, Minecraft1_7BiomeScheme.class, true));
+
+        addDescriptor(new Checksum(new byte[] {(byte) 122, (byte) 48, (byte) 69, (byte) 84, (byte) -3, (byte) -22, (byte) -121, (byte) -102, (byte) 121, (byte) -98, (byte) -2, (byte) 110, (byte) -82, (byte) -35, (byte) -116, (byte) -107}), new BiomeSchemeDescriptor(new Version(1, 7, 2), BIOME_ALGORITHM_1_7_LARGE, Minecraft1_7LargeBiomeScheme.class, true));
     }
     
     private static void addDescriptor(Checksum checksum, BiomeSchemeDescriptor descriptor) {

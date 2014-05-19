@@ -10,7 +10,7 @@ import org.pepsoft.worldpainter.heightMaps.NinePatchHeightMap;
 import org.pepsoft.worldpainter.heightMaps.NoiseHeightMap;
 import org.pepsoft.worldpainter.heightMaps.ProductHeightMap;
 import org.pepsoft.worldpainter.heightMaps.SumHeightMap;
-import org.pepsoft.worldpainter.themes.FancyTheme;
+import org.pepsoft.worldpainter.themes.impl.fancy.FancyTheme;
 import org.pepsoft.worldpainter.themes.SimpleTheme;
 
 /**

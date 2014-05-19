@@ -43,7 +43,6 @@ public class TileEditor extends javax.swing.JDialog implements WindowListener, T
     public TileEditor(java.awt.Frame parent, Dimension dimension, ColourScheme colourScheme, BiomeScheme biomeScheme, CustomBiomeManager customBiomeManager, Collection<Layer> hiddenLayers, boolean contourLines, TileRenderer.LightOrigin lightOrigin) {
         super(parent, true);
         this.dimension = dimension;
-        this.biomeScheme = biomeScheme;
         initComponents();
         
         // Fix the incredibly ugly default font of the JTextPane
@@ -179,9 +178,6 @@ public class TileEditor extends javax.swing.JDialog implements WindowListener, T
             for (Point newTileCoords: tilesToAdd) {
                 Tile newTile = dimension.getTileFactory().createTile(newTileCoords.x, newTileCoords.y);
                 dimension.addTile(newTile);
-                if (biomeScheme != null) {
-                    dimension.recalculateBiomes(newTile, biomeScheme);
-                }
             }
         } finally {
             dimension.setEventsInhibited(false);
@@ -326,7 +322,6 @@ public class TileEditor extends javax.swing.JDialog implements WindowListener, T
     // End of variables declaration//GEN-END:variables
 
     private final Dimension dimension;
-    private final BiomeScheme biomeScheme;
     
     private static final long serialVersionUID = 1L;
 }

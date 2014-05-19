@@ -64,6 +64,7 @@ public class GroundCoverLayerExporter extends AbstractLayerExporter<GroundCoverL
         final int edgeWidth = layer.getEdgeWidth(), edgeWidthPlusOne = edgeWidth + 1, edgeWidthMinusOne = edgeWidth - 1;
         final double edgeFactor = edgeThickness / 2.0, edgeOffset = 1.5 + edgeFactor;
         final long seed = dimension.getSeed();
+        final boolean smooth = layer.isSmooth();
         for (int x = 0; x < 16; x++) {
             final int localX = xOffset + x;
             final int worldX = (chunk.getxPos() << 4) + x;
@@ -105,10 +106,41 @@ public class GroundCoverLayerExporter extends AbstractLayerExporter<GroundCoverL
                                 }
                                 final int existingBlockType = chunk.getBlockType(x, y, z);
                                 final Material material = mixedMaterial.getMaterial(seed, worldX, worldY, y);
-                                if ((! VERY_INSUBSTANTIAL_BLOCKS.contains(material.getBlockType()))
-                                        || (existingBlockType == BLK_AIR)
-                                        || INSUBSTANTIAL_BLOCKS.contains(existingBlockType)) {
-                                    chunk.setMaterial(x, y, z, material);
+                                if ((material != Material.AIR)
+                                        && ((! VERY_INSUBSTANTIAL_BLOCKS.contains(material.getBlockType()))
+                                            || (existingBlockType == BLK_AIR)
+                                            || INSUBSTANTIAL_BLOCKS.contains(existingBlockType))) {
+                                    if (smooth && (dy == (effectiveThickness - 1))) {
+                                        // Top layer, smooth enabled
+                                        int layerHeight;
+                                        final float diff = dimension.getHeightAt(worldX, worldY) + 0.5f - dimension.getIntHeightAt(worldX, worldY);
+                                        if (diff > 0.125f) {
+                                            if        (diff > 0.875f) {
+                                                layerHeight = 7;
+                                            } else if (diff > 0.750f) {
+                                                layerHeight = 6;
+                                            } else if (diff > 0.625f) {
+                                                layerHeight = 5;
+                                            } else if (diff > 0.500f) {
+                                                layerHeight = 4;
+                                            } else if (diff > 0.375f) {
+                                                layerHeight = 3;
+                                            } else if (diff > 0.250f) {
+                                                layerHeight = 2;
+                                            } else {
+                                                layerHeight = 1;
+                                            }
+                                        } else {
+                                            layerHeight = 0;
+                                        }
+                                        if (layerHeight > 0) {
+                                            layerHeight = Math.max(Math.min(layerHeight, dimension.getBitLayerCount(layer, worldX, worldY, 1) - 2), 0);
+                                        }
+                                        chunk.setBlockType(x, y, z, material.getBlockType());
+                                        chunk.setDataValue(x, y, z, layerHeight);
+                                    } else {
+                                        chunk.setMaterial(x, y, z, material);
+                                    }
                                 }
                             }
                         } else {

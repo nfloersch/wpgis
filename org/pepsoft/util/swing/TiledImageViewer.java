@@ -96,13 +96,15 @@ public class TiledImageViewer extends JComponent implements TileListener, MouseL
             int worldY = (getViewY() + middleY) * previousZoom;
             viewX = (worldX / -zoom) - middleX;
             viewY = (worldY / zoom) - middleY;
-            tileProvider.setZoom(zoom);
-            tileRenderers.shutdownNow();
-            tileRenderers = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
-            synchronized (tileCache) {
-                dirtyTileCache = tileCache;
-                tileCache = new HashMap<Point, Reference<BufferedImage>>();
-//                visibleTiles = new HashMap<Point, BufferedImage>();
+            if (tileProvider != null) {
+                tileProvider.setZoom(zoom);
+                tileRenderers.shutdownNow();
+                tileRenderers = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
+                synchronized (tileCache) {
+                    dirtyTileCache = tileCache;
+                    tileCache = new HashMap<Point, Reference<BufferedImage>>();
+    //                visibleTiles = new HashMap<Point, BufferedImage>();
+                }
             }
             if (previousZoom > zoom) {
                 int factor = previousZoom / zoom;
@@ -162,8 +164,8 @@ public class TiledImageViewer extends JComponent implements TileListener, MouseL
     public void reset() {
         viewX = -getWidth() / 2;
         viewY = -getHeight() / 2;
-        tileProvider.setZoom(4);
-        refresh();
+        setZoom(4);
+        repaint();
     }
     
     @Override

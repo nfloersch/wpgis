@@ -17,12 +17,12 @@ import org.pepsoft.worldpainter.ColourScheme;
  * @author pepijn
  */
 public final class DynMapColourScheme implements ColourScheme {
-    public DynMapColourScheme(InputStream in) { 
-        loadColours(in);
+    public DynMapColourScheme(InputStream in, boolean bright) { 
+        loadColours(in, bright);
     }
 
-    public DynMapColourScheme(@NonNls String name) {
-        loadColours(DynMapColourScheme.class.getResourceAsStream(name + ".txt"));
+    public DynMapColourScheme(@NonNls String name, boolean bright) {
+        loadColours(DynMapColourScheme.class.getResourceAsStream(name + ".txt"), bright);
     }
     
     @Override
@@ -40,7 +40,7 @@ public final class DynMapColourScheme implements ColourScheme {
         return COLOURS[material.getBlockType() + material.getData() * 256];
     }
     
-    private void loadColours(InputStream in) {
+    private void loadColours(InputStream in, boolean bright) {
         try {
             try {
                 BufferedReader reader = new BufferedReader(new InputStreamReader(in));
@@ -82,9 +82,17 @@ public final class DynMapColourScheme implements ColourScheme {
                     //  4  5  6  7 3
                     //  8  9 10 11 1
                     // 12 13 14 15 2
-                    int red   = (colourComponents[ 8] + colourComponents[4]) / 2;
-                    int green = (colourComponents[ 9] + colourComponents[5]) / 2;
-                    int blue  = (colourComponents[10] + colourComponents[6]) / 2;
+                    int red, green, blue;
+                    if (bright) {
+                        red   = colourComponents[0];
+                        green = colourComponents[1];
+                        blue  = colourComponents[2];
+                    } else {
+                        red   = (colourComponents[ 8] + colourComponents[4]) / 2;
+                        green = (colourComponents[ 9] + colourComponents[5]) / 2;
+                        blue  = (colourComponents[10] + colourComponents[6]) / 2;
+                    }
+
                     int colour = (red << 16) | (green << 8) | blue;
                     
                     // Store the colour

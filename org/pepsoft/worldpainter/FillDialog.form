@@ -68,6 +68,7 @@
                                       <Component id="comboBoxTerrain" min="-2" max="-2" attributes="0"/>
                                   </Group>
                                   <Component id="radioButtonResetTerrain" alignment="0" min="-2" max="-2" attributes="0"/>
+                                  <Component id="radioButtonResetBiomes" min="-2" max="-2" attributes="0"/>
                               </Group>
                               <EmptySpace min="-2" pref="18" max="-2" attributes="0"/>
                               <Component id="jSeparator1" min="-2" max="-2" attributes="0"/>
@@ -125,6 +126,8 @@
                               <Component id="radioButtonBiome" alignment="3" min="-2" max="-2" attributes="0"/>
                               <Component id="comboBoxBiome" alignment="3" min="-2" max="-2" attributes="0"/>
                           </Group>
+                          <EmptySpace max="-2" attributes="0"/>
+                          <Component id="radioButtonResetBiomes" min="-2" max="-2" attributes="0"/>
                           <EmptySpace max="-2" attributes="0"/>
                           <Component id="radioButtonResetWater" min="-2" max="-2" attributes="0"/>
                       </Group>
@@ -295,6 +298,17 @@
       </Properties>
     </Component>
     <Component class="org.pepsoft.worldpainter.panels.BrushOptions" name="brushOptions1">
+    </Component>
+    <Component class="javax.swing.JRadioButton" name="radioButtonResetBiomes">
+      <Properties>
+        <Property name="buttonGroup" type="javax.swing.ButtonGroup" editor="org.netbeans.modules.form.RADComponent$ButtonGroupPropertyEditor">
+          <ComponentRef name="buttonGroup1"/>
+        </Property>
+        <Property name="text" type="java.lang.String" value="reset biomes to automatic"/>
+      </Properties>
+      <Events>
+        <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="radioButtonResetBiomesActionPerformed"/>
+      </Events>
     </Component>
   </SubComponents>
 </Form>
