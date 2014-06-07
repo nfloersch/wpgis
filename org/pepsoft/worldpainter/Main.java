@@ -56,22 +56,29 @@ import org.pepsoft.worldpainter.vo.EventVO;
  *
  * @author pepijn
  */
+
 public class Main {
+    static {
+        com.jidesoft.utils.Lm.verifyLicense("Nick Floersch", "World Painter", "");
+    }
     /**
      * @param args the command line arguments
      */
     public static void main(String[] args) throws IOException {
+        
+        
         // Force language to English for now. TODO: remove this once the first
         // translations are implemented
         Locale.setDefault(Locale.US);
-        
         if (processCommandLine(args)) {
             return;
         }
-        
+
         System.setProperty("sun.awt.exception.handler", ExceptionHandler.class.getName());
         Thread.setDefaultUncaughtExceptionHandler(new ExceptionHandler());
 
+        
+        
         // Configure logging
         Logger rootLogger = Logger.getLogger("");
         rootLogger.setLevel(Level.INFO);
@@ -272,9 +279,13 @@ public class Main {
         }
 
         // Install JIDE licence
-        Properties jideLicenceProps = new Properties();
-        jideLicenceProps.load(ClassLoader.getSystemResourceAsStream("jide_licence.properties"));
-        Lm.verifyLicense(jideLicenceProps.getProperty("companyName"), jideLicenceProps.getProperty("projectName"), jideLicenceProps.getProperty("licenceKey"));
+//        Properties jideLicenceProps = new Properties();
+//        jideLicenceProps.load(ClassLoader.getSystemResourceAsStream("jide_licence.properties"));
+//        String cName = jideLicenceProps.getProperty("companyName");
+//        String pName = jideLicenceProps.getProperty("projectName");
+//        String lKey = jideLicenceProps.getProperty("licenceKey");
+//        Lm.verifyLicense(cName, pName, lKey);
+        
         
         SwingUtilities.invokeLater(new Runnable() {
             @Override

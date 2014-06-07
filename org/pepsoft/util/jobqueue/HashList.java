@@ -7,10 +7,12 @@ package org.pepsoft.util.jobqueue;
 import java.util.AbstractList;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
+import java.util.Spliterator;
 
 /**
  * A combination of the List and Set interfaces.
@@ -41,6 +43,11 @@ public class HashList<E> extends AbstractList<E> implements Set<E> {
         return map.containsKey(o);
     }
 
+    @Override
+    public Spliterator<E> spliterator() {
+        return Set.super.spliterator();
+    }
+    
     public boolean addToEnd(E e) {
         Element element = map.get(e);
         if (element != null) {
