@@ -3127,6 +3127,10 @@ public final class App extends JFrame implements RadiusControl,
         menuItem.setMnemonic('m');
         menu.add(menuItem);
 
+        menuItem = new JMenuItem(ACTION_OVERLAY_RESOURCES);
+        menuItem.setMnemonic('m');
+        menu.add(menuItem);
+        
         if (! SystemUtils.isMac()) {
             menu.addSeparator();
 
@@ -5075,6 +5079,17 @@ public final class App extends JFrame implements RadiusControl,
         private static final long serialVersionUID = 1L;
     };
 
+    private final BetterAction ACTION_OVERLAY_RESOURCES = new BetterAction("overlayResources", strings.getString("overlay.Resources") + "...", false) {
+    {
+            setShortDescription("Use overlay bitmap as a mask to edit map with specific resources.");
+        }
+        @Override
+        public void performAction(ActionEvent e) {
+            overlayResources();
+        }
+        private static final long serialVersionUID = 1L;
+    };
+    
     private final BetterAction ACTION_EXIT = new BetterAction("exit", strings.getString("exit") + "...", ICON_EXIT) {
         {
             setShortDescription(strings.getString("shut.down.worldpainter"));

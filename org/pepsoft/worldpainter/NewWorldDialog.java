@@ -453,7 +453,7 @@ public class NewWorldDialog extends javax.swing.JDialog implements WindowListene
     
     private void setControlStates() {
         boolean surfaceDimension = dim == DIM_NORMAL;
-        boolean minecraft11Only = Integer.parseInt((String) comboBoxMaxHeight.getSelectedItem()) != DEFAULT_MAX_HEIGHT_2;
+        boolean minecraft11Only = false; //Integer.parseInt((String) comboBoxMaxHeight.getSelectedItem()) != DEFAULT_MAX_HEIGHT_2;
         checkBoxExtendedBlockIds.setEnabled(! minecraft11Only);
         boolean hilly = radioButtonHilly.isSelected();
         spinnerRange.setEnabled(hilly);
