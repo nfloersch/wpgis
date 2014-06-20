@@ -42,31 +42,29 @@
           <Group type="102" alignment="0" attributes="0">
               <EmptySpace max="-2" attributes="0"/>
               <Group type="103" groupAlignment="0" attributes="0">
+                  <Component id="jLabel_OverlayResources_Title" min="-2" pref="437" max="-2" attributes="0"/>
                   <Group type="102" attributes="0">
-                      <Group type="103" groupAlignment="0" attributes="0">
-                          <Group type="103" groupAlignment="1" max="-2" attributes="0">
-                              <Component id="jTextField_OverlayResources_PNGPath" max="32767" attributes="0"/>
-                              <Component id="jLabel1" alignment="0" max="32767" attributes="0"/>
-                              <Component id="jPanel1" alignment="0" max="32767" attributes="0"/>
-                              <Component id="jPanel2" alignment="1" max="32767" attributes="0"/>
-                          </Group>
-                          <Component id="progressComponent1" alignment="1" min="-2" pref="331" max="-2" attributes="0"/>
+                      <Group type="103" groupAlignment="0" max="-2" attributes="0">
+                          <Component id="jTextField_OverlayResources_PNGPath" alignment="1" max="32767" attributes="0"/>
+                          <Component id="jLabel1" alignment="0" max="32767" attributes="0"/>
+                          <Component id="jPanel2" alignment="1" max="32767" attributes="0"/>
+                          <Component id="jPanel1" alignment="0" max="32767" attributes="0"/>
+                          <Component id="progressComponent1" alignment="0" pref="0" max="32767" attributes="0"/>
+                          <Component id="jButton_OverlayResources_Run" max="32767" attributes="0"/>
                       </Group>
-                      <EmptySpace type="unrelated" max="-2" attributes="0"/>
+                      <EmptySpace max="-2" attributes="0"/>
                       <Group type="103" groupAlignment="0" attributes="0">
-                          <Component id="jScrollPane3" alignment="0" pref="145" max="32767" attributes="0"/>
                           <Group type="102" attributes="0">
                               <Group type="103" groupAlignment="0" attributes="0">
                                   <Component id="jButton_OverlayResources_SelectPNG" min="-2" max="-2" attributes="0"/>
                                   <Component id="jLabel5" min="-2" pref="109" max="-2" attributes="0"/>
-                                  <Component id="jButton_OverlayResources_Run" min="-2" max="-2" attributes="0"/>
                               </Group>
-                              <EmptySpace min="0" pref="0" max="32767" attributes="0"/>
+                              <EmptySpace min="0" pref="104" max="32767" attributes="0"/>
                           </Group>
                           <Component id="jScrollPane2" alignment="0" max="32767" attributes="0"/>
+                          <Component id="jScrollPane3" pref="213" max="32767" attributes="0"/>
                       </Group>
                   </Group>
-                  <Component id="jLabel_OverlayResources_Title" min="-2" pref="437" max="-2" attributes="0"/>
               </Group>
               <EmptySpace max="-2" attributes="0"/>
           </Group>
@@ -74,8 +72,8 @@
     </DimensionLayout>
     <DimensionLayout dim="1">
       <Group type="103" groupAlignment="0" attributes="0">
-          <Group type="102" attributes="0">
-              <EmptySpace max="32767" attributes="0"/>
+          <Group type="102" alignment="0" attributes="0">
+              <EmptySpace max="-2" attributes="0"/>
               <Component id="jLabel_OverlayResources_Title" min="-2" max="-2" attributes="0"/>
               <EmptySpace max="-2" attributes="0"/>
               <Group type="103" groupAlignment="3" attributes="0">
@@ -84,7 +82,7 @@
               </Group>
               <EmptySpace max="-2" attributes="0"/>
               <Group type="103" groupAlignment="0" attributes="0">
-                  <Group type="102" attributes="0">
+                  <Group type="102" alignment="0" attributes="0">
                       <Component id="jLabel1" min="-2" max="-2" attributes="0"/>
                       <EmptySpace max="-2" attributes="0"/>
                       <Component id="jPanel1" min="-2" max="-2" attributes="0"/>
@@ -92,21 +90,21 @@
                   <Component id="jScrollPane2" min="-2" pref="98" max="-2" attributes="0"/>
               </Group>
               <EmptySpace max="-2" attributes="0"/>
-              <Group type="103" groupAlignment="0" max="-2" attributes="0">
-                  <Group type="102" attributes="0">
-                      <Component id="jLabel5" min="-2" max="-2" attributes="0"/>
-                      <EmptySpace max="-2" attributes="0"/>
-                      <Component id="jScrollPane3" pref="0" max="32767" attributes="0"/>
-                      <EmptySpace max="-2" attributes="0"/>
-                      <Component id="jButton_OverlayResources_Run" min="-2" max="-2" attributes="0"/>
-                  </Group>
+              <Group type="103" groupAlignment="0" attributes="0">
                   <Group type="102" attributes="0">
                       <Component id="jPanel2" min="-2" max="-2" attributes="0"/>
+                      <EmptySpace pref="150" max="32767" attributes="0"/>
+                      <Component id="jButton_OverlayResources_Run" min="-2" max="-2" attributes="0"/>
                       <EmptySpace max="-2" attributes="0"/>
                       <Component id="progressComponent1" min="-2" max="-2" attributes="0"/>
                   </Group>
+                  <Group type="102" attributes="0">
+                      <Component id="jLabel5" min="-2" max="-2" attributes="0"/>
+                      <EmptySpace max="-2" attributes="0"/>
+                      <Component id="jScrollPane3" max="32767" attributes="0"/>
+                  </Group>
               </Group>
-              <EmptySpace max="32767" attributes="0"/>
+              <EmptySpace max="-2" attributes="0"/>
           </Group>
       </Group>
     </DimensionLayout>
@@ -117,9 +115,17 @@
         <Property name="text" type="java.lang.String" value="Future load image here. Now uses View Overlay image..."/>
       </Properties>
     </Component>
+    <Component class="javax.swing.JButton" name="jButton_OverlayResources_Run">
+      <Properties>
+        <Property name="text" type="java.lang.String" value="Process World!"/>
+      </Properties>
+      <Events>
+        <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="jButton_OverlayResources_RunActionPerformed"/>
+      </Events>
+    </Component>
     <Component class="javax.swing.JTextField" name="jTextField_OverlayResources_PNGPath">
       <Properties>
-        <Property name="text" type="java.lang.String" value="jTextField1"/>
+        <Property name="text" type="java.lang.String" value="Ignore This"/>
         <Property name="enabled" type="boolean" value="false"/>
       </Properties>
     </Component>
@@ -130,14 +136,6 @@
       </Properties>
       <Events>
         <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="jButton_OverlayResources_SelectPNGActionPerformed"/>
-      </Events>
-    </Component>
-    <Component class="javax.swing.JButton" name="jButton_OverlayResources_Run">
-      <Properties>
-        <Property name="text" type="java.lang.String" value="Process"/>
-      </Properties>
-      <Events>
-        <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="jButton_OverlayResources_RunActionPerformed"/>
       </Events>
     </Component>
     <Component class="org.pepsoft.util.swing.ProgressComponent" name="progressComponent1">
@@ -155,18 +153,22 @@
               <Group type="102" attributes="0">
                   <EmptySpace max="-2" attributes="0"/>
                   <Group type="103" groupAlignment="0" attributes="0">
-                      <Group type="102" alignment="0" attributes="0">
-                          <Component id="jSpinner_OverlayResources_RaiseLowerTerrain" min="-2" max="-2" attributes="0"/>
+                      <Group type="102" attributes="0">
+                          <Component id="jLabel4" max="32767" attributes="0"/>
+                          <EmptySpace max="-2" attributes="0"/>
+                      </Group>
+                      <Group type="102" attributes="0">
+                          <Component id="jSpinner_OverlayResources_RaiseLowerTerrain" min="-2" pref="53" max="-2" attributes="0"/>
                           <EmptySpace max="-2" attributes="0"/>
                           <Group type="103" groupAlignment="0" attributes="0">
-                              <Component id="jLabel2" min="-2" max="-2" attributes="0"/>
-                              <Component id="jLabel3" min="-2" max="-2" attributes="0"/>
+                              <Component id="jLabel3" max="32767" attributes="0"/>
+                              <Group type="102" attributes="0">
+                                  <Component id="jLabel2" max="32767" attributes="0"/>
+                                  <EmptySpace max="-2" attributes="0"/>
+                              </Group>
                           </Group>
-                          <EmptySpace min="0" pref="0" max="32767" attributes="0"/>
                       </Group>
-                      <Component id="jLabel4" alignment="1" max="32767" attributes="0"/>
                   </Group>
-                  <EmptySpace max="-2" attributes="0"/>
               </Group>
           </Group>
         </DimensionLayout>
@@ -224,7 +226,7 @@
           <Group type="103" groupAlignment="0" attributes="0">
               <Group type="102" attributes="0">
                   <EmptySpace max="-2" attributes="0"/>
-                  <Component id="jSpinner_OverlayResources_NewTerrainThickness" min="-2" max="-2" attributes="0"/>
+                  <Component id="jSpinner_OverlayResources_NewTerrainThickness" min="-2" pref="53" max="-2" attributes="0"/>
                   <EmptySpace max="-2" attributes="0"/>
                   <Component id="jScrollPane1" min="-2" pref="260" max="-2" attributes="0"/>
                   <EmptySpace max="32767" attributes="0"/>
@@ -248,7 +250,7 @@
         <Component class="javax.swing.JSpinner" name="jSpinner_OverlayResources_NewTerrainThickness">
           <Properties>
             <Property name="model" type="javax.swing.SpinnerModel" editor="org.netbeans.modules.form.editors2.SpinnerModelEditor">
-              <SpinnerModel initial="1" maximum="5" minimum="-5" numberType="java.lang.Integer" stepSize="1" type="number"/>
+              <SpinnerModel initial="0" maximum="7" minimum="-7" numberType="java.lang.Integer" stepSize="1" type="number"/>
             </Property>
           </Properties>
         </Component>
@@ -311,18 +313,39 @@
         <Component class="javax.swing.JList" name="jList_OverlayResources_Landuse">
           <Properties>
             <Property name="model" type="javax.swing.ListModel" editor="org.netbeans.modules.form.editors2.ListModelEditor">
-              <StringArray count="11">
-                <StringItem index="0" value="Deciduous"/>
-                <StringItem index="1" value="Pine"/>
-                <StringItem index="2" value="Swamp"/>
-                <StringItem index="3" value="Frozen Deciduous"/>
-                <StringItem index="4" value="Frozen Pine"/>
-                <StringItem index="5" value="Frozen Swamp"/>
-                <StringItem index="6" value="Paved"/>
-                <StringItem index="7" value="Gravel"/>
-                <StringItem index="8" value="Cement"/>
-                <StringItem index="9" value="Brick"/>
-                <StringItem index="10" value="Cobble"/>
+              <StringArray count="32">
+                <StringItem index="0" value="--Roads--"/>
+                <StringItem index="1" value="Paved"/>
+                <StringItem index="2" value="Gravel"/>
+                <StringItem index="3" value="Primary"/>
+                <StringItem index="4" value="Secondary"/>
+                <StringItem index="5" value="Cobble"/>
+                <StringItem index="6" value="--Land Types--"/>
+                <StringItem index="7" value="Deciduous"/>
+                <StringItem index="8" value="Pine"/>
+                <StringItem index="9" value="Swamp"/>
+                <StringItem index="10" value="Grassland"/>
+                <StringItem index="11" value="Frozen Deciduous"/>
+                <StringItem index="12" value="Frozen Pine"/>
+                <StringItem index="13" value="Frozen Swamp"/>
+                <StringItem index="14" value="Targa"/>
+                <StringItem index="15" value="--Colors--"/>
+                <StringItem index="16" value="White"/>
+                <StringItem index="17" value="Orange"/>
+                <StringItem index="18" value="Magenta"/>
+                <StringItem index="19" value="Light Blue"/>
+                <StringItem index="20" value="Yellow"/>
+                <StringItem index="21" value="Lime"/>
+                <StringItem index="22" value="Pink"/>
+                <StringItem index="23" value="Gray"/>
+                <StringItem index="24" value="Light Gray"/>
+                <StringItem index="25" value="Cyan"/>
+                <StringItem index="26" value="Purple"/>
+                <StringItem index="27" value="Blue"/>
+                <StringItem index="28" value="Brown"/>
+                <StringItem index="29" value="Green"/>
+                <StringItem index="30" value="Red"/>
+                <StringItem index="31" value="Black"/>
               </StringArray>
             </Property>
             <Property name="selectionMode" type="int" value="0"/>

@@ -1215,6 +1215,13 @@ public final class App extends JFrame implements RadiusControl,
         return dockingManager;
     }
     
+    public final void setLayerActive(String layerName, boolean isActive) {
+        List<Palette> lp = null;
+        lp = paletteManager.getPalettes();
+        Set<CustomLayer> lcl = paletteManager.getLayers();
+        
+    }
+    
     void exit() {
         if (saveIfNecessary()) {
             System.exit(0);
@@ -5631,7 +5638,7 @@ public final class App extends JFrame implements RadiusControl,
     private final Set<CustomLayer> layersWithNoButton = new HashSet<CustomLayer>();
     private final Map<Layer, JCheckBox> layerSoloCheckBoxes = new HashMap<Layer, JCheckBox>();
     private Layer soloLayer;
-    private final PaletteManager paletteManager = new PaletteManager(this);
+    public final PaletteManager paletteManager = new PaletteManager(this);
     private DockingManager dockingManager;
 
     public static final Image ICON = IconUtils.loadImage("org/pepsoft/worldpainter/icons/shovel-icon.png");

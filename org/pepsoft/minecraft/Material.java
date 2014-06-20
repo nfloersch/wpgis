@@ -990,6 +990,8 @@ public final class Material implements Serializable, Comparable<Material> {
     public static final Material PUMPKIN_SOUTH_FACE = get(BLK_PUMPKIN, DATA_PUMPKIN_SOUTH_FACE);
     public static final Material PUMPKIN_WEST_FACE  = get(BLK_PUMPKIN, DATA_PUMPKIN_WEST_FACE);
 
+    public static final Material BLOCK_OF_COAL = get(BLK_COAL_BLOCK);
+    
     private static final int[] REVERSE_TEXTURE_OFFSETS = {
         0, BLK_STONE, BLK_DIRT, BLK_GRASS, BLK_WOODEN_PLANK, BLK_DOUBLE_SLAB, 0, BLK_BRICKS, BLK_TNT, 0, 0, BLK_COBWEB, BLK_ROSE, BLK_DANDELION, 0, BLK_SAPLING,
         BLK_COBBLESTONE, BLK_BEDROCK, BLK_SAND, BLK_GRAVEL, BLK_WOOD, 0, BLK_IRON_BLOCK, BLK_GOLD_BLOCK, BLK_DIAMOND_BLOCK, 0, 0, BLK_CHEST, BLK_RED_MUSHROOM, BLK_BROWN_MUSHROOM, 0, BLK_FIRE,
@@ -1006,7 +1008,7 @@ public final class Material implements Serializable, Comparable<Material> {
         BLK_SANDSTONE, 0, 0, BLK_DETECTOR_RAILS, 0, 0, 0, 0, 0, 0, 0, 0, 0, BLK_WATER, BLK_STATIONARY_WATER, 0,
         0, 0, 0, BLK_REDSTONE_LANTERN_OFF, BLK_REDSTONE_LANTERN_ON, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         BLK_NETHER_BRICK, 0, 0, 0, BLK_NETHER_WART, 0, 0, 0, 0, 0, 0, 0, 0, BLK_LAVA, BLK_STATIONARY_LAVA, 0,
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
     };
     private static final int[] TEXTURE_OFFSETS = new int[256];
     

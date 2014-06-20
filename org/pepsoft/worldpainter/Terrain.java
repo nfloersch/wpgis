@@ -1078,7 +1078,24 @@ public enum Terrain {
         }
 
         private static final int CACTUS_CHANCE = 2000;
-    };
+    },
+    BLOCK_OF_COAL("Block of Coal", Material.COAL, Material.COAL, "block of coal", BIOME_HELL),
+    WHITE_WOOL("White Wool", Material.WOOL_WHITE, Material.WOOL_WHITE, "white dyed wool", BIOME_HELL),
+    ORANGE_WOOL("Orange Wool", Material.WOOL_ORANGE, Material.WOOL_ORANGE, "orange dyed wool", BIOME_HELL),
+    MAGENTA_WOOL("Magenta Wool", Material.WOOL_MAGENTA, Material.WOOL_MAGENTA, "magenta dyed wool", BIOME_HELL),
+    LIGHT_BLUE_WOOL("Light Blue Wool", Material.WOOL_LIGHT_BLUE, Material.WOOL_LIGHT_BLUE, "light blue dyed wool", BIOME_HELL),
+    YELLOW_WOOL("Yellow Wool", Material.WOOL_YELLOW, Material.WOOL_YELLOW, "yellow dyed wool", BIOME_HELL),
+    LIME_WOOL("Lime Wool", Material.WOOL_LIME, Material.WOOL_LIME, "lime dyed wool", BIOME_HELL),
+    PINK_WOOL("Pink Wool", Material.WOOL_PINK, Material.WOOL_PINK, "pink dyed wool", BIOME_HELL),
+    GRAY_WOOL("Gray Wool", Material.WOOL_GREY, Material.WOOL_GREY, "gray dyed wool", BIOME_HELL),
+    LIGHT_GRAY_WOOL("Light Gray Wool", Material.WOOL_LIGHT_GREY, Material.WOOL_LIGHT_GREY, "light gray dyed wool", BIOME_HELL),
+    CYAN_WOOL("Cyan Wool", Material.WOOL_CYAN, Material.WOOL_CYAN, "cyan dyed wool", BIOME_HELL),
+    PURPLE_WOOL("Purple Wool", Material.WOOL_PURPLE, Material.WOOL_PURPLE, "purple dyed wool", BIOME_HELL),
+    BLUE_WOOL("Blue Wool", Material.WOOL_BLUE, Material.WOOL_BLUE, "blue dyed wool", BIOME_HELL),
+    BROWN_WOOL("Brown Wool", Material.WOOL_BROWN, Material.WOOL_BROWN, "brown dyed wool", BIOME_HELL),
+    GREEN_WOOL("Green Wool", Material.WOOL_GREEN, Material.WOOL_GREEN, "green dyed wool", BIOME_HELL),
+    RED_WOOL("Red Wool", Material.WOOL_RED, Material.WOOL_RED, "red dyed wool", BIOME_HELL),
+    BLACK_WOOL("Black Wool", Material.WOOL_BLACK, Material.WOOL_BLACK, "black dyed wool", BIOME_HELL);
 
     private Terrain(String name, String description, int defaultBiome) {
         this(name, Material.STONE, Material.STONE, AIR, description, defaultBiome);
@@ -1327,6 +1344,23 @@ public enum Terrain {
         Terrain.CUSTOM_21,
         Terrain.CUSTOM_22,
         Terrain.CUSTOM_23,
-        Terrain.CUSTOM_24
+        Terrain.CUSTOM_24,
+        Terrain.BLOCK_OF_COAL,
+        Terrain.WHITE_WOOL,
+        Terrain.ORANGE_WOOL,
+        Terrain.MAGENTA_WOOL,
+        Terrain.LIGHT_BLUE_WOOL,
+        Terrain.YELLOW_WOOL,
+        Terrain.LIME_WOOL,
+        Terrain.PINK_WOOL,
+        Terrain.GRAY_WOOL,
+        Terrain.LIGHT_GRAY_WOOL,
+        Terrain.CYAN_WOOL,
+        Terrain.PURPLE_WOOL,
+        Terrain.BLUE_WOOL,
+        Terrain.BROWN_WOOL,
+        Terrain.GREEN_WOOL,
+        Terrain.RED_WOOL,
+        Terrain.BLACK_WOOL
     };
 }
