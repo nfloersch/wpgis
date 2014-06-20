@@ -381,8 +381,10 @@ public class OverlayResourcesDialog extends javax.swing.JDialog implements Liste
                 try {
                     // DOES THE WORK
                     OverlayProcessor theOP = new OverlayProcessor(view);
-                    theOP.PourRivers(
+                    theOP.WaterWorks(
                         null,
+                        (int)jSpinner_OverlayResources_RaiseLowerTerrain.getValue(),
+                        (int)jSpinner_OverlayResources_NewTerrainThickness.getValue(),
                         progressReceiver);
                     // DID THE WORK
                     if (theOP.getWarnings() != null) {
@@ -590,7 +592,7 @@ public class OverlayResourcesDialog extends javax.swing.JDialog implements Liste
         jScrollPane2.setViewportView(jList_OverlayResources_Operations);
 
         jList_OverlayResources_Landuse.setModel(new javax.swing.AbstractListModel() {
-            String[] strings = { "--Roads--", "Paved", "Gravel", "Primary", "Secondary", "Cobble", "--Land Types--", "Deciduous", "Pine", "Swamp", "Grassland", "Frozen Deciduous", "Frozen Pine", "Frozen Swamp", "Targa", "--Colors--", "White", "Orange", "Magenta", "Light Blue", "Yellow", "Lime", "Pink", "Gray", "Light Gray", "Cyan", "Purple", "Blue", "Brown", "Green", "Red", "Black" };
+            String[] strings = { "--Roads--", "Paved", "Gravel", "Primary", "Secondary", "Cobble", "--Land Types--", "Deciduous", "Pine", "Swamp", "Grassland", "Frozen Deciduous", "Frozen Pine", "Frozen Swamp", "Ice Plains", "--Colors--", "White", "Orange", "Magenta", "Light Blue", "Yellow", "Lime", "Pink", "Gray", "Light Gray", "Cyan", "Purple", "Blue", "Brown", "Green", "Red", "Black" };
             public int getSize() { return strings.length; }
             public Object getElementAt(int i) { return strings[i]; }
         });

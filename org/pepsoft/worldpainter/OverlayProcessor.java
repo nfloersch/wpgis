@@ -91,6 +91,39 @@ class OverlayProcessor {
         }
     }
     
+    public void WaterWorks(
+        File imageFile, 
+        int RaiseLowerAmt,
+        int TerrainThickness,
+        ProgressReceiver progressReceiver) throws IOException, ProgressReceiver.OperationCancelled {
+        logger.info("WaterWorks() Starting...");
+        // Record start of roadwork
+        long start = System.currentTimeMillis();
+        
+        overlayMask = LoadImage(imageFile);
+        tLayers = view.getDimension().getAllLayers(true);
+        for (Layer l : tLayers) {
+            String tLName = l.getName();
+            if (tLName.equals("Pine")) tLyrPine = l;
+            if (tLName.equals("Jungle")) tLyrJungle = l;
+            if (tLName.equals("Swamp")) tLyrSwamp = l;
+            if (tLName.equals("Deciduous")) tLyrDeciduous = l;
+            if (tLName.equals("Biome")) tLyrBiome = l;
+            }
+        PourRivers(overlayMask,RaiseLowerAmt,TerrainThickness);
+        
+        view.getDimension().setOverlayEnabled(false);
+        view.repaint();
+        view.getDimension().setOverlay(null);
+        // Log an event
+        Configuration config = Configuration.getInstance();
+        if (config != null) {
+            EventVO event = new EventVO(EVENT_KEY_ACTION_MERGE_WORLD).duration(System.currentTimeMillis() - start);
+            event.setAttribute(EventVO.ATTRIBUTE_TIMESTAMP, new Date(start));
+            config.logEvent(event);
+        }
+    }
+    
     public void SetLanduse(File imageFile, String luName,ProgressReceiver progressReceiver) throws IOException, ProgressReceiver.OperationCancelled {
         logger.info("SetLanduse() Starting...");
         // Record start of roadwork
@@ -116,10 +149,9 @@ class OverlayProcessor {
         switch(luName) {
             case "Grassland":
                 isBiome = true;
-                theBiomeType = BIOME_PLAINS;
-                //.setLayerActive(luName,true);
+                theBiomeType = BIOME_SUNFLOWER_PLAINS;
                 break;
-            case "Taiga":
+            case "Ice Plains":
                 isBiome = true;
                 theBiomeType = BIOME_ICE_PLAINS;
                 break;
@@ -142,7 +174,8 @@ class OverlayProcessor {
                         view.getDimension().setLayerValueAt(layerType, mapLoc2d.x, mapLoc2d.y, 255); //Reset Biome First?
                     }
                     view.getDimension().setLayerValueAt(layerType, mapLoc2d.x, mapLoc2d.y, tClr);
-                    if (doFrost) view.getDimension().setLayerValueAt(frostLayer, mapLoc2d.x, mapLoc2d.y, 15 );
+                    //if (doFrost) view.getDimension().setLayerValueAt(frostLayer, mapLoc2d.x, mapLoc2d.y, 15 );
+                    if (doFrost) view.getDimension().setBitLayerValueAt(frostLayer, mapLoc2d.x, mapLoc2d.y, true);
                 }
             }
         }
@@ -409,7 +442,47 @@ class OverlayProcessor {
         return nibble;
     }
     
-    void PourRivers(Object object, ProgressReceiver progressReceiver) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    void PourRivers(BufferedImage overlayMask,int RaiseLowerAmt, int TerrainThickness) {
+        logger.info("PourRivers() Starting...");
+        for (int y = 0; y < overlayMask.getHeight(); y++) {
+            for (int x = 0; x < overlayMask.getWidth(); x++) {
+                int  clr   = overlayMask.getRGB(x, y);
+                if (isNotWhite(clr,overlayMask.getColorModel())) {
+                    // Get Location in Map for X/Y
+                    Point mapLoc2d = view.imageToWorldCoordinates(x, y);
+                    // Get Height At That Location
+                    Point3d mapLoc = new Point3d(mapLoc2d.x,mapLoc2d.y,view.getDimension().getHeightAt(mapLoc2d));
+                    
+                    Terrain luse = Terrain.WATER;
+                    
+                    view.getDimension().setHeightAt(mapLoc2d, ((int)mapLoc.z) + RaiseLowerAmt);
+                    // In theory fills up from ground level to TerrainThickness but
+                    // in practice it is not filling up evenly ... may depend on
+                    // where the topsoil is vs where the underlying stone is.
+                    if (TerrainThickness < 0) {
+                        for (int i = 0;i > TerrainThickness;i--) {
+                            view.getDimension().setHeightAt(mapLoc2d, ((int)mapLoc.z) + 1);
+                            view.getDimension().setTerrainAt(mapLoc2d, luse);
+                        }
+                    } 
+                    // In theory fills _down_ from ground level to TerrainThickness
+                    // In practice it is filling a lot farther down...
+                    if (TerrainThickness > 0) {
+                        for (int i = 0;i < TerrainThickness;i++) {
+                            view.getDimension().setHeightAt(mapLoc2d, ((int)mapLoc.z) - 1);
+                            view.getDimension().setTerrainAt(mapLoc2d, luse);
+                        }
+                    }
+
+                    if (TerrainThickness == 0) view.getDimension().setTerrainAt(mapLoc2d, luse);
+
+                    if (tLyrSwamp != null) view.getDimension().setLayerValueAt(tLyrSwamp, mapLoc2d.x, mapLoc2d.y, 0);
+                    if (tLyrJungle != null) view.getDimension().setLayerValueAt(tLyrJungle, mapLoc2d.x, mapLoc2d.y, 0);
+                    if (tLyrPine != null) view.getDimension().setLayerValueAt(tLyrPine, mapLoc2d.x, mapLoc2d.y, 0);
+                    if (tLyrDeciduous != null) view.getDimension().setLayerValueAt(tLyrDeciduous, mapLoc2d.x, mapLoc2d.y, 0);
+                    if (tLyrBiome != null) view.getDimension().setLayerValueAt(tLyrBiome, mapLoc2d.x, mapLoc2d.y, 0);
+                }
+            }
+        }
     }
 }
