@@ -450,31 +450,13 @@ class OverlayProcessor {
                 if (isNotWhite(clr,overlayMask.getColorModel())) {
                     // Get Location in Map for X/Y
                     Point mapLoc2d = view.imageToWorldCoordinates(x, y);
+                    
+                    view.getDimension().setHeightAt(mapLoc2d, (view.getDimension().getHeightAt(mapLoc2d)) + RaiseLowerAmt);
+                    
                     // Get Height At That Location
                     Point3d mapLoc = new Point3d(mapLoc2d.x,mapLoc2d.y,view.getDimension().getHeightAt(mapLoc2d));
                     
-                    Terrain luse = Terrain.WATER;
-                    
-                    view.getDimension().setHeightAt(mapLoc2d, ((int)mapLoc.z) + RaiseLowerAmt);
-                    // In theory fills up from ground level to TerrainThickness but
-                    // in practice it is not filling up evenly ... may depend on
-                    // where the topsoil is vs where the underlying stone is.
-                    if (TerrainThickness < 0) {
-                        for (int i = 0;i > TerrainThickness;i--) {
-                            view.getDimension().setHeightAt(mapLoc2d, ((int)mapLoc.z) + 1);
-                            view.getDimension().setTerrainAt(mapLoc2d, luse);
-                        }
-                    } 
-                    // In theory fills _down_ from ground level to TerrainThickness
-                    // In practice it is filling a lot farther down...
-                    if (TerrainThickness > 0) {
-                        for (int i = 0;i < TerrainThickness;i++) {
-                            view.getDimension().setHeightAt(mapLoc2d, ((int)mapLoc.z) - 1);
-                            view.getDimension().setTerrainAt(mapLoc2d, luse);
-                        }
-                    }
-
-                    if (TerrainThickness == 0) view.getDimension().setTerrainAt(mapLoc2d, luse);
+                    view.getDimension().setWaterLevelAt(mapLoc2d.x, mapLoc2d.y, ((int)mapLoc.z) + TerrainThickness);
 
                     if (tLyrSwamp != null) view.getDimension().setLayerValueAt(tLyrSwamp, mapLoc2d.x, mapLoc2d.y, 0);
                     if (tLyrJungle != null) view.getDimension().setLayerValueAt(tLyrJungle, mapLoc2d.x, mapLoc2d.y, 0);
