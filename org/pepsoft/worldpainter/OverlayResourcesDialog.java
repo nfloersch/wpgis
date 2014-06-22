@@ -15,15 +15,13 @@ import java.awt.Color;
 import java.awt.Cursor;
 import java.awt.Point;
 import java.awt.Toolkit;
-import org.pepsoft.util.ProgressReceiver;
-import org.pepsoft.worldpainter.util.MinecraftUtil;
 import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
-import javax.swing.event.DocumentEvent;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Collection;
+import java.util.List;
 import java.util.Set;
 import javax.swing.AbstractAction;
 import javax.swing.ActionMap;
@@ -36,18 +34,21 @@ import javax.swing.JOptionPane;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
+import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import javax.swing.filechooser.FileFilter;
 import org.pepsoft.minecraft.Level;
 import org.pepsoft.util.DesktopUtils;
+import org.pepsoft.util.ProgressReceiver;
 import org.pepsoft.util.ProgressReceiver.OperationCancelled;
 import org.pepsoft.util.swing.ProgressComponent.Listener;
 import org.pepsoft.util.swing.ProgressTask;
-import org.pepsoft.worldpainter.merging.WorldMerger;
-import org.pepsoft.worldpainter.util.FileInUseException;
 import static org.pepsoft.worldpainter.Constants.*;
 import org.pepsoft.worldpainter.biomeschemes.CustomBiomeManager;
 import org.pepsoft.worldpainter.layers.Layer;
+import org.pepsoft.worldpainter.merging.WorldMerger;
+import org.pepsoft.worldpainter.util.FileInUseException;
+import org.pepsoft.worldpainter.util.MinecraftUtil;
 
 /**
  *
@@ -149,7 +150,7 @@ public class OverlayResourcesDialog extends javax.swing.JDialog implements Liste
             case "Roads":
                 processOverlayRoads();
                 break;
-            case "Rivers":
+            case "Water":
                 processOverlayRivers();
                 break;
             case "Landuse":
@@ -481,6 +482,9 @@ public class OverlayResourcesDialog extends javax.swing.JDialog implements Liste
         jScrollPane3 = new javax.swing.JScrollPane();
         jList_OverlayResources_Landuse = new javax.swing.JList();
         jLabel5 = new javax.swing.JLabel();
+        luStrengthSpinner = new javax.swing.JSpinner();
+        jScrollPane5 = new javax.swing.JScrollPane();
+        jTextPane2 = new javax.swing.JTextPane();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
         setTitle("Overlay Resources");
@@ -553,12 +557,13 @@ public class OverlayResourcesDialog extends javax.swing.JDialog implements Liste
                 .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
         );
 
-        jSpinner_OverlayResources_NewTerrainThickness.setModel(new javax.swing.SpinnerNumberModel(0, -7, 7, 1));
+        jSpinner_OverlayResources_NewTerrainThickness.setModel(new javax.swing.SpinnerNumberModel(0, -255, 255, 1));
 
         jTextPane1.setEditable(false);
-        jTextPane1.setBackground(javax.swing.UIManager.getDefaults().getColor("Button.background"));
+        jTextPane1.setBackground(new java.awt.Color(212, 208, 200));
+        jTextPane1.setBorder(null);
         jTextPane1.setText("Number of blocks deep to insert new terrain. A negative value indicates stacking new terrain on top of existing terrain, not replacing anything.");
-        jTextPane1.setCursor(new java.awt.Cursor(java.awt.Cursor.TEXT_CURSOR));
+        jTextPane1.setAutoscrolls(false);
         jScrollPane1.setViewportView(jTextPane1);
 
         javax.swing.GroupLayout jPanel2Layout = new javax.swing.GroupLayout(jPanel2);
@@ -583,12 +588,17 @@ public class OverlayResourcesDialog extends javax.swing.JDialog implements Liste
         );
 
         jList_OverlayResources_Operations.setModel(new javax.swing.AbstractListModel() {
-            String[] strings = { "Raise or Lower", "Roads", "Landuse", "Rivers", "--not working--", "Color Landuse", "Colorize" };
+            String[] strings = { "Raise or Lower", "Roads", "Landuse", "Water", "--not working--", "Colorize" };
             public int getSize() { return strings.length; }
             public Object getElementAt(int i) { return strings[i]; }
         });
         jList_OverlayResources_Operations.setSelectionMode(javax.swing.ListSelectionModel.SINGLE_SELECTION);
         jList_OverlayResources_Operations.setToolTipText("What operation to perform?");
+        jList_OverlayResources_Operations.addListSelectionListener(new javax.swing.event.ListSelectionListener() {
+            public void valueChanged(javax.swing.event.ListSelectionEvent evt) {
+                jList_OverlayResources_OperationsValueChanged(evt);
+            }
+        });
         jScrollPane2.setViewportView(jList_OverlayResources_Operations);
 
         jList_OverlayResources_Landuse.setModel(new javax.swing.AbstractListModel() {
@@ -602,6 +612,19 @@ public class OverlayResourcesDialog extends javax.swing.JDialog implements Liste
         jLabel5.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
         jLabel5.setText("Landuse");
 
+        luStrengthSpinner.setModel(new javax.swing.SpinnerNumberModel(Float.valueOf(100.0f), Float.valueOf(1.0f), Float.valueOf(100.0f), Float.valueOf(1.0f)));
+        luStrengthSpinner.setMinimumSize(new java.awt.Dimension(52, 18));
+
+        jScrollPane5.setBorder(null);
+
+        jTextPane2.setEditable(false);
+        jTextPane2.setBackground(new java.awt.Color(212, 208, 200));
+        jTextPane2.setBorder(null);
+        jTextPane2.setText("Landuse/Landcover application 'strength'");
+        jTextPane2.setToolTipText("");
+        jTextPane2.setPreferredSize(new java.awt.Dimension(263, 42));
+        jScrollPane5.setViewportView(jTextPane2);
+
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
         getContentPane().setLayout(layout);
         layout.setHorizontalGroup(
@@ -611,13 +634,19 @@ public class OverlayResourcesDialog extends javax.swing.JDialog implements Liste
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addComponent(jLabel_OverlayResources_Title, javax.swing.GroupLayout.PREFERRED_SIZE, 437, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addGroup(layout.createSequentialGroup()
-                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                             .addComponent(jTextField_OverlayResources_PNGPath, javax.swing.GroupLayout.Alignment.TRAILING)
                             .addComponent(jLabel1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                             .addComponent(jPanel2, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                             .addComponent(jPanel1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                             .addComponent(progressComponent1, javax.swing.GroupLayout.PREFERRED_SIZE, 0, Short.MAX_VALUE)
-                            .addComponent(jButton_OverlayResources_Run, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                            .addComponent(jButton_OverlayResources_Run, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                            .addGroup(layout.createSequentialGroup()
+                                .addGap(10, 10, 10)
+                                .addComponent(luStrengthSpinner, javax.swing.GroupLayout.PREFERRED_SIZE, 53, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                .addComponent(jScrollPane5, javax.swing.GroupLayout.PREFERRED_SIZE, 256, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addGap(0, 0, Short.MAX_VALUE)))
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                             .addGroup(layout.createSequentialGroup()
@@ -649,7 +678,11 @@ public class OverlayResourcesDialog extends javax.swing.JDialog implements Liste
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addGroup(layout.createSequentialGroup()
                         .addComponent(jPanel2, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 150, Short.MAX_VALUE)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                            .addComponent(luStrengthSpinner, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                            .addComponent(jScrollPane5, javax.swing.GroupLayout.PREFERRED_SIZE, 0, Short.MAX_VALUE))
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 132, Short.MAX_VALUE)
                         .addComponent(jButton_OverlayResources_Run)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                         .addComponent(progressComponent1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
@@ -671,6 +704,57 @@ public class OverlayResourcesDialog extends javax.swing.JDialog implements Liste
         selectImageFile();
     }//GEN-LAST:event_jButton_OverlayResources_SelectPNGActionPerformed
 
+    private void jList_OverlayResources_OperationsValueChanged(javax.swing.event.ListSelectionEvent evt) {//GEN-FIRST:event_jList_OverlayResources_OperationsValueChanged
+        String selectedProcess = this.jList_OverlayResources_Operations.getSelectedValue().toString();
+        switch(selectedProcess) {
+            case "Raise or Lower":
+                jSpinner_OverlayResources_NewTerrainThickness.setEnabled(false);
+                luStrengthSpinner.setEnabled(false);
+                jList_OverlayResources_Landuse.setEnabled(false);
+                jSpinner_OverlayResources_RaiseLowerTerrain.setEnabled(true);
+                jList_OverlayResources_Landuse.setModel(new javax.swing.AbstractListModel() {
+                    String[] strings = { "-- N/A --", };
+                    public int getSize() { return strings.length; }
+                    public Object getElementAt(int i) { return strings[i]; }
+                    });
+                break;
+            case "Roads":
+                jSpinner_OverlayResources_NewTerrainThickness.setEnabled(true);
+                luStrengthSpinner.setEnabled(false);
+                jList_OverlayResources_Landuse.setEnabled(true);
+                jSpinner_OverlayResources_RaiseLowerTerrain.setEnabled(true);
+                jList_OverlayResources_Landuse.setModel(new javax.swing.AbstractListModel() {
+                    String[] strings = { "Paved", "Gravel", "Primary", "Secondary", "Cobble"};
+                    public int getSize() { return strings.length; }
+                    public Object getElementAt(int i) { return strings[i]; }
+                    });
+                break;
+            case "Water":
+                jSpinner_OverlayResources_NewTerrainThickness.setEnabled(true);
+                luStrengthSpinner.setEnabled(false);
+                jList_OverlayResources_Landuse.setEnabled(false);
+                jSpinner_OverlayResources_RaiseLowerTerrain.setEnabled(true);
+                jList_OverlayResources_Landuse.setModel(new javax.swing.AbstractListModel() {
+                    String[] strings = { "-- N/A --"};
+                    public int getSize() { return strings.length; }
+                    public Object getElementAt(int i) { return strings[i]; }
+                    });
+                break;
+            case "Landuse":
+                jSpinner_OverlayResources_NewTerrainThickness.setEnabled(false);
+                luStrengthSpinner.setEnabled(true);
+                jList_OverlayResources_Landuse.setEnabled(true);
+                jSpinner_OverlayResources_RaiseLowerTerrain.setEnabled(false);
+                jList_OverlayResources_Landuse.setModel(new javax.swing.AbstractListModel() {
+                    String[] strings = { "Deciduous", "Pine", "Swamp", "Grassland", "Frozen Deciduous", "Frozen Pine", "Frozen Swamp", "Ice Plains"};
+                    public int getSize() { return strings.length; }
+                    public Object getElementAt(int i) { return strings[i]; }
+                    });
+                break;
+            default:
+        }
+    }//GEN-LAST:event_jList_OverlayResources_OperationsValueChanged
+
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.ButtonGroup buttonGroup1;
     private javax.swing.ButtonGroup buttonGroup2;
@@ -689,10 +773,13 @@ public class OverlayResourcesDialog extends javax.swing.JDialog implements Liste
     private javax.swing.JScrollPane jScrollPane1;
     private javax.swing.JScrollPane jScrollPane2;
     private javax.swing.JScrollPane jScrollPane3;
+    private javax.swing.JScrollPane jScrollPane5;
     private javax.swing.JSpinner jSpinner_OverlayResources_NewTerrainThickness;
     private javax.swing.JSpinner jSpinner_OverlayResources_RaiseLowerTerrain;
     private javax.swing.JTextField jTextField_OverlayResources_PNGPath;
     private javax.swing.JTextPane jTextPane1;
+    private javax.swing.JTextPane jTextPane2;
+    private javax.swing.JSpinner luStrengthSpinner;
     private org.pepsoft.util.swing.ProgressComponent progressComponent1;
     // End of variables declaration//GEN-END:variables
 
