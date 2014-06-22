@@ -290,7 +290,7 @@ class OverlayProcessor {
         Boolean doFrost = false;
         switch(landuse) {
                         case "Paved":
-                            luse = Terrain.BLOCK_OF_COAL ;
+                            luse = Terrain.COAL_BLOCK ;
                             break;
                         case "Gravel":
                             luse = Terrain.BROWN_WOOL;

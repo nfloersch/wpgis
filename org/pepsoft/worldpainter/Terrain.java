@@ -1095,7 +1095,8 @@ public enum Terrain {
     BROWN_WOOL("Brown Wool", Material.WOOL_BROWN, Material.WOOL_BROWN, "brown dyed wool", BIOME_HELL),
     GREEN_WOOL("Green Wool", Material.WOOL_GREEN, Material.WOOL_GREEN, "green dyed wool", BIOME_HELL),
     RED_WOOL("Red Wool", Material.WOOL_RED, Material.WOOL_RED, "red dyed wool", BIOME_HELL),
-    BLACK_WOOL("Black Wool", Material.WOOL_BLACK, Material.WOOL_BLACK, "black dyed wool", BIOME_HELL);
+    BLACK_WOOL("Black Wool", Material.WOOL_BLACK, Material.WOOL_BLACK, "black dyed wool", BIOME_HELL),
+    COAL_BLOCK("Block of Coal", Material.BLOCK_OF_COAL, Material.BLOCK_OF_COAL, "block of coal", BIOME_HELL);
 
     private Terrain(String name, String description, int defaultBiome) {
         this(name, Material.STONE, Material.STONE, AIR, description, defaultBiome);
