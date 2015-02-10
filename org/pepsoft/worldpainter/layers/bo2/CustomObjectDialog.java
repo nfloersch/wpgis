@@ -11,8 +11,7 @@
 package org.pepsoft.worldpainter.layers.bo2;
 
 import java.awt.Color;
-import java.awt.event.ActionEvent;
-import java.awt.event.KeyEvent;
+import java.awt.Window;
 import java.io.File;
 import java.io.FilenameFilter;
 import java.io.IOException;
@@ -20,30 +19,30 @@ import java.io.Serializable;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javax.swing.AbstractAction;
-import javax.swing.ActionMap;
 import javax.swing.DefaultListModel;
-import javax.swing.InputMap;
 import javax.swing.JColorChooser;
-import javax.swing.JComponent;
 import javax.swing.JFileChooser;
 import javax.swing.JOptionPane;
-import javax.swing.KeyStroke;
+import javax.swing.Timer;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import javax.swing.event.ListSelectionEvent;
 import javax.swing.event.ListSelectionListener;
 import javax.swing.filechooser.FileFilter;
+import javax.vecmath.Point3i;
+import org.pepsoft.minecraft.Constants;
 import org.pepsoft.util.DesktopUtils;
 import org.pepsoft.worldpainter.ColourScheme;
 import org.pepsoft.worldpainter.Configuration;
 import org.pepsoft.worldpainter.layers.Bo2Layer;
 import org.pepsoft.worldpainter.layers.CustomLayerDialog;
+import org.pepsoft.worldpainter.layers.LayerPreviewCreator;
 import org.pepsoft.worldpainter.objects.WPObject;
 import static org.pepsoft.worldpainter.objects.WPObject.*;
 
@@ -53,13 +52,13 @@ import static org.pepsoft.worldpainter.objects.WPObject.*;
  */
 public class CustomObjectDialog extends CustomLayerDialog<Bo2Layer> implements DocumentListener, ListSelectionListener {
     /** Creates new form CustomObjectDialog */
-    public CustomObjectDialog(java.awt.Frame parent, ColourScheme colourScheme) {
+    public CustomObjectDialog(Window parent, ColourScheme colourScheme) {
         this(parent, colourScheme, null);
     }
     
     /** Creates new form CustomObjectDialog */
-    public CustomObjectDialog(java.awt.Frame parent, ColourScheme colourScheme, Bo2Layer existingLayer) {
-        super(parent, true);
+    public CustomObjectDialog(Window parent, ColourScheme colourScheme, Bo2Layer existingLayer) {
+        super(parent);
         this.colourScheme = colourScheme;
         
         initComponents();
@@ -135,37 +134,22 @@ public class CustomObjectDialog extends CustomLayerDialog<Bo2Layer> implements D
         }
         listModel = new DefaultListModel();
         for (WPObject object: objects) {
-            listModel.addElement(object);
+            listModel.addElement(object.clone());
         }
         listObjects.setModel(listModel);
         listObjects.setCellRenderer(new WPObjectListCellRenderer());
         
-        setLocationRelativeTo(parent);
         setLabelColour();
         listObjects.getSelectionModel().addListSelectionListener(this);
         fieldName.getDocument().addDocumentListener(this);
         
-        ActionMap actionMap = rootPane.getActionMap();
-        actionMap.put("cancel", new AbstractAction("cancel") {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                dispose();
-            }
-
-            private static final long serialVersionUID = 1L;
-        });
-
-        InputMap inputMap = rootPane.getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT);
-        inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "cancel");
-
+        refreshLeafDecaySettings();
+        
         rootPane.setDefaultButton(buttonOK);
+        pack();
+        setLocationRelativeTo(parent);
         
         setControlStates();
-    }
-    
-    @Override
-    public boolean isCancelled() {
-        return cancelled;
     }
     
     @Override
@@ -195,6 +179,12 @@ public class CustomObjectDialog extends CustomLayerDialog<Bo2Layer> implements D
     @Override
     public void changedUpdate(DocumentEvent e) {
         setControlStates();
+    }
+
+    @Override
+    protected void ok() {
+        saveSettings();
+        super.ok();
     }
 
     private void pickColour() {
@@ -305,6 +295,8 @@ public class CustomObjectDialog extends CustomLayerDialog<Bo2Layer> implements D
                     }
                 }
                 setControlStates();
+                refreshLeafDecaySettings();
+                schedulePreviewUpdate();
             }
         }
     }
@@ -315,6 +307,8 @@ public class CustomObjectDialog extends CustomLayerDialog<Bo2Layer> implements D
             listModel.removeElementAt(selectedIndices[i]);
         }
         setControlStates();
+        refreshLeafDecaySettings();
+        schedulePreviewUpdate();
     }
 
     private void reloadObjects() {
@@ -377,6 +371,8 @@ public class CustomObjectDialog extends CustomLayerDialog<Bo2Layer> implements D
         } else {
             JOptionPane.showMessageDialog(this, indices.length + " objects successfully reloaded", "Success", JOptionPane.INFORMATION_MESSAGE);
         }
+        refreshLeafDecaySettings();
+        schedulePreviewUpdate();
     }
     
     private void editObjects() {
@@ -387,12 +383,10 @@ public class CustomObjectDialog extends CustomLayerDialog<Bo2Layer> implements D
         }
         EditObjectAttributes dialog = new EditObjectAttributes(this, selectedObjects, colourScheme);
         dialog.setVisible(true);
-    }
-
-    private void ok() {
-        saveSettings();
-        cancelled = false;
-        dispose();
+        if (! dialog.isCancelled()) {
+            refreshLeafDecaySettings();
+            schedulePreviewUpdate();
+        }
     }
 
     private void saveSettings() {
@@ -409,6 +403,184 @@ public class CustomObjectDialog extends CustomLayerDialog<Bo2Layer> implements D
             layer.setColour(selectedColour);
         }
     }
+
+    private void refreshLeafDecaySettings() {
+        if (listModel.isEmpty()) {
+            labelLeafDecayTitle.setEnabled(false);
+            labelEffectiveLeafDecaySetting.setEnabled(false);
+            labelEffectiveLeafDecaySetting.setText("N/A");
+            buttonSetDecay.setEnabled(false);
+            buttonSetNoDecay.setEnabled(false);
+            buttonReset.setEnabled(false);
+            return;
+        }
+        boolean decayingLeavesFound = false;
+        boolean nonDecayingLeavesFound = false;
+outer:  for (Enumeration<WPObject> e = (Enumeration<WPObject>) listModel.elements(); e.hasMoreElements(); ) {
+            WPObject object = e.nextElement();
+            int leafDecayMode = object.getAttribute(ATTRIBUTE_LEAF_DECAY_MODE, LEAF_DECAY_NO_CHANGE);
+            switch (leafDecayMode) {
+                case LEAF_DECAY_NO_CHANGE:
+                    // Leaf decay attribute not set (or set to "no change");
+                    // examine actual blocks
+                    Point3i dim = object.getDimensions();
+                    for (int x = 0; x < dim.x; x++) {
+                        for (int y = 0; y < dim.y; y++) {
+                            for (int z = 0; z < dim.z; z++) {
+                                if ((object.getMask(x, y, z))
+                                        && ((object.getMaterial(x, y, z).getBlockType() == Constants.BLK_LEAVES)
+                                            || (object.getMaterial(x, y, z).getBlockType() == Constants.BLK_LEAVES2))) {
+                                    if ((object.getMaterial(x, y, z).getData() & 0x4) == 0x4) {
+                                        // Non decaying leaf block
+                                        nonDecayingLeavesFound = true;
+                                        if (decayingLeavesFound) {
+                                            // We have enough information; no
+                                            // reason to continue the
+                                            // examination
+                                            break outer;
+                                        }
+                                    } else {
+                                        // Decaying leaf block
+                                        decayingLeavesFound = true;
+                                        if (nonDecayingLeavesFound) {
+                                            // We have enough information; no
+                                            // reason to continue the
+                                            // examination
+                                            break outer;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    break;
+                case LEAF_DECAY_OFF:
+                    // Leaf decay attribute set to "off"; don't examine blocks
+                    // for performance (even though this could lead to
+                    // misleading information if the object doesn't contain any
+                    // leaf blocks)
+                    nonDecayingLeavesFound = true;
+                    if (decayingLeavesFound) {
+                        // We have enough information; no reason to continue the
+                        // examination
+                        break outer;
+                    }
+                    break;
+                case LEAF_DECAY_ON:
+                    // Leaf decay attribute set to "off"; don't examine blocks
+                    // for performance (even though this could lead to
+                    // misleading information if the object doesn't contain any
+                    // leaf blocks)
+                    decayingLeavesFound = true;
+                    if (nonDecayingLeavesFound) {
+                        // We have enough information; no reason to continue the
+                        // examination
+                        break outer;
+                    }
+                    break;
+                default:
+                    throw new InternalError();
+            }
+        }
+
+        if (decayingLeavesFound) {
+            if (nonDecayingLeavesFound) {
+                // Both decaying and non decaying leaves found
+                labelLeafDecayTitle.setEnabled(true);
+                labelEffectiveLeafDecaySetting.setEnabled(true);
+                labelEffectiveLeafDecaySetting.setText("<html>Decaying <i>and</i> non decaying leaves.</html>");
+                buttonSetDecay.setEnabled(true);
+                buttonSetNoDecay.setEnabled(true);
+                buttonReset.setEnabled(true);
+            } else {
+                // Only decaying leaves found
+                labelLeafDecayTitle.setEnabled(true);
+                labelEffectiveLeafDecaySetting.setEnabled(true);
+                labelEffectiveLeafDecaySetting.setText("<html>Leaves <b>do</b> decay.</html>");
+                buttonSetDecay.setEnabled(false);
+                buttonSetNoDecay.setEnabled(true);
+                buttonReset.setEnabled(true);
+            }
+        } else {
+            if (nonDecayingLeavesFound) {
+                // Only non decaying leaves found
+                labelLeafDecayTitle.setEnabled(true);
+                labelEffectiveLeafDecaySetting.setEnabled(true);
+                labelEffectiveLeafDecaySetting.setText("<html>Leaves do <b>not</b> decay.</html>");
+                buttonSetDecay.setEnabled(true);
+                buttonSetNoDecay.setEnabled(false);
+                buttonReset.setEnabled(true);
+            } else {
+                // No leaf blocks encountered at all, so N/A
+                labelLeafDecayTitle.setEnabled(false);
+                labelEffectiveLeafDecaySetting.setEnabled(false);
+                labelEffectiveLeafDecaySetting.setText("N/A");
+                buttonSetDecay.setEnabled(false);
+                buttonSetNoDecay.setEnabled(false);
+                buttonReset.setEnabled(false);
+            }
+        }
+    }
+
+    private void setLeavesDecay() {
+        for (Enumeration<WPObject> e = (Enumeration<WPObject>) listModel.elements(); e.hasMoreElements(); ) {
+            WPObject object = e.nextElement();
+            object.setAttribute(ATTRIBUTE_LEAF_DECAY_MODE, LEAF_DECAY_ON);
+        }
+        refreshLeafDecaySettings();
+    }
+
+    private void setLeavesNoDecay() {
+        for (Enumeration<WPObject> e = (Enumeration<WPObject>) listModel.elements(); e.hasMoreElements(); ) {
+            WPObject object = e.nextElement();
+            object.setAttribute(ATTRIBUTE_LEAF_DECAY_MODE, LEAF_DECAY_OFF);
+        }
+        refreshLeafDecaySettings();
+    }
+
+    private void resetLeafDecay() {
+        for (Enumeration<WPObject> e = (Enumeration<WPObject>) listModel.elements(); e.hasMoreElements(); ) {
+            WPObject object = e.nextElement();
+            object.getAttributes().remove(ATTRIBUTE_LEAF_DECAY_MODE);
+        }
+        refreshLeafDecaySettings();
+    }
+    
+    private void schedulePreviewUpdate() {
+//        if (previewTimer == null) {
+//            previewTimer = new Timer(1000, new ActionListener() {
+//                @Override
+//                public void actionPerformed(ActionEvent e) {
+//                    previewTimer.stop();
+//                    previewTimer = null;
+//                    updatePreview();
+//                }
+//            });
+//            previewTimer.setRepeats(false);
+//            previewTimer.start();
+//        } else {
+//            previewTimer.restart();
+//        }
+    }
+    
+//    private void updatePreview() {
+//        if (listModel.isEmpty()) {
+//            labelPreview.setIcon(null);
+//        }
+//        List<WPObject> objects = new ArrayList<WPObject>(listModel.getSize());
+//        for (int i = 0; i < listModel.getSize(); i++) {
+//            objects.add((WPObject) listModel.getElementAt(i));
+//        }
+//        Bo2ObjectProvider objectProvider = new Bo2ObjectTube("tmp", objects);
+//        if (layerPreviewCreator == null) {
+//            tmpLayer = new Bo2Layer(objectProvider, 0);
+//            layerPreviewCreator = new LayerPreviewCreator(tmpLayer);
+//        } else {
+//            tmpLayer.setObjectProvider(objectProvider);
+//        }
+//        BufferedImage preview = layerPreviewCreator.createPreview(colourScheme, 2);
+//        labelPreview.setIcon(new ImageIcon(preview));
+//    }
     
     /** This method is called from within the constructor to
      * initialize the form.
@@ -421,13 +593,8 @@ public class CustomObjectDialog extends CustomLayerDialog<Bo2Layer> implements D
 
         jLabel1 = new javax.swing.JLabel();
         jLabel2 = new javax.swing.JLabel();
-        jLabel3 = new javax.swing.JLabel();
-        fieldName = new javax.swing.JTextField();
-        jLabel4 = new javax.swing.JLabel();
-        buttonPickColour = new javax.swing.JButton();
         buttonCancel = new javax.swing.JButton();
         buttonOK = new javax.swing.JButton();
-        jLabel5 = new javax.swing.JLabel();
         buttonAddFile = new javax.swing.JButton();
         buttonRemoveFile = new javax.swing.JButton();
         buttonReloadAll = new javax.swing.JButton();
@@ -435,6 +602,19 @@ public class CustomObjectDialog extends CustomLayerDialog<Bo2Layer> implements D
         jScrollPane1 = new javax.swing.JScrollPane();
         listObjects = new javax.swing.JList();
         jLabel6 = new javax.swing.JLabel();
+        jPanel2 = new javax.swing.JPanel();
+        jLabel3 = new javax.swing.JLabel();
+        fieldName = new javax.swing.JTextField();
+        jLabel4 = new javax.swing.JLabel();
+        jLabel5 = new javax.swing.JLabel();
+        buttonPickColour = new javax.swing.JButton();
+        jSeparator2 = new javax.swing.JSeparator();
+        jPanel3 = new javax.swing.JPanel();
+        labelLeafDecayTitle = new javax.swing.JLabel();
+        labelEffectiveLeafDecaySetting = new javax.swing.JLabel();
+        buttonSetDecay = new javax.swing.JButton();
+        buttonSetNoDecay = new javax.swing.JButton();
+        buttonReset = new javax.swing.JButton();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
         setTitle("Define Custom Object Layer");
@@ -442,19 +622,6 @@ public class CustomObjectDialog extends CustomLayerDialog<Bo2Layer> implements D
         jLabel1.setText("Define your custom object layer on this screen.");
 
         jLabel2.setText("Object(s):");
-
-        jLabel3.setText("Name:");
-
-        fieldName.setColumns(10);
-
-        jLabel4.setText("Colour:");
-
-        buttonPickColour.setText("...");
-        buttonPickColour.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                buttonPickColourActionPerformed(evt);
-            }
-        });
 
         buttonCancel.setText("Cancel");
         buttonCancel.addActionListener(new java.awt.event.ActionListener() {
@@ -470,11 +637,6 @@ public class CustomObjectDialog extends CustomLayerDialog<Bo2Layer> implements D
                 buttonOKActionPerformed(evt);
             }
         });
-
-        jLabel5.setBackground(java.awt.Color.orange);
-        jLabel5.setText("                 ");
-        jLabel5.setBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(0, 0, 0)));
-        jLabel5.setOpaque(true);
 
         buttonAddFile.setIcon(new javax.swing.ImageIcon(getClass().getResource("/org/pepsoft/worldpainter/icons/brick_add.png"))); // NOI18N
         buttonAddFile.setToolTipText("Add one or more objects");
@@ -532,6 +694,118 @@ public class CustomObjectDialog extends CustomLayerDialog<Bo2Layer> implements D
             }
         });
 
+        jLabel3.setText("Name:");
+
+        fieldName.setColumns(10);
+
+        jLabel4.setText("Colour:");
+
+        jLabel5.setBackground(java.awt.Color.orange);
+        jLabel5.setText("                 ");
+        jLabel5.setBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(0, 0, 0)));
+        jLabel5.setOpaque(true);
+
+        buttonPickColour.setText("...");
+        buttonPickColour.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                buttonPickColourActionPerformed(evt);
+            }
+        });
+
+        javax.swing.GroupLayout jPanel2Layout = new javax.swing.GroupLayout(jPanel2);
+        jPanel2.setLayout(jPanel2Layout);
+        jPanel2Layout.setHorizontalGroup(
+            jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(jPanel2Layout.createSequentialGroup()
+                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addGroup(jPanel2Layout.createSequentialGroup()
+                        .addComponent(jLabel3)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(fieldName, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addGroup(jPanel2Layout.createSequentialGroup()
+                        .addComponent(jLabel4)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(jLabel5)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(buttonPickColour)))
+                .addGap(0, 0, Short.MAX_VALUE))
+        );
+        jPanel2Layout.setVerticalGroup(
+            jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(jPanel2Layout.createSequentialGroup()
+                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(jLabel3)
+                    .addComponent(fieldName, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addGap(18, 18, Short.MAX_VALUE)
+                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(jLabel4)
+                    .addComponent(jLabel5)
+                    .addComponent(buttonPickColour)))
+        );
+
+        jSeparator2.setOrientation(javax.swing.SwingConstants.VERTICAL);
+
+        labelLeafDecayTitle.setText("Leaf decay settings for these objects:");
+
+        labelEffectiveLeafDecaySetting.setText("<html>Leaves do <b>not</b> decay.</html>");
+        labelEffectiveLeafDecaySetting.setEnabled(false);
+
+        buttonSetDecay.setText("Set all to decay");
+        buttonSetDecay.setToolTipText("Set all objects to decaying leaves");
+        buttonSetDecay.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                buttonSetDecayActionPerformed(evt);
+            }
+        });
+
+        buttonSetNoDecay.setText("<html>Set all to <b>not</b> decay</html>");
+        buttonSetNoDecay.setToolTipText("Set all objects to non decaying leaves");
+        buttonSetNoDecay.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                buttonSetNoDecayActionPerformed(evt);
+            }
+        });
+
+        buttonReset.setText("Reset");
+        buttonReset.setToolTipText("Reset leaf decay to object defaults");
+        buttonReset.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                buttonResetActionPerformed(evt);
+            }
+        });
+
+        javax.swing.GroupLayout jPanel3Layout = new javax.swing.GroupLayout(jPanel3);
+        jPanel3.setLayout(jPanel3Layout);
+        jPanel3Layout.setHorizontalGroup(
+            jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(jPanel3Layout.createSequentialGroup()
+                .addContainerGap()
+                .addComponent(labelEffectiveLeafDecaySetting, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+            .addGroup(jPanel3Layout.createSequentialGroup()
+                .addGroup(jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addComponent(labelLeafDecayTitle)
+                    .addGroup(jPanel3Layout.createSequentialGroup()
+                        .addComponent(buttonSetDecay)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(buttonSetNoDecay, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(buttonReset)))
+                .addGap(0, 0, Short.MAX_VALUE))
+        );
+        jPanel3Layout.setVerticalGroup(
+            jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(jPanel3Layout.createSequentialGroup()
+                .addComponent(labelLeafDecayTitle)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(labelEffectiveLeafDecaySetting, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addGroup(jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(buttonSetDecay)
+                    .addComponent(buttonSetNoDecay, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(buttonReset)))
+        );
+
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
         getContentPane().setLayout(layout);
         layout.setHorizontalGroup(
@@ -540,39 +814,34 @@ public class CustomObjectDialog extends CustomLayerDialog<Bo2Layer> implements D
                 .addContainerGap()
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addGroup(layout.createSequentialGroup()
-                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
-                            .addGroup(layout.createSequentialGroup()
-                                .addGap(0, 0, Short.MAX_VALUE)
-                                .addComponent(buttonOK))
-                            .addGroup(javax.swing.GroupLayout.Alignment.LEADING, layout.createSequentialGroup()
-                                .addComponent(jLabel3)
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                .addComponent(fieldName, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                .addGap(0, 0, Short.MAX_VALUE)))
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(buttonCancel))
-                    .addGroup(layout.createSequentialGroup()
-                        .addComponent(jScrollPane1)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                                .addComponent(buttonAddFile, javax.swing.GroupLayout.Alignment.TRAILING)
-                                .addComponent(buttonRemoveFile, javax.swing.GroupLayout.Alignment.TRAILING)
-                                .addComponent(buttonEdit))
-                            .addComponent(buttonReloadAll, javax.swing.GroupLayout.Alignment.TRAILING)))
-                    .addGroup(layout.createSequentialGroup()
                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                             .addComponent(jLabel2)
-                            .addGroup(layout.createSequentialGroup()
-                                .addComponent(jLabel4)
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                .addComponent(jLabel5)
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                .addComponent(buttonPickColour))
                             .addComponent(jLabel1)
                             .addComponent(jLabel6, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-                        .addGap(0, 162, Short.MAX_VALUE)))
-                .addContainerGap())
+                        .addGap(0, 0, Short.MAX_VALUE))
+                    .addGroup(layout.createSequentialGroup()
+                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addGroup(layout.createSequentialGroup()
+                                .addComponent(jPanel2, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                .addComponent(jSeparator2, javax.swing.GroupLayout.PREFERRED_SIZE, 2, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                .addComponent(jPanel3, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addGap(0, 0, Short.MAX_VALUE))
+                            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
+                                .addGap(0, 0, Short.MAX_VALUE)
+                                .addComponent(buttonOK)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                .addComponent(buttonCancel))
+                            .addGroup(layout.createSequentialGroup()
+                                .addComponent(jScrollPane1)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                                    .addComponent(buttonAddFile, javax.swing.GroupLayout.Alignment.TRAILING)
+                                    .addComponent(buttonRemoveFile, javax.swing.GroupLayout.Alignment.TRAILING)
+                                    .addComponent(buttonEdit, javax.swing.GroupLayout.Alignment.TRAILING)
+                                    .addComponent(buttonReloadAll, javax.swing.GroupLayout.Alignment.TRAILING))))
+                        .addContainerGap())))
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -586,17 +855,6 @@ public class CustomObjectDialog extends CustomLayerDialog<Bo2Layer> implements D
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addGroup(layout.createSequentialGroup()
-                        .addComponent(jScrollPane1)
-                        .addGap(18, 18, 18)
-                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                            .addComponent(jLabel3)
-                            .addComponent(fieldName, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-                        .addGap(18, 18, 18)
-                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                            .addComponent(jLabel4)
-                            .addComponent(jLabel5)
-                            .addComponent(buttonPickColour)))
-                    .addGroup(layout.createSequentialGroup()
                         .addComponent(buttonAddFile)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                         .addComponent(buttonRemoveFile)
@@ -604,7 +862,14 @@ public class CustomObjectDialog extends CustomLayerDialog<Bo2Layer> implements D
                         .addComponent(buttonEdit)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                         .addComponent(buttonReloadAll)
-                        .addGap(0, 0, Short.MAX_VALUE)))
+                        .addGap(0, 0, Short.MAX_VALUE))
+                    .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 125, Short.MAX_VALUE))
+                .addGap(18, 18, 18)
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                    .addComponent(jSeparator2)
+                    .addComponent(jPanel2, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(jPanel3, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                .addGap(19, 19, 19)
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(buttonCancel)
                     .addComponent(buttonOK))
@@ -648,6 +913,9 @@ public class CustomObjectDialog extends CustomLayerDialog<Bo2Layer> implements D
                 WPObject object = (WPObject) listModel.getElementAt(row);
                 EditObjectAttributes dialog = new EditObjectAttributes(this, object, colourScheme);
                 dialog.setVisible(true);
+                if (! dialog.isCancelled()) {
+                    refreshLeafDecaySettings();
+                }
             }
         }
     }//GEN-LAST:event_listObjectsMouseClicked
@@ -660,6 +928,18 @@ public class CustomObjectDialog extends CustomLayerDialog<Bo2Layer> implements D
         }
     }//GEN-LAST:event_jLabel6MouseClicked
 
+    private void buttonSetDecayActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_buttonSetDecayActionPerformed
+        setLeavesDecay();
+    }//GEN-LAST:event_buttonSetDecayActionPerformed
+
+    private void buttonSetNoDecayActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_buttonSetNoDecayActionPerformed
+        setLeavesNoDecay();
+    }//GEN-LAST:event_buttonSetNoDecayActionPerformed
+
+    private void buttonResetActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_buttonResetActionPerformed
+        resetLeafDecay();
+    }//GEN-LAST:event_buttonResetActionPerformed
+
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JButton buttonAddFile;
     private javax.swing.JButton buttonCancel;
@@ -668,6 +948,9 @@ public class CustomObjectDialog extends CustomLayerDialog<Bo2Layer> implements D
     private javax.swing.JButton buttonPickColour;
     private javax.swing.JButton buttonReloadAll;
     private javax.swing.JButton buttonRemoveFile;
+    private javax.swing.JButton buttonReset;
+    private javax.swing.JButton buttonSetDecay;
+    private javax.swing.JButton buttonSetNoDecay;
     private javax.swing.JTextField fieldName;
     private javax.swing.JLabel jLabel1;
     private javax.swing.JLabel jLabel2;
@@ -675,15 +958,21 @@ public class CustomObjectDialog extends CustomLayerDialog<Bo2Layer> implements D
     private javax.swing.JLabel jLabel4;
     private javax.swing.JLabel jLabel5;
     private javax.swing.JLabel jLabel6;
+    private javax.swing.JPanel jPanel2;
+    private javax.swing.JPanel jPanel3;
     private javax.swing.JScrollPane jScrollPane1;
+    private javax.swing.JSeparator jSeparator2;
+    private javax.swing.JLabel labelEffectiveLeafDecaySetting;
+    private javax.swing.JLabel labelLeafDecayTitle;
     private javax.swing.JList listObjects;
     // End of variables declaration//GEN-END:variables
 
     private final ColourScheme colourScheme;
     private final DefaultListModel listModel;
     private int selectedColour = Color.ORANGE.getRGB();
-    private boolean cancelled = true;
-    private Bo2Layer layer;
+    private Bo2Layer layer, tmpLayer;
+    private Timer previewTimer;
+    private LayerPreviewCreator layerPreviewCreator;
     
     private static final Logger logger = Logger.getLogger(CustomObjectDialog.class.getName());
     private static final long serialVersionUID = 1L;

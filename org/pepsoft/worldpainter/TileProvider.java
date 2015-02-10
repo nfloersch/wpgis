@@ -5,10 +5,14 @@
 
 package org.pepsoft.worldpainter;
 
+import java.awt.Rectangle;
+
 /**
  *
  * @author pepijn
  */
 public interface TileProvider {
+    Rectangle getExtent();
+    boolean isTilePresent(int x, int y);
     Tile getTile(int x, int y);
 }

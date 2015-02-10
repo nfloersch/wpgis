@@ -131,6 +131,10 @@ public final class Box implements Cloneable {
             z2 = box.z2;
         }
     }
+    
+    public boolean contains(int x, int y, int z) {
+        return (x >= x1) && (x < x2) && (y >= y1) && (y < y2) && (z >= z1) && (z < z2);
+    }
 
     @Override
     public String toString() {

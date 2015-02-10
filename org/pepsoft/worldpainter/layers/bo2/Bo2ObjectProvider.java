@@ -16,4 +16,5 @@ public interface Bo2ObjectProvider extends Serializable {
     String getName();
     WPObject getObject();
     List<WPObject> getAllObjects();
+    void setSeed(long seed);
 }

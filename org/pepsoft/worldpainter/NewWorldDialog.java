@@ -12,14 +12,13 @@
 package org.pepsoft.worldpainter;
 
 import java.awt.Point;
+import java.awt.Rectangle;
 import java.awt.Window;
 import org.pepsoft.worldpainter.layers.Caverns;
 import org.pepsoft.worldpainter.layers.exporters.CavernsExporter.CavernsSettings;
 import javax.swing.KeyStroke;
 import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
-import java.awt.event.WindowEvent;
-import java.awt.event.WindowListener;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -27,32 +26,40 @@ import java.util.Random;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Logger;
 import javax.swing.*;
 import javax.swing.JSpinner.DefaultEditor;
 import org.pepsoft.util.ProgressReceiver;
 import org.pepsoft.worldpainter.layers.Layer;
 import org.pepsoft.worldpainter.layers.exporters.ExporterSettings;
-import org.pepsoft.worldpainter.terrainRanges.TerrainListCellRenderer;
+import org.pepsoft.worldpainter.themes.TerrainListCellRenderer;
 import static org.pepsoft.worldpainter.Terrain.*;
 import static org.pepsoft.worldpainter.Constants.*;
 import static org.pepsoft.minecraft.Constants.*;
+import org.pepsoft.minecraft.Material;
 import org.pepsoft.util.MathUtils;
 import org.pepsoft.worldpainter.Dimension.Border;
+import org.pepsoft.worldpainter.biomeschemes.AutoBiomeScheme;
+import org.pepsoft.worldpainter.biomeschemes.Minecraft1_2BiomeScheme;
 import org.pepsoft.worldpainter.layers.Biome;
+import org.pepsoft.worldpainter.themes.SimpleTheme;
 
 /**
  *
  * @author pepijn
  */
-public class NewWorldDialog extends javax.swing.JDialog implements WindowListener {
+public class NewWorldDialog extends javax.swing.JDialog {
     /** Creates new form NewWorldDialog */
     public NewWorldDialog(App app, String name, long seed, int dim, int defaultMaxHeight) {
-        this(app, name, seed, Configuration.getInstance().isDefaultAutomaticBiomesEnabled(), dim, defaultMaxHeight, null);
+        this(app, name, seed, dim, defaultMaxHeight, null);
     }
     
     /** Creates new form NewWorldDialog */
-    public NewWorldDialog(App app, String name, long seed, boolean automaticBiomes, int dim, int defaultMaxHeight, Set<Point> tiles) {
+    public NewWorldDialog(App app, String name, long seed, int dim, int defaultMaxHeight, Set<Point> tiles) {
         super(app, true);
         this.app = app;
         this.dim = dim;
@@ -60,9 +67,9 @@ public class NewWorldDialog extends javax.swing.JDialog implements WindowListene
         
         initComponents();
 
-        Object[] materials = new Object[] {GRASS, BARE_GRASS, DIRT, CLAY, SAND, DESERT, SANDSTONE, STONE, RESOURCES, ROCK, COBBLESTONE, OBSIDIAN, BEDROCK, SNOW, DEEP_SNOW, NETHERRACK, SOUL_SAND, NETHERLIKE, END_STONE};
+        Object[] materials = new Object[] {GRASS, BARE_GRASS, DIRT, CLAY, SAND, DESERT, SANDSTONE, STONE, ROCK, COBBLESTONE, OBSIDIAN, BEDROCK, DEEP_SNOW, NETHERRACK, SOUL_SAND, NETHERLIKE, END_STONE};
         comboBoxSurfaceMaterial.setModel(new DefaultComboBoxModel(materials));
-        comboBoxSurfaceMaterial.setRenderer(new TerrainListCellRenderer());
+        comboBoxSurfaceMaterial.setRenderer(new TerrainListCellRenderer(app.getColourScheme()));
 
         comboBoxMaxHeight.setSelectedItem(Integer.toString(defaultMaxHeight));
         
@@ -99,8 +106,6 @@ public class NewWorldDialog extends javax.swing.JDialog implements WindowListene
             checkBoxLava.setSelected(true);
             checkBoxBeaches.setSelected(false);
             comboBoxMaxHeight.setEnabled(false);
-            checkBoxAutomaticBiomes.setEnabled(false);
-            checkBoxCustomBiomes.setEnabled(false);
         } else if (dim == DIM_END) {
             setTitle("Add End");
             fieldName.setEnabled(false);
@@ -109,17 +114,6 @@ public class NewWorldDialog extends javax.swing.JDialog implements WindowListene
             spinnerWaterLevel.setValue(0);
             checkBoxBeaches.setSelected(false);
             comboBoxMaxHeight.setEnabled(false);
-            checkBoxAutomaticBiomes.setEnabled(false);
-            checkBoxCustomBiomes.setEnabled(false);
-        } else {
-            if (defaultMaxHeight == DEFAULT_MAX_HEIGHT_2) {
-                checkBoxCustomBiomes.setSelected(config.isDefaultCustomBiomesEnabled());
-                checkBoxAutomaticBiomes.setSelected(automaticBiomes);
-            } else {
-                checkBoxCustomBiomes.setEnabled(false);
-                checkBoxAutomaticBiomes.setSelected(false);
-                checkBoxAutomaticBiomes.setEnabled(false);
-            }
         }
         
         if (tiles != null) {
@@ -180,8 +174,6 @@ public class NewWorldDialog extends javax.swing.JDialog implements WindowListene
         InputMap inputMap = rootPane.getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT);
         inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "cancel");
 
-        addWindowListener(this);
-        
         rootPane.setDefaultButton(buttonCreate);
         
         updatePreview();
@@ -218,38 +210,53 @@ public class NewWorldDialog extends javax.swing.JDialog implements WindowListene
 //        availableMemory -= 250000000L;
         // Convert to KB
         availableMemory /= 1024;
-        // Guestimate data and image size
-        long tileCount, tileCountForImage;
+        // Guestimate data size
+        long tileCount;
         if (checkBoxCircular.isSelected()) {
             int r = ((Integer) spinnerWidth.getValue()) / TILE_SIZE;
             tileCount = (int) (Math.PI * r * r);
-            tileCountForImage = (long) (((Integer) spinnerWidth.getValue()) / TILE_SIZE) * (((Integer) spinnerLength.getValue()) / TILE_SIZE);
         } else {
             tileCount = (tiles != null) ? tiles.size() : (long) (((Integer) spinnerWidth.getValue()) / TILE_SIZE) * (((Integer) spinnerLength.getValue()) / TILE_SIZE);
-            tileCountForImage = (long) (((Integer) spinnerWidth.getValue()) / TILE_SIZE) * (((Integer) spinnerLength.getValue()) / TILE_SIZE);
         }
         long totalEstimatedDataSize = tileCount * ESTIMATED_TILE_DATA_SIZE;
-        long totalEstimatedImageSize = tileCountForImage * ESTIMATED_TILE_IMAGE_SIZE;
-        long totalEstimatedSize = totalEstimatedDataSize + totalEstimatedImageSize;
-        if (totalEstimatedSize > availableMemory) {
-            if (JOptionPane.showConfirmDialog(parent, "There may not be enough memory to create a world of that size!\nIt may fail to be created, or cause errors later on.\nPlease consider creating a smaller world, or installing more memory.\nDo you want to continue?", "World Too Large", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE) == JOptionPane.YES_OPTION) {
-                return true;
-            } else {
-                return false;
-            }
+        if (totalEstimatedDataSize > availableMemory) {
+            return JOptionPane.showConfirmDialog(parent, "There may not be enough memory to create a world of that size!\nIt may fail to be created, or cause errors later on.\nPlease consider creating a smaller world, or installing more memory.\nDo you want to continue?", "Large World", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE) == JOptionPane.YES_OPTION;
         }
         return true;
     }
     
     public World2 getSelectedWorld(ProgressReceiver progressReceiver) throws ProgressReceiver.OperationCancelled {
-        String name = fieldName.getText().trim();
-        Dimension dimension = getSelectedDimension(progressReceiver);
-        World2 world = new World2(dimension.getMaxHeight());
+        final String name = fieldName.getText().trim();
+        final Dimension dimension = getSelectedDimension(progressReceiver);
+        if (dimension == null) {
+            // Operation cancelled by user
+            return null;
+        }
+        final World2 world = new World2(dimension.getMaxHeight());
+        final boolean minecraft11Only = dimension.getMaxHeight() != DEFAULT_MAX_HEIGHT_2;
         world.setName(name);
+
+        // Export settings
+        final Configuration config = Configuration.getInstance();
+        world.setCreateGoodiesChest(config.isDefaultCreateGoodiesChest());
+        Generator generator = config.getDefaultGenerator();
+        if (minecraft11Only && (generator == Generator.LARGE_BIOMES)) {
+            generator = Generator.DEFAULT;
+        } else if ((! minecraft11Only) && ((dimension.getMinecraftSeed() == World2.DEFAULT_OCEAN_SEED) || (dimension.getMinecraftSeed() == World2.DEFAULT_LAND_SEED)) && (generator == Generator.DEFAULT)) {
+            generator = Generator.LARGE_BIOMES;
+        }
+        world.setGenerator(generator);
+        if (generator == Generator.FLAT) {
+            world.setGeneratorOptions(config.getDefaultGeneratorOptions());
+        }
+        world.setMapFeatures(config.isDefaultMapFeatures());
+        world.setGameType(config.getDefaultGameType());
+        world.setAllowCheats(config.isDefaultAllowCheats());
+
         world.addDimension(dimension);
-        world.setBiomeAlgorithm(checkBoxAutomaticBiomes.isSelected() ? World2.BIOME_ALGORITHM_AUTO_BIOMES : World2.BIOME_ALGORITHM_NONE);
-        world.setCustomBiomes(checkBoxCustomBiomes.isSelected());
-        world.setExtendedBlockIds(checkBoxExtendedBlockIds.isSelected());
+        if (! minecraft11Only) {
+            world.setExtendedBlockIds(checkBoxExtendedBlockIds.isSelected());
+        }
         if (tiles != null) {
             int lowestX = Integer.MAX_VALUE, highestX = Integer.MIN_VALUE;
             int lowestY = Integer.MAX_VALUE, highestY = Integer.MIN_VALUE;
@@ -267,8 +274,8 @@ public class NewWorldDialog extends javax.swing.JDialog implements WindowListene
                     highestY = tileCoords.y;
                 }
             }
-            int middleX = Math.round((lowestX + highestX) / 2f);
-            int middleY = Math.round((lowestY + highestY) / 2f);
+            final int middleX = Math.round((lowestX + highestX) / 2f);
+            final int middleY = Math.round((lowestY + highestY) / 2f);
             Point mostCenteredTileCoords = null;
             float mostCenteredTileDistance = Float.MAX_VALUE;
             for (Point tileCoords: tiles) {
@@ -278,13 +285,24 @@ public class NewWorldDialog extends javax.swing.JDialog implements WindowListene
                     mostCenteredTileDistance = distance;
                 }
             }
-            world.setSpawnPoint(new Point(mostCenteredTileCoords.x * TILE_SIZE + TILE_SIZE / 2, mostCenteredTileCoords.y * TILE_SIZE + TILE_SIZE / 2));
+            if (mostCenteredTileCoords != null) {
+                world.setSpawnPoint(new Point(mostCenteredTileCoords.x * TILE_SIZE + TILE_SIZE / 2, mostCenteredTileCoords.y * TILE_SIZE + TILE_SIZE / 2));
+                if (dimension.getDim() == DIM_NORMAL) {
+                    dimension.setLastViewPosition(world.getSpawnPoint());
+                }
+            }
         }
+
+        if ("true".equals(System.getProperty("org.pepsoft.worldpainter.fancyworlds"))) {
+            world.setMixedMaterial(0, new MixedMaterial("Dirt/Gravel", new MixedMaterial.Row[] {new MixedMaterial.Row(Material.DIRT, 750, 1.0f), new MixedMaterial.Row(Material.GRAVEL, 250, 1.0f)}, Minecraft1_2BiomeScheme.BIOME_PLAINS, null, 1.0f));
+            world.setMixedMaterial(1, new MixedMaterial("Stone/Gravel", new MixedMaterial.Row[] {new MixedMaterial.Row(Material.STONE, 750, 1.0f), new MixedMaterial.Row(Material.GRAVEL, 250, 1.0f)}, Minecraft1_2BiomeScheme.BIOME_PLAINS, null, 1.0f));
+        }
+        
         world.setDirty(false);
         return world;
     }
     
-    public Dimension getSelectedDimension(ProgressReceiver progressReceiver) throws ProgressReceiver.OperationCancelled {
+    public Dimension getSelectedDimension(final ProgressReceiver progressReceiver) throws ProgressReceiver.OperationCancelled {
         long minecraftSeed;
         try {
             minecraftSeed = Long.parseLong(fieldSeed.getText());
@@ -296,29 +314,48 @@ public class NewWorldDialog extends javax.swing.JDialog implements WindowListene
         }
         int waterHeight = (Integer) spinnerWaterLevel.getValue();
 
-        TileFactory tileFactory = createTileFactory();
+        final TileFactory tileFactory = createTileFactory(worldpainterSeed);
         
         int maxHeight = Integer.parseInt((String) comboBoxMaxHeight.getSelectedItem());
-        Dimension dimension = new Dimension(minecraftSeed, worldpainterSeed, tileFactory, dim, maxHeight);
+        final Dimension dimension = new Dimension(minecraftSeed, tileFactory, dim, maxHeight);
         dimension.setEventsInhibited(true);
         try {
+            ExecutorService executorService = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
+            final AtomicBoolean cancelled = new AtomicBoolean();
             if (tiles != null) {
                 logger.info("Creating new dimension with " + tiles.size() + " preselected tiles");
-                int totalTiles = tiles.size(), tileCount = 0;
-                for (Point tileCoords: tiles) {
-                    Tile tile = tileFactory.createTile(worldpainterSeed, tileCoords.x, tileCoords.y);
-                    dimension.addTile(tile);
-                    tileCount++;
-                    if (progressReceiver != null) {
-                        progressReceiver.setProgress((float) tileCount / totalTiles);
-                    }
+                final int[] tileCount = new int[1];
+                final int totalTiles = tiles.size();
+                for (final Point tileCoords: tiles) {
+                    executorService.execute(new Runnable() {
+                        @Override
+                        public void run() {
+                            if (cancelled.get()) {
+                                // Operation cancelled by user
+                                return;
+                            }
+                            Tile tile = tileFactory.createTile(tileCoords.x, tileCoords.y);
+                            dimension.addTile(tile);
+                            if (progressReceiver != null) {
+                                synchronized (tileCount) {
+                                    tileCount[0]++;
+                                    try {
+                                        progressReceiver.setProgress((float) tileCount[0] / totalTiles);
+                                    } catch (ProgressReceiver.OperationCancelled e) {
+                                        cancelled.set(true);
+                                    }
+                                }
+                            }
+                        }
+                    });
                 }
             } else if (checkBoxCircular.isSelected()) {
-                int radius = (Integer) spinnerWidth.getValue() / 2;
+                final int radius = (Integer) spinnerWidth.getValue() / 2;
                 int diameter = radius * 2;
                 logger.info("Creating new circular dimension with diameter " + diameter + " blocks");
                 int tileRadius = (radius + 127) / 128;
-                int totalPotentialTiles = tileRadius * tileRadius * 4, tileCount = 0;
+                final int[] tileCount = new int[1];
+                final int approximateTotalTiles = (int) Math.ceil(Math.PI * tileRadius * tileRadius);
                 for (int x = -tileRadius; x < tileRadius; x++) {
                     for (int y = -tileRadius; y < tileRadius; y++) {
                         if (org.pepsoft.worldpainter.util.MathUtils.getSmallestDistanceFromOrigin(x, y) < radius) {
@@ -328,25 +365,42 @@ public class NewWorldDialog extends javax.swing.JDialog implements WindowListene
                             // is always at a tile intersection so the circle
                             // can never "bulge" into a tile without any of the
                             // the tile's corners being inside the circle
-                            Tile tile = tileFactory.createTile(worldpainterSeed, x, y);
-                            dimension.addTile(tile);
-                            if (org.pepsoft.worldpainter.util.MathUtils.getLargestDistanceFromOrigin(x, y) >= radius) {
-                                // The tile is not completely inside the circle,
-                                // so use the Void layer to create the shape of
-                                // the edge
-                                for (int xx = 0; xx < TILE_SIZE; xx++) {
-                                    for (int yy = 0; yy < TILE_SIZE; yy++) {
-                                        float distance = MathUtils.getDistance(x * TILE_SIZE + xx + 0.5f, y * TILE_SIZE + yy + 0.5f);
-                                        if (distance > radius) {
-                                            tile.setBitLayerValue(org.pepsoft.worldpainter.layers.Void.INSTANCE, xx, yy, true);
+                            final int tileX = x, tileY = y;
+                            executorService.execute(new Runnable() {
+                                @Override
+                                public void run() {
+                                    if (cancelled.get()) {
+                                        // Operation cancelled by user
+                                        return;
+                                    }
+                                    Tile tile = tileFactory.createTile(tileX, tileY);
+                                    dimension.addTile(tile);
+                                    if (org.pepsoft.worldpainter.util.MathUtils.getLargestDistanceFromOrigin(tileX, tileY) >= radius) {
+                                        // The tile is not completely inside the circle,
+                                        // so use the Void layer to create the shape of
+                                        // the edge
+                                        for (int xx = 0; xx < TILE_SIZE; xx++) {
+                                            for (int yy = 0; yy < TILE_SIZE; yy++) {
+                                                float distance = MathUtils.getDistance(tileX * TILE_SIZE + xx + 0.5f, tileY * TILE_SIZE + yy + 0.5f);
+                                                if (distance > radius) {
+                                                    tile.setBitLayerValue(org.pepsoft.worldpainter.layers.Void.INSTANCE, xx, yy, true);
+                                                }
+                                            }
+                                        }
+                                    }
+                                    if (progressReceiver != null) {
+                                        synchronized (tileCount) {
+                                            tileCount[0]++;
+                                            try {
+                                                System.out.println("Progress: " + tileCount[0] + " of " + approximateTotalTiles + " (" + ((float) tileCount[0] / approximateTotalTiles) + ")");
+                                                progressReceiver.setProgress((float) tileCount[0] / approximateTotalTiles);
+                                            } catch (ProgressReceiver.OperationCancelled e) {
+                                                cancelled.set(true);
+                                            }
                                         }
                                     }
                                 }
-                            }
-                        }
-                        tileCount++;
-                        if (progressReceiver != null) {
-                            progressReceiver.setProgress((float) tileCount / totalPotentialTiles);
+                            });
                         }
                     }
                 }
@@ -359,19 +413,49 @@ public class NewWorldDialog extends javax.swing.JDialog implements WindowListene
                 int width = ((Integer) spinnerWidth.getValue()) / 128;
                 int height = ((Integer) spinnerLength.getValue()) / 128;
                 logger.info("Creating new dimension of size " + width + "x" + height + " for a total of " + width * height + " tiles");
-                int totalTiles = width * height, tileCount = 0;
+                final int[] tileCount = new int[1];
+                final int totalTiles = width * height;
                 int startX = -width / 2;
                 int startY = -height / 2;
                 for (int x = startX; x < startX + width; x++) {
                     for (int y = startY; y < startY + height; y++) {
-                        Tile tile = tileFactory.createTile(worldpainterSeed, x, y);
-                        dimension.addTile(tile);
-                        tileCount++;
-                        if (progressReceiver != null) {
-                            progressReceiver.setProgress((float) tileCount / totalTiles);
-                        }
+                        final int tileX = x, tileY = y;
+                        executorService.execute(new Runnable() {
+                            @Override
+                            public void run() {
+                                if (cancelled.get()) {
+                                    // Operation cancelled by user
+                                    return;
+                                }
+                                Tile tile = tileFactory.createTile(tileX, tileY);
+                                dimension.addTile(tile);
+                                if (progressReceiver != null) {
+                                    synchronized (tileCount) {
+                                        tileCount[0]++;
+                                        try {
+                                            progressReceiver.setProgress((float) tileCount[0] / totalTiles);
+                                        } catch (ProgressReceiver.OperationCancelled e) {
+                                            cancelled.set(true);
+                                        }
+                                    }
+                                }
+                            }
+                        });
                     }
                 }
+            }
+            
+            // Wait for all tiles to be created
+            executorService.shutdown();
+            try {
+                executorService.awaitTermination(1, TimeUnit.DAYS);
+            } catch (InterruptedException e) {
+                throw new RuntimeException("Thread interrupted", e);
+            }
+            
+            if (cancelled.get()) {
+                // The operation was cancelled by the user
+                return null;
             }
             
             if (dim == DIM_NETHER) {
@@ -397,6 +481,9 @@ public class NewWorldDialog extends javax.swing.JDialog implements WindowListene
                 dimension.setBedrockWall(defaults.isBedrockWall());
                 dimension.setSubsurfaceMaterial(defaults.getSubsurfaceMaterial());
                 dimension.setPopulate(defaults.isPopulate());
+                dimension.setTopLayerMinDepth(defaults.getTopLayerMinDepth());
+                dimension.setTopLayerVariation(defaults.getTopLayerVariation());
+                dimension.setBottomless(defaults.isBottomless());
                 for (Map.Entry<Layer, ExporterSettings> entry: defaults.getAllLayerSettings().entrySet()) {
                     dimension.setLayerSettings(entry.getKey(), entry.getValue().clone());
                 }
@@ -415,20 +502,6 @@ public class NewWorldDialog extends javax.swing.JDialog implements WindowListene
         return dimension;
     }
 
-    // WindowListener
-
-    @Override
-    public void windowClosed(WindowEvent e) {
-        tiledImageViewer1.setTileProvider(null);
-    }
-    
-    @Override public void windowOpened(WindowEvent e) {}
-    @Override public void windowClosing(WindowEvent e) {}
-    @Override public void windowIconified(WindowEvent e) {}
-    @Override public void windowDeiconified(WindowEvent e) {}
-    @Override public void windowActivated(WindowEvent e) {}
-    @Override public void windowDeactivated(WindowEvent e) {}
-
     private void create() {
         cancelled = false;
         dispose();
@@ -440,22 +513,21 @@ public class NewWorldDialog extends javax.swing.JDialog implements WindowListene
     
     private void setControlStates() {
         boolean surfaceDimension = dim == DIM_NORMAL;
-        boolean customBiomesPossible = surfaceDimension && (Integer.parseInt((String) comboBoxMaxHeight.getSelectedItem()) == DEFAULT_MAX_HEIGHT_2);
-        checkBoxCustomBiomes.setEnabled(customBiomesPossible);
-        checkBoxAutomaticBiomes.setEnabled(customBiomesPossible);
+        boolean minecraft11Only = Integer.parseInt((String) comboBoxMaxHeight.getSelectedItem()) != DEFAULT_MAX_HEIGHT_2;
+        checkBoxExtendedBlockIds.setEnabled(! minecraft11Only);
         boolean hilly = radioButtonHilly.isSelected();
         spinnerRange.setEnabled(hilly);
         spinnerScale.setEnabled(hilly);
         spinnerLength.setEnabled((tiles == null) && (! checkBoxCircular.isSelected()));
-        radioButtonOceanSeed.setEnabled(surfaceDimension);
-        radioButtonLandSeed.setEnabled(surfaceDimension);
-        radioButtonCustomSeed.setEnabled(surfaceDimension);
-        buttonRandomSeed.setEnabled(surfaceDimension);
-        fieldSeed.setEnabled(surfaceDimension && radioButtonCustomSeed.isSelected());
+        boolean seedLocked = tiles != null;
+        radioButtonOceanSeed.setEnabled(surfaceDimension && (! seedLocked));
+        radioButtonLandSeed.setEnabled(surfaceDimension && (! seedLocked));
+        radioButtonCustomSeed.setEnabled(surfaceDimension && (! seedLocked));
+        buttonRandomSeed.setEnabled(surfaceDimension && radioButtonCustomSeed.isSelected() && (! seedLocked));
+        fieldSeed.setEnabled(surfaceDimension && radioButtonCustomSeed.isSelected() && (! seedLocked));
     }
 
     private void updatePreview() {
-        final TileFactory tileFactory = createTileFactory();
         long tmpSeed;
         if (radioButtonCustomSeed.isSelected()) {
             try {
@@ -466,15 +538,25 @@ public class NewWorldDialog extends javax.swing.JDialog implements WindowListene
         } else {
             tmpSeed = worldpainterSeed;
         }
-        final long seed = tmpSeed;
+        final TileFactory tileFactory = createTileFactory(tmpSeed);
         TileProvider tileProvider = new TileProvider() {
+            @Override
+            public Rectangle getExtent() {
+                return null; // Tile factories are endless
+            }
+            
+            @Override
+            public boolean isTilePresent(int x, int y) {
+                return true; // Tile factories are endless and have no holes
+            }
+            
             @Override
             public Tile getTile(int x, int y) {
                 Point coords = new Point(x, y);
                 synchronized (cache) {
                     Tile tile = cache.get(coords);
                     if (tile == null) {
-                        tile = tileFactory.createTile(seed, x, y);
+                        tile = tileFactory.createTile(x, y);
                         cache.put(coords, tile);
                     }
                     return tile;
@@ -484,10 +566,10 @@ public class NewWorldDialog extends javax.swing.JDialog implements WindowListene
             private final Map<Point, Tile> cache = new HashMap<Point, Tile>();
         };
         Configuration config = Configuration.getInstance();
-        tiledImageViewer1.setTileProvider(new WPTileProvider(tileProvider, app.getColourScheme(config.getColourschemeIndex()), null, Collections.singleton((Layer) Biome.INSTANCE), config.isDefaultContoursEnabled(), config.getDefaultLightOrigin()));
+        tiledImageViewer1.setTileProvider(new WPTileProvider(tileProvider, app.getColourScheme(config.getColourschemeIndex()), autoBiomeScheme, app.getCustomBiomeManager(), Collections.singleton((Layer) Biome.INSTANCE), config.isDefaultContoursEnabled(), config.getDefaultContourSeparation(), config.getDefaultLightOrigin(), false, null));
     }
     
-    private TileFactory createTileFactory() {
+    private TileFactory createTileFactory(long seed) {
         Terrain terrain = (Terrain) comboBoxSurfaceMaterial.getSelectedItem();
         int baseHeight = (Integer) spinnerTerrainLevel.getValue();
         int waterHeight = (Integer) spinnerWaterLevel.getValue();
@@ -495,29 +577,39 @@ public class NewWorldDialog extends javax.swing.JDialog implements WindowListene
         double scale = ((Integer) spinnerScale.getValue()) / 100.0;
         boolean floodWithLava = checkBoxLava.isSelected();
         boolean beaches = checkBoxBeaches.isSelected();
+        int maxHeight = Integer.parseInt((String) comboBoxMaxHeight.getSelectedItem());
         
         HeightMapTileFactory tileFactory;
-        int maxHeight = Integer.parseInt((String) comboBoxMaxHeight.getSelectedItem());
-//        HeightMapTileFactory tileFactory = new ExperimentalTileFactory(maxHeight);
-        if (radioButtonHilly.isSelected()) {
-            tileFactory = TileFactoryFactory.createNoiseTileFactory(terrain, maxHeight, baseHeight, waterHeight, floodWithLava, beaches, range, scale);
+        if ("true".equals(System.getProperty("org.pepsoft.worldpainter.fancyworlds"))) {
+            tileFactory = TileFactoryFactory.createFancyTileFactory(seed, terrain, maxHeight, baseHeight, waterHeight, floodWithLava, range, scale);
         } else {
-            tileFactory = TileFactoryFactory.createFlatTileFactory(terrain, maxHeight, baseHeight, waterHeight, floodWithLava, beaches);
-        }
-        Configuration config = Configuration.getInstance();
-        Dimension defaults = config.getDefaultTerrainAndLayerSettings();
-        if ((dim == DIM_NORMAL) && (defaults.getTileFactory() instanceof HeightMapTileFactory) && (((HeightMapTileFactory) defaults.getTileFactory()).getTerrainRanges() != null)) {
-            HeightMapTileFactory defaultTileFactory = (HeightMapTileFactory) defaults.getTileFactory();
-            SortedMap<Integer, Terrain> terrainRanges = new TreeMap<Integer, Terrain>(defaultTileFactory.getTerrainRanges());
-            int surfaceLevel = terrainRanges.headMap(waterHeight + 3).lastKey();
-            terrainRanges.put(surfaceLevel, terrain);
-            tileFactory.setTerrainRanges(terrainRanges);
-            tileFactory.setRandomise(defaultTileFactory.isRandomise());
-        } else if (dim != DIM_NORMAL) {
-            // Override the default terrain map:
-            SortedMap<Integer, Terrain> terrainMap = new TreeMap<Integer, Terrain>();
-            terrainMap.put(-1, terrain);
-            tileFactory.setTerrainRanges(terrainMap);
+    //        HeightMapTileFactory tileFactory = new ExperimentalTileFactory(maxHeight);
+            if (radioButtonHilly.isSelected()) {
+                tileFactory = TileFactoryFactory.createNoiseTileFactory(seed, terrain, maxHeight, baseHeight, waterHeight, floodWithLava, beaches, range, scale);
+            } else {
+                tileFactory = TileFactoryFactory.createFlatTileFactory(seed, terrain, maxHeight, baseHeight, waterHeight, floodWithLava, beaches);
+            }
+            Configuration config = Configuration.getInstance();
+            Dimension defaults = config.getDefaultTerrainAndLayerSettings();
+            if ((dim == DIM_NORMAL)
+                    && (defaults.getTileFactory() instanceof HeightMapTileFactory)
+                    && (((HeightMapTileFactory) defaults.getTileFactory()).getTheme() instanceof SimpleTheme)
+                    && (((SimpleTheme) ((HeightMapTileFactory) defaults.getTileFactory()).getTheme()).getTerrainRanges() != null)) {
+                HeightMapTileFactory defaultTileFactory = (HeightMapTileFactory) defaults.getTileFactory();
+                SimpleTheme defaultTheme = (SimpleTheme) defaultTileFactory.getTheme();
+                SortedMap<Integer, Terrain> terrainRanges = new TreeMap<Integer, Terrain>(defaultTheme.getTerrainRanges());
+                int surfaceLevel = terrainRanges.headMap(waterHeight + 3).lastKey();
+                terrainRanges.put(surfaceLevel, terrain);
+                SimpleTheme theme = (SimpleTheme) tileFactory.getTheme();
+                theme.setTerrainRanges(terrainRanges);
+                theme.setRandomise(defaultTheme.isRandomise());
+            } else if (dim != DIM_NORMAL) {
+                // Override the default terrain map:
+                SortedMap<Integer, Terrain> terrainMap = new TreeMap<Integer, Terrain>();
+                terrainMap.put(-1, terrain);
+                SimpleTheme theme = (SimpleTheme) tileFactory.getTheme();
+                theme.setTerrainRanges(terrainMap);
+            }
         }
         
         return tileFactory;
@@ -543,7 +635,6 @@ public class NewWorldDialog extends javax.swing.JDialog implements WindowListene
         comboBoxMaxHeight = new javax.swing.JComboBox();
         spinnerLength = new javax.swing.JSpinner();
         jLabel6 = new javax.swing.JLabel();
-        jLabel16 = new javax.swing.JLabel();
         jLabel9 = new javax.swing.JLabel();
         fieldSeed = new javax.swing.JTextField();
         spinnerRange = new javax.swing.JSpinner();
@@ -567,12 +658,10 @@ public class NewWorldDialog extends javax.swing.JDialog implements WindowListene
         checkBoxLava = new javax.swing.JCheckBox();
         jLabel4 = new javax.swing.JLabel();
         jLabel18 = new javax.swing.JLabel();
-        checkBoxCustomBiomes = new javax.swing.JCheckBox();
         spinnerWidth = new javax.swing.JSpinner();
         radioButtonOceanSeed = new javax.swing.JRadioButton();
         radioButtonLandSeed = new javax.swing.JRadioButton();
         radioButtonCustomSeed = new javax.swing.JRadioButton();
-        checkBoxAutomaticBiomes = new javax.swing.JCheckBox();
         labelWarning = new javax.swing.JLabel();
         checkBoxExtendedBlockIds = new javax.swing.JCheckBox();
         jPanel3 = new javax.swing.JPanel();
@@ -616,7 +705,7 @@ public class NewWorldDialog extends javax.swing.JDialog implements WindowListene
             }
         });
 
-        spinnerLength.setModel(new javax.swing.SpinnerNumberModel(Integer.valueOf(640), Integer.valueOf(128), null, Integer.valueOf(128)));
+        spinnerLength.setModel(new javax.swing.SpinnerNumberModel(Integer.valueOf(640), Integer.valueOf(1), null, Integer.valueOf(128)));
         spinnerLength.addChangeListener(new javax.swing.event.ChangeListener() {
             public void stateChanged(javax.swing.event.ChangeEvent evt) {
                 spinnerLengthStateChanged(evt);
@@ -624,8 +713,6 @@ public class NewWorldDialog extends javax.swing.JDialog implements WindowListene
         });
 
         jLabel6.setText("Surface material:");
-
-        jLabel16.setText("Biomes:");
 
         jLabel9.setText("Water level:");
 
@@ -732,10 +819,7 @@ public class NewWorldDialog extends javax.swing.JDialog implements WindowListene
 
         jLabel18.setText("Hill height:");
 
-        checkBoxCustomBiomes.setText("Custom");
-        checkBoxCustomBiomes.setToolTipText("Paint or modify the biomes yourself");
-
-        spinnerWidth.setModel(new javax.swing.SpinnerNumberModel(Integer.valueOf(640), Integer.valueOf(128), null, Integer.valueOf(128)));
+        spinnerWidth.setModel(new javax.swing.SpinnerNumberModel(Integer.valueOf(640), Integer.valueOf(1), null, Integer.valueOf(128)));
         spinnerWidth.addChangeListener(new javax.swing.event.ChangeListener() {
             public void stateChanged(javax.swing.event.ChangeEvent evt) {
                 spinnerWidthStateChanged(evt);
@@ -769,9 +853,6 @@ public class NewWorldDialog extends javax.swing.JDialog implements WindowListene
                 radioButtonCustomSeedActionPerformed(evt);
             }
         });
-
-        checkBoxAutomaticBiomes.setSelected(true);
-        checkBoxAutomaticBiomes.setText("Automatic");
 
         labelWarning.setFont(labelWarning.getFont().deriveFont(labelWarning.getFont().getStyle() | java.awt.Font.BOLD));
         labelWarning.setIcon(new javax.swing.ImageIcon(getClass().getResource("/org/pepsoft/worldpainter/icons/error.png"))); // NOI18N
@@ -852,17 +933,8 @@ public class NewWorldDialog extends javax.swing.JDialog implements WindowListene
                                 .addComponent(spinnerScale, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                                 .addGap(0, 0, 0)
                                 .addComponent(jLabel20))
-                            .addGroup(jPanel2Layout.createSequentialGroup()
-                                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                                    .addComponent(comboBoxSurfaceMaterial, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                    .addComponent(jLabel6))
-                                .addGap(18, 18, 18)
-                                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                                    .addComponent(jLabel16)
-                                    .addGroup(jPanel2Layout.createSequentialGroup()
-                                        .addComponent(checkBoxAutomaticBiomes)
-                                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                        .addComponent(checkBoxCustomBiomes)))))
+                            .addComponent(comboBoxSurfaceMaterial, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addComponent(jLabel6))
                         .addContainerGap())))
         );
         jPanel2Layout.setVerticalGroup(
@@ -912,14 +984,9 @@ public class NewWorldDialog extends javax.swing.JDialog implements WindowListene
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(checkBoxBeaches)
                 .addGap(18, 18, 18)
-                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                    .addComponent(jLabel6)
-                    .addComponent(jLabel16))
+                .addComponent(jLabel6)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                    .addComponent(comboBoxSurfaceMaterial, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(checkBoxAutomaticBiomes)
-                    .addComponent(checkBoxCustomBiomes))
+                .addComponent(comboBoxSurfaceMaterial, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addGap(18, 18, 18)
                 .addComponent(checkBoxExtendedBlockIds)
                 .addGap(18, 18, 18)
@@ -1075,8 +1142,7 @@ public class NewWorldDialog extends javax.swing.JDialog implements WindowListene
             }
             
             if (exp != 8) {
-                checkBoxCustomBiomes.setSelected(false);
-                checkBoxAutomaticBiomes.setSelected(false);
+                checkBoxExtendedBlockIds.setSelected(false);
             }
             
             int range = (Integer) spinnerRange.getValue();
@@ -1172,26 +1238,23 @@ public class NewWorldDialog extends javax.swing.JDialog implements WindowListene
     private void radioButtonOceanSeedActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_radioButtonOceanSeedActionPerformed
         if (radioButtonOceanSeed.isSelected()) {
             fieldSeed.setText(Long.toString(World2.DEFAULT_OCEAN_SEED));
-            fieldSeed.setEnabled(false);
-            buttonRandomSeed.setEnabled(false);
             updatePreview();
+            setControlStates();
         }
     }//GEN-LAST:event_radioButtonOceanSeedActionPerformed
 
     private void radioButtonLandSeedActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_radioButtonLandSeedActionPerformed
         if (radioButtonLandSeed.isSelected()) {
             fieldSeed.setText(Long.toString(World2.DEFAULT_LAND_SEED));
-            fieldSeed.setEnabled(false);
-            buttonRandomSeed.setEnabled(false);
             updatePreview();
+            setControlStates();
         }
     }//GEN-LAST:event_radioButtonLandSeedActionPerformed
 
     private void radioButtonCustomSeedActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_radioButtonCustomSeedActionPerformed
         if (radioButtonCustomSeed.isSelected()) {
-            fieldSeed.setEnabled(true);
-            buttonRandomSeed.setEnabled(true);
             updatePreview();
+            setControlStates();
         }
     }//GEN-LAST:event_radioButtonCustomSeedActionPerformed
 
@@ -1201,10 +1264,8 @@ public class NewWorldDialog extends javax.swing.JDialog implements WindowListene
     private javax.swing.ButtonGroup buttonGroup1;
     private javax.swing.ButtonGroup buttonGroup2;
     private javax.swing.JButton buttonRandomSeed;
-    private javax.swing.JCheckBox checkBoxAutomaticBiomes;
     private javax.swing.JCheckBox checkBoxBeaches;
     private javax.swing.JCheckBox checkBoxCircular;
-    private javax.swing.JCheckBox checkBoxCustomBiomes;
     private javax.swing.JCheckBox checkBoxExtendedBlockIds;
     private javax.swing.JCheckBox checkBoxLava;
     private javax.swing.JComboBox comboBoxMaxHeight;
@@ -1214,7 +1275,6 @@ public class NewWorldDialog extends javax.swing.JDialog implements WindowListene
     private javax.swing.JLabel jLabel1;
     private javax.swing.JLabel jLabel10;
     private javax.swing.JLabel jLabel11;
-    private javax.swing.JLabel jLabel16;
     private javax.swing.JLabel jLabel17;
     private javax.swing.JLabel jLabel18;
     private javax.swing.JLabel jLabel19;
@@ -1245,13 +1305,13 @@ public class NewWorldDialog extends javax.swing.JDialog implements WindowListene
     // End of variables declaration//GEN-END:variables
 
     private final App app;
+    private final Set<Point> tiles;
+    private final AutoBiomeScheme autoBiomeScheme = new AutoBiomeScheme(null);
     private boolean cancelled = true;
     private int previousExp = 7, dim, savedTerrainLevel;
-    private final Set<Point> tiles;
     private long worldpainterSeed;
 
     static final int ESTIMATED_TILE_DATA_SIZE = 81; // in KB
-    static final int ESTIMATED_TILE_IMAGE_SIZE = 64; // in KB
     
     private static final Logger logger = Logger.getLogger(NewWorldDialog.class.getName());
     private static final long serialVersionUID = 1L;

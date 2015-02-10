@@ -51,6 +51,11 @@ public class SubProgressReceiver implements ProgressReceiver {
         progressReceiver.checkForCancellation();
     }
 
+    @Override
+    public void reset() {
+        throw new UnsupportedOperationException("Not supported");
+    }
+
     private final ProgressReceiver progressReceiver;
     private final float offset, extent;
 }

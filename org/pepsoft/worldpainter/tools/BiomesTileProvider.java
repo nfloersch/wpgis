@@ -5,35 +5,49 @@
 package org.pepsoft.worldpainter.tools;
 
 import org.pepsoft.worldpainter.ColourScheme;
-import org.pepsoft.worldpainter.colourschemes.DynMapColourScheme;
 import java.awt.GraphicsEnvironment;
+import java.awt.Rectangle;
 import java.awt.image.BufferedImage;
-import java.io.IOException;
-import javax.imageio.ImageIO;
+import java.util.Arrays;
+import org.pepsoft.util.ColourUtils;
 import org.pepsoft.util.swing.TileListener;
 import org.pepsoft.util.swing.TileProvider;
 import org.pepsoft.worldpainter.BiomeScheme;
-import org.pepsoft.worldpainter.biomeschemes.Minecraft1_2BiomeScheme;
 import static org.pepsoft.worldpainter.Constants.*;
-import static org.pepsoft.minecraft.Constants.*;
+import static org.pepsoft.worldpainter.biomeschemes.AbstractMinecraft1_7BiomeScheme.*;
 
 /**
  *
  * @author pepijn
  */
 public class BiomesTileProvider implements TileProvider {
-    public BiomesTileProvider(BiomeScheme biomeScheme) {
-        this.biomeScheme = biomeScheme;
+    public BiomesTileProvider(BiomeScheme biomeScheme, ColourScheme colourScheme) {
+        this(biomeScheme, colourScheme, 2, false);
     }
 
-    public BiomesTileProvider(BiomeScheme biomeScheme, int zoom) {
+    public BiomesTileProvider(BiomeScheme biomeScheme, ColourScheme colourScheme, int zoom, boolean fade) {
         this.biomeScheme = biomeScheme;
         this.zoom = zoom;
+        int biomeCount = biomeScheme.getBiomeCount();
+        biomeColours = new int[biomeCount];
+        biomePatterns = new boolean[biomeCount][][];
+        for (int i = 0; i < biomeCount; i++) {
+            if (biomeScheme.isBiomePresent(i)) {
+                biomeColours[i] = fade ? ColourUtils.mix(0xffffff, biomeScheme.getColour(i, colourScheme)) : biomeScheme.getColour(i, colourScheme);
+                biomePatterns[i] = biomeScheme.getPattern(i);
+            }
+        }
+        patternColour = fade ? 0x808080 : 0x000000;
     }
     
     @Override
     public int getTileSize() {
         return TILE_SIZE;
+    }
+
+    @Override
+    public boolean isZoomSupported() {
+        return true;
     }
     
     @Override
@@ -43,8 +57,13 @@ public class BiomesTileProvider implements TileProvider {
     
     @Override
     public void setZoom(int zoom) {
-        this.zoom = zoom;
-        bufferRef.remove();
+        if (zoom != this.zoom) {
+            if (zoom > 0) {
+                throw new UnsupportedOperationException("Zooming in not supported");
+            }
+            this.zoom = zoom;
+            bufferRef = new ThreadLocal<int[]>();
+        }
     }
 
     @Override
@@ -56,15 +75,16 @@ public class BiomesTileProvider implements TileProvider {
             } else {
                 tile = new BufferedImage(TILE_SIZE, TILE_SIZE, BufferedImage.TYPE_INT_RGB);
             }
+            final int scale = 1 << -zoom;
             int[] buffer = bufferRef.get();
             if (buffer == null) {
-                buffer = new int[TILE_SIZE * TILE_SIZE * zoom * zoom];
+                buffer = new int[TILE_SIZE * TILE_SIZE * scale * scale];
                 bufferRef.set(buffer);
             }
-            biomeScheme.getBiomes(tileX * TILE_SIZE * zoom, tileY * TILE_SIZE * zoom, TILE_SIZE * zoom, TILE_SIZE * zoom, buffer);
+            biomeScheme.getBiomes(tileX * TILE_SIZE * scale, tileY * TILE_SIZE * scale, TILE_SIZE * scale, TILE_SIZE * scale, buffer);
             int[][] biomeCounts = biomeCountsRef.get();
             if (biomeCounts == null) {
-                biomeCounts = new int[][] {new int[23], new int[23], new int[23]};
+                biomeCounts = new int[][] {new int[256], new int[256], new int[256]};
                 biomeCountsRef.set(biomeCounts);
             }
             for (int x = 0; x < TILE_SIZE; x++) {
@@ -74,9 +94,9 @@ public class BiomesTileProvider implements TileProvider {
                             biomeCounts[i][j] = 0;
                         }
                     }
-                    for (int dx = 0; dx < zoom; dx++) {
-                        for (int dz = 0; dz < zoom; dz++) {
-                            int biome = buffer[x * zoom + dx + (y * zoom + dz) * TILE_SIZE * zoom];
+                    for (int dx = 0; dx < scale; dx++) {
+                        for (int dz = 0; dz < scale; dz++) {
+                            int biome = buffer[x * scale + dx + (y * scale + dz) * TILE_SIZE * scale];
                             biomeCounts[BIOME_PRIORITIES[biome]][biome]++;
                         }
                     }
@@ -93,10 +113,10 @@ public class BiomesTileProvider implements TileProvider {
                             break;
                         }
                     }
-                    if ((BIOME_PATTERNS[mostCommonBiome] != null) && (BIOME_PATTERNS[mostCommonBiome][x % 16][y % 16])) {
-                        tile.setRGB(x, y, 0);
+                    if ((biomePatterns[mostCommonBiome] != null) && (biomePatterns[mostCommonBiome][x % 16][y % 16])) {
+                        tile.setRGB(x, y, patternColour);
                     } else {
-                        tile.setRGB(x, y, BIOME_COLOURS[mostCommonBiome]);
+                        tile.setRGB(x, y, biomeColours[mostCommonBiome]);
                     }
                 }
             }
@@ -105,6 +125,16 @@ public class BiomesTileProvider implements TileProvider {
             t.printStackTrace();
             return null;
         }
+    }
+
+    @Override
+    public int getTilePriority(int x, int y) {
+        return 0; // All tiles have equal priority
+    }
+
+    @Override
+    public Rectangle getExtent() {
+        return null;
     }
 
     @Override
@@ -118,108 +148,28 @@ public class BiomesTileProvider implements TileProvider {
     }
     
     private final BiomeScheme biomeScheme;
-    private final ThreadLocal<int[]> bufferRef = new ThreadLocal<int[]>();
     private final ThreadLocal<int[][]> biomeCountsRef = new ThreadLocal<int[][]>();
-    private int zoom = 4;
+    private int zoom;
+    private volatile ThreadLocal<int[]> bufferRef = new ThreadLocal<int[]>();
     
-    private static final int[] BIOME_PRIORITIES = {
-        0,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        2,
-        1,
-        1,
-        0,
-        2,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1
-    };
-    private static final ColourScheme COLOUR_SCHEME = new DynMapColourScheme("default");
-    private static final int[] BIOME_COLOURS = {
-        COLOUR_SCHEME.getColour(BLK_WATER),
-        COLOUR_SCHEME.getColour(BLK_GRASS),
-        COLOUR_SCHEME.getColour(BLK_SAND),
-        COLOUR_SCHEME.getColour(BLK_GRASS),
-        COLOUR_SCHEME.getColour(BLK_LEAVES),
-        COLOUR_SCHEME.getColour(BLK_SNOW),
-        COLOUR_SCHEME.getColour(BLK_LEAVES),
-        COLOUR_SCHEME.getColour(BLK_WATER),
-        COLOUR_SCHEME.getColour(BLK_NETHERRACK),
-        COLOUR_SCHEME.getColour(BLK_AIR),
-        COLOUR_SCHEME.getColour(BLK_ICE),
-        COLOUR_SCHEME.getColour(BLK_ICE),
-        COLOUR_SCHEME.getColour(BLK_SNOW),
-        COLOUR_SCHEME.getColour(BLK_SNOW),
-        COLOUR_SCHEME.getColour(BLK_MYCELIUM),
-        COLOUR_SCHEME.getColour(BLK_MYCELIUM),
-        COLOUR_SCHEME.getColour(BLK_SAND),
-        COLOUR_SCHEME.getColour(BLK_SAND),
-        COLOUR_SCHEME.getColour(BLK_LEAVES),
-        COLOUR_SCHEME.getColour(BLK_SNOW),
-        COLOUR_SCHEME.getColour(BLK_GRASS),
-        COLOUR_SCHEME.getColour(BLK_LEAVES),
-        COLOUR_SCHEME.getColour(BLK_LEAVES)
-    };
+    private final int[] biomeColours;
+    private final int patternColour;
+    private final boolean[][][] biomePatterns;
 
-    private static final boolean[][][] BIOME_PATTERNS = new boolean[23][][];
+    private static final boolean createOptimalImage = ! "false".equalsIgnoreCase(System.getProperty("org.pepsoft.worldpainter.createOptimalImage"));
+
+    private static final int[] BIOME_PRIORITIES = new int[256];
     static {
-        try {
-            BufferedImage image = ImageIO.read(ClassLoader.getSystemResourceAsStream("org/pepsoft/worldpainter/icons/swamp_pattern.png"));
-            BIOME_PATTERNS[Minecraft1_2BiomeScheme.BIOME_SWAMPLAND] = createPattern(image);
+        // Every biome should have medium priority except the exceptions below
+        Arrays.fill(BIOME_PRIORITIES, 1);
+        
+        // Ocean should have low priority:
+        BIOME_PRIORITIES[BIOME_OCEAN] = 0;
+        BIOME_PRIORITIES[BIOME_FROZEN_OCEAN] = 0;
+        BIOME_PRIORITIES[BIOME_DEEP_OCEAN] = 0;
 
-            image = ImageIO.read(ClassLoader.getSystemResourceAsStream("org/pepsoft/worldpainter/icons/mountains_pattern.png"));
-            BIOME_PATTERNS[Minecraft1_2BiomeScheme.BIOME_EXTREME_HILLS] = createPattern(image);
-            BIOME_PATTERNS[Minecraft1_2BiomeScheme.BIOME_ICE_MOUNTAINS] = createPattern(image);
-
-            image = ImageIO.read(ClassLoader.getSystemResourceAsStream("org/pepsoft/worldpainter/icons/deciduous_trees_pattern.png"));
-            BIOME_PATTERNS[Minecraft1_2BiomeScheme.BIOME_FOREST] = createPattern(image);
-
-            image = ImageIO.read(ClassLoader.getSystemResourceAsStream("org/pepsoft/worldpainter/icons/pine_trees_pattern.png"));
-            BIOME_PATTERNS[Minecraft1_2BiomeScheme.BIOME_TAIGA] = createPattern(image);
-
-            image = ImageIO.read(ClassLoader.getSystemResourceAsStream("org/pepsoft/worldpainter/icons/hills_pattern.png"));
-            BIOME_PATTERNS[Minecraft1_2BiomeScheme.BIOME_DESERT_HILLS] = createPattern(image);
-            BIOME_PATTERNS[Minecraft1_2BiomeScheme.BIOME_EXTREME_HILLS_EDGE] = createPattern(image);
-
-            image = ImageIO.read(ClassLoader.getSystemResourceAsStream("org/pepsoft/worldpainter/icons/deciduous_hills_pattern.png"));
-            BIOME_PATTERNS[Minecraft1_2BiomeScheme.BIOME_FOREST_HILLS] = createPattern(image);
-
-            image = ImageIO.read(ClassLoader.getSystemResourceAsStream("org/pepsoft/worldpainter/icons/pine_hills_pattern.png"));
-            BIOME_PATTERNS[Minecraft1_2BiomeScheme.BIOME_TAIGA_HILLS] = createPattern(image);
-
-            image = ImageIO.read(ClassLoader.getSystemResourceAsStream("org/pepsoft/worldpainter/icons/jungle_trees_pattern.png"));
-            BIOME_PATTERNS[Minecraft1_2BiomeScheme.BIOME_JUNGLE] = createPattern(image);
-
-            image = ImageIO.read(ClassLoader.getSystemResourceAsStream("org/pepsoft/worldpainter/icons/jungle_hills_pattern.png"));
-            BIOME_PATTERNS[Minecraft1_2BiomeScheme.BIOME_JUNGLE_HILLS] = createPattern(image);
-        } catch (IOException e) {
-            throw new RuntimeException("I/O error loading image", e);
-        }
+        // River should have high priority
+        BIOME_PRIORITIES[BIOME_RIVER] = 2;
+        BIOME_PRIORITIES[BIOME_FROZEN_RIVER] = 2;
     }
-    
-    private static boolean[][] createPattern(BufferedImage image) {
-        boolean[][] pattern = new boolean[16][];
-        for (int x = 0; x < 16; x++) {
-            pattern[x] = new boolean[16];
-            for (int y = 0; y < 16; y++) {
-                pattern[x][y] = image.getRGB(x, y) != -1;
-            }
-        }
-        return pattern;
-    }
-
-    private final boolean createOptimalImage = ! "false".equalsIgnoreCase(System.getProperty("org.pepsoft.worldpainter.createOptimalImage"));
 }

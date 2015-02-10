@@ -4,6 +4,7 @@
  */
 package org.pepsoft.util.swing;
 
+import java.awt.Rectangle;
 import java.awt.image.BufferedImage;
 
 /**
@@ -30,6 +31,30 @@ public interface TileProvider {
     BufferedImage getTile(int x, int y);
     
     /**
+     * Get the priority with which a specific tile should be rendered. A tile
+     * consumer may choose to render higher priority tiles before lower
+     * priority tiles. It is entirely up to the tile provider which values to
+     * return, or even to always return the same value.
+     * 
+     * @param x The X coordinate (in tiles) of the tile.
+     * @param y The Y coordinate (in tiles) of the tile.
+     * @return The priority of the specified tile.
+     */
+    int getTilePriority(int x, int y);
+    
+    /**
+     * Get the coordinates of the "main area of interest" of this tile provider,
+     * if any. The tile provider may provide tiles outside this area, but the
+     * scrollbars will not extend to them. If the tile provider has no
+     * distinguishable area of interest (because it is endless, for instance),
+     * it may return null.
+     * 
+     * @return The coordinates of the main area of interest of this tile
+     *     provider.
+     */
+    Rectangle getExtent();
+    
+    /**
      * Register a tile listener which will be notified if the contents of a 
      * tile change.
      * 
@@ -44,7 +69,31 @@ public interface TileProvider {
      */
     void removeTileListener(TileListener tileListener);
     
+    /**
+     * Indicates whether the tile provider implements zooming itself (when
+     * <code>true</code>) or whether the tile consumer should implement it (when
+     * <code>false</code>). In the latter case {@link #getZoom()} and
+     * {@link #setZoom(int)} will never be invoked.
+     * 
+     * @return <code>true</code> if the tile provider implements zooming.
+     */
+    boolean isZoomSupported();
+    
+    /**
+     * Get the zoom as an exponent of two. In other words the tiles will be
+     * displayed at a scale of 1:2^n, so that n=-1 means half size, n=0 means
+     * 1:1 and 1 means double size, etc.
+     * 
+     * @return The zoom as an exponent of two.
+     */
     int getZoom();
     
+    /**
+     * Set the zoom as an exponent of two. In other words the tiles will be
+     * displayed at a scale of 1:2^n, so that n=-1 means half size, n=0 means
+     * 1:1 and 1 means double size, etc.
+     * 
+     * @param zoom The zoom as an exponent of two.
+     */
     void setZoom(int zoom);
 }

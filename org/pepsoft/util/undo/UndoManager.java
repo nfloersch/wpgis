@@ -61,7 +61,8 @@ public class UndoManager {
 
     /**
      * Arm a save point. It will be executed the next time a buffer is requested
-     * for editing. This will allow a redo to be performed instead.
+     * for editing. Arming a save point instead of executing it immediately
+     * allows a redo to be performed instead.
      * 
      * <p>Will do nothing if a save point is already armed, or if the current
      * frame is the last one and it is not dirty.
@@ -106,7 +107,9 @@ public class UndoManager {
 
         if (logger.isLoggable(Level.FINE)) {
             logger.fine("Save point set; new current frame: " + currentFrame);
-            dumpBuffer();
+            if (logger.isLoggable(Level.FINER)) {
+                dumpBuffer();
+            }
         }
     }
     
@@ -158,7 +161,9 @@ public class UndoManager {
             updateActions();
             if (logger.isLoggable(Level.FINE)) {
                 logger.fine("Undo requested; now at frame " + currentFrame + " (total: " + history.size() + ")");
-                dumpBuffer();
+                if (logger.isLoggable(Level.FINER)) {
+                    dumpBuffer();
+                }
             }
             return true;
         } else {
@@ -193,7 +198,9 @@ public class UndoManager {
             updateActions();
             if (logger.isLoggable(Level.FINE)) {
                 logger.fine("Redo requested; now at frame " + currentFrame + " (total: " + history.size() + ")");
-                dumpBuffer();
+                if (logger.isLoggable(Level.FINER)) {
+                    dumpBuffer();
+                }
             }
             return true;
         } else {
@@ -218,7 +225,7 @@ public class UndoManager {
         updateSnapshots(-deletedFrames);
         updateActions();
         savePointArmed = false;
-        if (logger.isLoggable(Level.FINE)) {
+        if (logger.isLoggable(Level.FINER)) {
             dumpBuffer();
         }
     }
@@ -250,8 +257,8 @@ public class UndoManager {
         if (listener != null) {
             keyListeners.put(key, listener);
         }
-        if (logger.isLoggable(Level.FINE)) {
-            logger.fine("Buffer added: " + key);
+        if (logger.isLoggable(Level.FINER)) {
+            logger.finer("Buffer added: " + key);
         }
     }
 
@@ -262,8 +269,8 @@ public class UndoManager {
             historyFrame.remove(key);
         }
         keyListeners.remove(key);
-        if (logger.isLoggable(Level.FINE)) {
-            logger.fine("Buffer removed: " + key);
+        if (logger.isLoggable(Level.FINER)) {
+            logger.finer("Buffer removed: " + key);
         }
     }
 
@@ -334,15 +341,15 @@ public class UndoManager {
     }
 
     public void addListener(UndoListener listener) {
-        if (logger.isLoggable(Level.FINE)) {
-            logger.fine("Adding listener " + listener);
+        if (logger.isLoggable(Level.FINER)) {
+            logger.finer("Adding listener " + listener);
         }
         listeners.add(listener);
     }
 
     public void removeListener(UndoListener listener) {
-        if (logger.isLoggable(Level.FINE)) {
-            logger.fine("Removing listener " + listener);
+        if (logger.isLoggable(Level.FINER)) {
+            logger.finer("Removing listener " + listener);
         }
         listeners.remove(listener);
     }
@@ -393,7 +400,7 @@ public class UndoManager {
         if (deletedFrames > 0) {
             updateSnapshots(-deletedFrames);
         }
-        if (logger.isLoggable(Level.FINE)) {
+        if (logger.isLoggable(Level.FINER)) {
             dumpBuffer();
         }
     }
@@ -506,10 +513,10 @@ public class UndoManager {
                     return (T) copy;
                 } else if (IMMUTABLE_TYPES.contains(object.getClass())) {
                     return object;
-                } else if (object instanceof Cloneable) {
-                    return ((Cloneable<T>) object).clone();
                 } else if (object instanceof DeeplyCopyable) {
                     return ((DeeplyCopyable<T>) object).deepCopy();
+                } else if (object instanceof Cloneable) {
+                    return ((Cloneable<T>) object).clone();
                 } else {
                     throw new UnsupportedOperationException("Don't know how to copy a " + object.getClass());
                 }

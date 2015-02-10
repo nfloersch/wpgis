@@ -7,10 +7,13 @@ package org.pepsoft.worldpainter.threedeeview;
 import java.awt.BorderLayout;
 import java.awt.HeadlessException;
 import java.awt.Point;
+import java.awt.Rectangle;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.awt.event.MouseWheelEvent;
+import java.awt.event.MouseWheelListener;
 import java.awt.event.WindowEvent;
 import java.awt.event.WindowListener;
 import java.io.File;
@@ -29,9 +32,11 @@ import javax.swing.JFrame;
 import javax.swing.JOptionPane;
 import javax.swing.JScrollBar;
 import javax.swing.JScrollPane;
+import javax.swing.JSeparator;
 import javax.swing.JToggleButton;
 import javax.swing.JToolBar;
 import javax.swing.KeyStroke;
+import javax.swing.SwingUtilities;
 import javax.swing.filechooser.FileFilter;
 import org.pepsoft.minecraft.Direction;
 import org.pepsoft.util.IconUtils;
@@ -43,6 +48,8 @@ import org.pepsoft.worldpainter.App;
 import org.pepsoft.worldpainter.ColourScheme;
 import static org.pepsoft.worldpainter.Constants.*;
 import org.pepsoft.worldpainter.Dimension;
+import org.pepsoft.worldpainter.biomeschemes.AutoBiomeScheme;
+import org.pepsoft.worldpainter.biomeschemes.CustomBiomeManager;
 import org.pepsoft.worldpainter.util.BetterAction;
 
 /**
@@ -50,10 +57,11 @@ import org.pepsoft.worldpainter.util.BetterAction;
  * @author pepijn
  */
 public class ThreeDeeFrame extends JFrame implements WindowListener {
-    public ThreeDeeFrame(Dimension dimension, ColourScheme colourScheme, Point initialCoords) throws HeadlessException {
+    public ThreeDeeFrame(Dimension dimension, ColourScheme colourScheme, CustomBiomeManager customBiomeManager, Point initialCoords) throws HeadlessException {
         super("WorldPainter - 3D View");
         setIconImage(App.ICON);
         this.colourScheme = colourScheme;
+        this.customBiomeManager = customBiomeManager;
         this.coords = initialCoords;
         
         scrollPane = new JScrollPane();
@@ -87,6 +95,20 @@ public class ThreeDeeFrame extends JFrame implements WindowListener {
         };
         scrollPane.addMouseListener(mouseAdapter);
         scrollPane.addMouseMotionListener(mouseAdapter);
+        scrollPane.addMouseWheelListener(new MouseWheelListener() {
+            @Override
+            public void mouseWheelMoved(MouseWheelEvent e) {
+                if (e.getWheelRotation() < 0) {
+                    if (zoom < MAX_ZOOM) {
+                        ZOOM_IN_ACTION.actionPerformed(new ActionEvent(e.getSource(), ActionEvent.ACTION_PERFORMED, null, e.getWhen(), e.getModifiers()));
+                    }
+                } else {
+                    if (zoom > MIN_ZOOM) {
+                        ZOOM_OUT_ACTION.actionPerformed(new ActionEvent(e.getSource(), ActionEvent.ACTION_PERFORMED, null, e.getWhen(), e.getModifiers()));
+                    }
+                }
+            }
+        });
         
         getContentPane().add(scrollPane, BorderLayout.CENTER);
         
@@ -106,9 +128,16 @@ public class ThreeDeeFrame extends JFrame implements WindowListener {
         JToolBar toolBar = new JToolBar();
         toolBar.setFloatable(false);
         toolBar.add(alwaysOnTopButton);
+        toolBar.addSeparator();
         toolBar.add(ROTATE_LEFT_ACTION);
         toolBar.add(ROTATE_RIGHT_ACTION);
+        toolBar.addSeparator();
+        toolBar.add(ZOOM_OUT_ACTION);
+        toolBar.add(RESET_ZOOM_ACTION);
+        toolBar.add(ZOOM_IN_ACTION);
+        toolBar.addSeparator();
         toolBar.add(EXPORT_IMAGE_ACTION);
+        toolBar.addSeparator();
         toolBar.add(MOVE_TO_SPAWN_ACTION);
         toolBar.add(MOVE_TO_ORIGIN_ACTION);
         getContentPane().add(toolBar, BorderLayout.NORTH);
@@ -120,10 +149,16 @@ public class ThreeDeeFrame extends JFrame implements WindowListener {
         ActionMap actionMap = rootPane.getActionMap();
         actionMap.put("rotateLeft", ROTATE_LEFT_ACTION);
         actionMap.put("rotateRight", ROTATE_RIGHT_ACTION);
+        actionMap.put("zoomIn", ZOOM_IN_ACTION);
+        actionMap.put("resetZoom", RESET_ZOOM_ACTION);
+        actionMap.put("zoomOut", ZOOM_OUT_ACTION);
 
         InputMap inputMap = rootPane.getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT);
         inputMap.put(KeyStroke.getKeyStroke('l'), "rotateLeft");
         inputMap.put(KeyStroke.getKeyStroke('r'), "rotateRight");
+        inputMap.put(KeyStroke.getKeyStroke('-'), "zoomOut");
+        inputMap.put(KeyStroke.getKeyStroke('0'), "resetZoom");
+        inputMap.put(KeyStroke.getKeyStroke('+'), "zoomIn");
         
         setSize(800, 600);
         
@@ -139,7 +174,7 @@ public class ThreeDeeFrame extends JFrame implements WindowListener {
     public final void setDimension(Dimension dimension) {
         this.dimension = dimension;
         if (dimension != null) {
-            threeDeeView = new ThreeDeeView(dimension, colourScheme, null, rotation);
+            threeDeeView = new ThreeDeeView(dimension, colourScheme, autoBiomeScheme, customBiomeManager, rotation, zoom);
             scrollPane.setViewportView(threeDeeView);
             MOVE_TO_SPAWN_ACTION.setEnabled(dimension.getDim() == DIM_NORMAL);
         }
@@ -148,6 +183,12 @@ public class ThreeDeeFrame extends JFrame implements WindowListener {
     public void moveTo(Point coords) {
         this.coords = coords;
         threeDeeView.moveTo(coords.x, coords.y);
+    }
+
+    public void refresh() {
+        if (threeDeeView != null) {
+            threeDeeView.refresh();
+        }
     }
     
     // WindowListener
@@ -176,7 +217,7 @@ public class ThreeDeeFrame extends JFrame implements WindowListener {
                 rotation = 3;
             }
             Point centreMostTile = threeDeeView.getCentreMostTile();
-            threeDeeView = new ThreeDeeView(dimension, colourScheme, null, rotation);
+            threeDeeView = new ThreeDeeView(dimension, colourScheme, autoBiomeScheme, customBiomeManager, rotation, zoom);
             scrollPane.setViewportView(threeDeeView);
 //            scrollPane.getViewport().setViewPosition(new Point((threeDeeView.getWidth() - scrollPane.getWidth()) / 2, (threeDeeView.getHeight() - scrollPane.getHeight()) / 2));
             threeDeeView.moveToTile(centreMostTile.x, centreMostTile.y);
@@ -198,7 +239,7 @@ public class ThreeDeeFrame extends JFrame implements WindowListener {
                 rotation = 0;
             }
             Point centreMostTile = threeDeeView.getCentreMostTile();
-            threeDeeView = new ThreeDeeView(dimension, colourScheme, null, rotation);
+            threeDeeView = new ThreeDeeView(dimension, colourScheme, autoBiomeScheme, customBiomeManager, rotation, zoom);
             scrollPane.setViewportView(threeDeeView);
 //            scrollPane.getViewport().setViewPosition(new Point((threeDeeView.getWidth() - scrollPane.getWidth()) / 2, (threeDeeView.getHeight() - scrollPane.getHeight()) / 2));
             threeDeeView.moveToTile(centreMostTile.x, centreMostTile.y);
@@ -323,12 +364,122 @@ public class ThreeDeeFrame extends JFrame implements WindowListener {
         private static final long serialVersionUID = 1L;
     };
     
-    private Dimension dimension;
+    private final Action ZOOM_IN_ACTION = new BetterAction("zoom3DViewIn", "Zoom in", ICON_ZOOM_IN) {
+        {
+            setShortDescription("Zoom in");
+        }
+        
+        @Override
+        public void performAction(ActionEvent e) {
+            final Rectangle visibleRect = threeDeeView.getVisibleRect();
+            zoom++;
+            threeDeeView.setZoom(zoom);
+            visibleRect.x *= 2;
+            visibleRect.y *= 2;
+            visibleRect.x += visibleRect.width / 2;
+            visibleRect.y += visibleRect.height / 2;
+            SwingUtilities.invokeLater(new Runnable() {
+                @Override
+                public void run() {
+                    threeDeeView.scrollRectToVisible(visibleRect);
+                }
+            });
+            if (zoom >= MAX_ZOOM) {
+                setEnabled(false);
+            }
+            ZOOM_OUT_ACTION.setEnabled(true);
+            RESET_ZOOM_ACTION.setEnabled(zoom != 1);
+        }
+        
+        private static final long serialVersionUID = 1L;
+    };
+    
+    private final Action RESET_ZOOM_ACTION = new BetterAction("reset3DViewZoom", "Reset zoom", ICON_RESET_ZOOM) {
+        {
+            setShortDescription("Reset the zoom level to 1:1");
+            setEnabled(false);
+        }
+        
+        @Override
+        public void performAction(ActionEvent e) {
+            final Rectangle visibleRect = threeDeeView.getVisibleRect();
+            if (zoom < 1) {
+                while (zoom < 1) {
+                    zoom++;
+                    visibleRect.x *= 2;
+                    visibleRect.y *= 2;
+                    visibleRect.x += visibleRect.width / 2;
+                    visibleRect.y += visibleRect.height / 2;
+                }
+                threeDeeView.setZoom(zoom);
+                SwingUtilities.invokeLater(new Runnable() {
+                    @Override
+                    public void run() {
+                        threeDeeView.scrollRectToVisible(visibleRect);
+                    }
+                });
+            } else if (zoom > 1) {
+                while (zoom > 1) {
+                    zoom--;
+                    visibleRect.x /= 2;
+                    visibleRect.y /= 2;
+                    visibleRect.x -= visibleRect.width / 4;
+                    visibleRect.y -= visibleRect.height / 4;
+                }
+                threeDeeView.setZoom(zoom);
+                SwingUtilities.invokeLater(new Runnable() {
+                    @Override
+                    public void run() {
+                        threeDeeView.scrollRectToVisible(visibleRect);
+                    }
+                });
+            }
+            ZOOM_IN_ACTION.setEnabled(true);
+            ZOOM_OUT_ACTION.setEnabled(true);
+            setEnabled(false);
+        }
+        
+        private static final long serialVersionUID = 1L;
+    };
+    
+    private final Action ZOOM_OUT_ACTION = new BetterAction("zoom3DViewOut", "Zoom out", ICON_ZOOM_OUT) {
+        {
+            setShortDescription("Zoom out");
+        }
+        
+        @Override
+        public void performAction(ActionEvent e) {
+            final Rectangle visibleRect = threeDeeView.getVisibleRect();
+            zoom--;
+            threeDeeView.setZoom(zoom);
+            visibleRect.x /= 2;
+            visibleRect.y /= 2;
+            visibleRect.x -= visibleRect.width / 4;
+            visibleRect.y -= visibleRect.height / 4;
+            SwingUtilities.invokeLater(new Runnable() {
+                @Override
+                public void run() {
+                    threeDeeView.scrollRectToVisible(visibleRect);
+                }
+            });
+            if (zoom <= MIN_ZOOM) {
+                setEnabled(false);
+            }
+            ZOOM_IN_ACTION.setEnabled(true);
+            RESET_ZOOM_ACTION.setEnabled(zoom != 1);
+        }
+        
+        private static final long serialVersionUID = 1L;
+    };
+
     private final JScrollPane scrollPane;
+    private final GlassPane glassPane;
+    private final CustomBiomeManager customBiomeManager;
+    private final AutoBiomeScheme autoBiomeScheme = new AutoBiomeScheme(null);
+    private Dimension dimension;
     private ThreeDeeView threeDeeView;
     private ColourScheme colourScheme;
-    private int rotation = 3;
-    private final GlassPane glassPane;
+    private int rotation = 3, zoom = 1;
     private Point coords;
     
     private static final Direction[] DIRECTIONS = {Direction.EAST, Direction.SOUTH, Direction.WEST, Direction.NORTH};
@@ -339,6 +490,12 @@ public class ThreeDeeFrame extends JFrame implements WindowListener {
     private static final Icon ICON_MOVE_TO_SPAWN  = IconUtils.loadIcon("org/pepsoft/worldpainter/icons/spawn_red.png");
     private static final Icon ICON_MOVE_TO_ORIGIN = IconUtils.loadIcon("org/pepsoft/worldpainter/icons/arrow_in.png");
     private static final Icon ICON_ALWAYS_ON_TOP  = IconUtils.loadIcon("org/pepsoft/worldpainter/icons/lock.png");
+    private static final Icon ICON_ZOOM_IN        = IconUtils.loadIcon("org/pepsoft/worldpainter/icons/magnifier_zoom_in.png");
+    private static final Icon ICON_RESET_ZOOM     = IconUtils.loadIcon("org/pepsoft/worldpainter/icons/magnifier.png");
+    private static final Icon ICON_ZOOM_OUT       = IconUtils.loadIcon("org/pepsoft/worldpainter/icons/magnifier_zoom_out.png");
+    
+    private static final int MIN_ZOOM = -2;
+    private static final int MAX_ZOOM = 4;
     
     private static final long serialVersionUID = 1L;
 }

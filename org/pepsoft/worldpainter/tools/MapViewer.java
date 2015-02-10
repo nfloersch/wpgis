@@ -6,6 +6,7 @@ package org.pepsoft.worldpainter.tools;
 
 import java.awt.BorderLayout;
 import java.awt.Point;
+import java.awt.Rectangle;
 import java.awt.event.MouseWheelEvent;
 import java.awt.event.MouseWheelListener;
 import java.awt.image.BufferedImage;
@@ -65,7 +66,7 @@ public class MapViewer {
             Level level = Level.load(levelDatFile);
             final int maxHeight = level.getMaxHeight();
             final int version = level.getVersion();
-            final ColourScheme colourScheme = new DynMapColourScheme("default");
+            final ColourScheme colourScheme = new DynMapColourScheme("default", true);
             TileProvider tileProvider = new TileProvider() {
                 @Override
                 public int getTileSize() {
@@ -129,6 +130,16 @@ public class MapViewer {
                 }
 
                 @Override
+                public int getTilePriority(int x, int y) {
+                    return 0; // All tiles have equal priority
+                }
+
+                @Override
+                public Rectangle getExtent() {
+                    return null; // We don't know how large the map is, so just say we're endless
+                }
+
+                @Override
                 public void addTileListener(TileListener tileListener) {
                     listeners.add(tileListener);
                 }
@@ -138,6 +149,11 @@ public class MapViewer {
                     listeners.remove(tileListener);
                 }
 
+                @Override
+                public boolean isZoomSupported() {
+                    return true;
+                }
+                
                 @Override
                 public int getZoom() {
                     return zoom;
@@ -195,7 +211,7 @@ public class MapViewer {
 
             JFrame frame = new JFrame("Map Viewer");
             frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-            final TiledImageViewer viewer = new TiledImageViewer(true);
+            final TiledImageViewer viewer = new TiledImageViewer(true, Math.max(Runtime.getRuntime().availableProcessors() - 1, 1), true);
             viewer.setTileProvider(tileProvider);
             viewer.addMouseWheelListener(new MouseWheelListener() {
                 @Override

@@ -14,6 +14,7 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.Serializable;
 import java.util.Arrays;
+import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.SortedMap;
@@ -24,10 +25,9 @@ import org.pepsoft.util.MemoryUtils;
 import org.pepsoft.util.ProgressReceiver;
 import org.pepsoft.util.SubProgressReceiver;
 import org.pepsoft.util.undo.UndoManager;
-import org.pepsoft.worldpainter.layers.Biome;
 import org.pepsoft.worldpainter.layers.Layer;
 import static org.pepsoft.worldpainter.Constants.*;
-import org.pepsoft.worldpainter.MixedMaterial.Row;
+import org.pepsoft.worldpainter.layers.Biome;
 
 /**
  *
@@ -38,9 +38,9 @@ public class World2 extends InstanceKeeper implements Serializable, Cloneable {
         this.maxheight = maxHeight;
     }
     
-    public World2(long minecraftSeed, long worldpainterSeed, TileFactory tileFactory, int maxHeight) {
+    public World2(long minecraftSeed, TileFactory tileFactory, int maxHeight) {
         this.maxheight = maxHeight;
-        Dimension dim = new Dimension(minecraftSeed, worldpainterSeed, tileFactory, 0, maxHeight);
+        Dimension dim = new Dimension(minecraftSeed, tileFactory, 0, maxHeight);
         addDimension(dim);
     }
     
@@ -208,41 +208,6 @@ public class World2 extends InstanceKeeper implements Serializable, Cloneable {
         }
     }
 
-    public int getBiomeAlgorithm() {
-        return biomeAlgorithm;
-    }
-
-    public void setBiomeAlgorithm(int biomeAlgorithm) {
-        if (biomeAlgorithm == BIOME_ALGORITHM_CUSTOM_BIOMES) {
-            throw new IllegalArgumentException();
-        }
-        if (biomeAlgorithm != this.biomeAlgorithm) {
-            int oldBiomeAlgorithm = this.biomeAlgorithm;
-            this.biomeAlgorithm = biomeAlgorithm;
-            if ((oldBiomeAlgorithm == BIOME_ALGORITHM_1_7_3) || ((! customBiomes) && (biomeAlgorithm < oldBiomeAlgorithm))) {
-                clearLayerData(Biome.INSTANCE);
-            }
-            dirty = true;
-            propertyChangeSupport.firePropertyChange("biomeAlgorithm", oldBiomeAlgorithm, biomeAlgorithm);
-            if ((biomeAlgorithm == BIOME_ALGORITHM_1_3_LARGE) && (generator != Generator.LARGE_BIOMES)) {
-                Generator oldGenerator = generator;
-                generator = Generator.LARGE_BIOMES;
-                propertyChangeSupport.firePropertyChange("generator", oldGenerator, generator);
-            } else if ((biomeAlgorithm != BIOME_ALGORITHM_1_3_LARGE) && (generator == Generator.LARGE_BIOMES)) {
-                Generator oldGenerator = generator;
-                if (dimensions.containsKey(DIM_NORMAL)
-                        && (dimensions.get(DIM_NORMAL).getTileFactory() instanceof HeightMapTileFactory)
-                        && (((HeightMapTileFactory) dimensions.get(DIM_NORMAL).getTileFactory()).getWaterHeight() < 32)) {
-                    // Low level
-                    generator = Generator.FLAT;
-                } else {
-                    generator = Generator.DEFAULT;
-                }
-                propertyChangeSupport.firePropertyChange("generator", oldGenerator, generator);
-            }
-        }
-    }
-    
     public int getMaxHeight() {
         return maxheight;
     }
@@ -293,18 +258,6 @@ public class World2 extends InstanceKeeper implements Serializable, Cloneable {
             dontAskToConvertToAnvil = !askToConvertToAnvil;
             dirty = true;
             propertyChangeSupport.firePropertyChange("askToConvertToAnvil", askToConvertToAnvil, !askToConvertToAnvil);
-        }
-    }
-
-    public boolean isCustomBiomes() {
-        return customBiomes;
-    }
-
-    public void setCustomBiomes(boolean customBiomes) {
-        if (customBiomes != this.customBiomes) {
-            this.customBiomes = customBiomes;
-            dirty = true;
-            propertyChangeSupport.firePropertyChange("customBiomes", !customBiomes, customBiomes);
         }
     }
 
@@ -429,49 +382,119 @@ public class World2 extends InstanceKeeper implements Serializable, Cloneable {
         return MemoryUtils.getSize(this, new HashSet<Class<?>>(Arrays.asList(UndoManager.class, Dimension.Listener.class, PropertyChangeSupport.class, Layer.class, Terrain.class)));
     }
 
+    /**
+     * Get the set of warning generated during loading, if any.
+     * 
+     * @return The set of warning generated during loading, if any. May be
+     *     <code>null</code>.
+     */
+    Set<Warning> getWarnings() {
+        return warnings;
+    }
+
     private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
         in.defaultReadObject();
         propertyChangeSupport = new PropertyChangeSupport(this);
         
-        // Legacy maps
-        if (maxheight == 0) {
-            maxheight = 128;
-        }
-        if (generator == null) {
-            generator = Generator.DEFAULT;
-            if ((generatorName != null) && generatorName.equals("FLAT")) {
-                generator = Generator.FLAT;
-            } else {
-                TileFactory tileFactory = dimensions.containsKey(0) ? dimensions.get(0).getTileFactory() : null;
-                if (tileFactory instanceof HeightMapTileFactory) {
-                    if (((HeightMapTileFactory) tileFactory).getWaterHeight() < 32) {
-                        // Low level
-                        generator = Generator.FLAT;
+        if (wpVersion < 1) {
+            // Legacy maps
+            if (maxheight == 0) {
+                maxheight = 128;
+            }
+            if (generator == null) {
+                generator = Generator.DEFAULT;
+                if ((generatorName != null) && generatorName.equals("FLAT")) {
+                    generator = Generator.FLAT;
+                } else {
+                    TileFactory tileFactory = dimensions.containsKey(0) ? dimensions.get(0).getTileFactory() : null;
+                    if (tileFactory instanceof HeightMapTileFactory) {
+                        if (((HeightMapTileFactory) tileFactory).getWaterHeight() < 32) {
+                            // Low level
+                            generator = Generator.FLAT;
+                        }
                     }
                 }
             }
-        }
-        if (biomeAlgorithm == BIOME_ALGORITHM_CUSTOM_BIOMES) {
-            biomeAlgorithm = lastSelectedBiomeAlgorithm;
-            customBiomes = true;
-        }
-        if (upIs == null) {
-            upIs = Direction.WEST;
-            askToRotate = true;
-        }
-        if ((! allowMerging) && (biomeAlgorithm != BIOME_ALGORITHM_NONE)) {
-            biomeAlgorithm = BIOME_ALGORITHM_NONE;
-            customBiomes = false;
-        }
-        if (customMaterials != null) {
-            mixedMaterials = new MixedMaterial[Terrain.CUSTOM_TERRAIN_COUNT];
-            for (int i = 0; i < customMaterials.length; i++) {
-                if (customMaterials[i] != null) {
-                    mixedMaterials[i] = new MixedMaterial(customMaterials[i].toString(), new Row[] {new Row(customMaterials[i], 1000, 1.0f)}, -1, true, 1.0f, null);
+            if (biomeAlgorithm == BIOME_ALGORITHM_CUSTOM_BIOMES) {
+                customBiomes = true;
+            }
+            if (upIs == null) {
+                upIs = Direction.WEST;
+                askToRotate = true;
+            }
+            if ((! allowMerging) && (biomeAlgorithm != BIOME_ALGORITHM_NONE)) {
+                customBiomes = false;
+            }
+            if (mixedMaterials == null) {
+                mixedMaterials = new MixedMaterial[Terrain.CUSTOM_TERRAIN_COUNT];
+                if (customMaterials != null) {
+                    for (int i = 0; i < customMaterials.length; i++) {
+                        if (customMaterials[i] != null) {
+                            mixedMaterials[i] = MixedMaterial.create(customMaterials[i]);
+                        }
+                    }
+                    customMaterials = null;
                 }
             }
-            customMaterials = null;
+            
+            Dimension dim = dimensions.get(DIM_NORMAL);
+            if (dim != null) {
+                // Migrate to refactored automatic biomes
+                if (biomeAlgorithm == BIOME_ALGORITHM_AUTO_BIOMES) {
+                    // Automatic biomes was enabled; biome information should
+                    // be present throughout; no need to do anything. Schedule a
+                    // warning to warn the user about the change though
+                    warnings = EnumSet.of(Warning.AUTO_BIOMES_DISABLED);
+                } else if (customBiomes) {
+                    // Custom biomes was enabled; a mix of initialised and
+                    // uninitialised tiles may be present which would be
+                    // problematic, as the initialised tiles would have been
+                    // initialised to zero and the default is now 255. Check what
+                    // the situation is and take appropriate steps
+                    boolean tilesWithBiomesFound = false, tilesWithoutBiomesFound = false;
+                    for (Tile tile: dim.getTiles()) {
+                        if (tile.hasLayer(Biome.INSTANCE)) {
+                            tilesWithBiomesFound = true;
+                        } else {
+                            tilesWithoutBiomesFound = true;
+                        }
+                    }
+                    if (tilesWithBiomesFound) {
+                        if (tilesWithoutBiomesFound) {
+                            // There is a mix of initialised and uninitialiased
+                            // tiles. Initialise the uninitialised ones to zero.
+                            // No need to warn the user as there is no change in
+                            // behaviour
+                            for (Tile tile: dim.getTiles()) {
+                                if (! tile.hasLayer(Biome.INSTANCE)) {
+                                    for (int x = 0; x < TILE_SIZE; x++) {
+                                        for (int y = 0; y < TILE_SIZE; y++) {
+                                            tile.setLayerValue(Biome.INSTANCE, x, y, 0);
+                                        }
+                                    }
+                                }
+                            }
+                        } else {
+                            // There are only initialised tiles. Good, we can leave
+                            // it like that, and don't have to warn the user, as the
+                            // behaviour will not change
+                        }
+                    } else if (tilesWithoutBiomesFound) {
+                        // There are only uninitialised tiles. Leave it like that,
+                        // but warn the user that automatic biomes is now active
+                        warnings = EnumSet.of(Warning.AUTO_BIOMES_ENABLED);
+                    }
+                } else {
+                    // Neither custom nor automatic biomes was enabled; all
+                    // tiles *should* be uninitialised, but clear the layer data
+                    // anyway just to make sure. Schedule a warning to warn the user
+                    // that automatic biomes are now active
+                    dim.clearLayerData(Biome.INSTANCE);
+                    warnings = EnumSet.of(Warning.AUTO_BIOMES_ENABLED);
+                }
+            }
         }
+        wpVersion = CURRENT_WP_VERSION;
         
         // Bug fix: fix the maxHeight of the dimensions, which somehow is not
         // always correctly set (possibly only on imported worlds from
@@ -495,14 +518,13 @@ public class World2 extends InstanceKeeper implements Serializable, Cloneable {
     private boolean createGoodiesChest = true;
     private Point spawnPoint = new Point(0, 0);
     private File importedFrom;
-    private SortedMap<Integer, Dimension> dimensions = new TreeMap<Integer, Dimension>();
+    private final SortedMap<Integer, Dimension> dimensions = new TreeMap<Integer, Dimension>();
     private boolean mapFeatures = true;
     private int gameType = org.pepsoft.minecraft.Constants.GAME_TYPE_SURVIVAL;
     @Deprecated
     private Material[] customMaterials;
-    private int biomeAlgorithm = BIOME_ALGORITHM_1_2_AND_1_3_DEFAULT;
     @Deprecated
-    private int lastSelectedBiomeAlgorithm = BIOME_ALGORITHM_1_2_AND_1_3_DEFAULT;
+    private int biomeAlgorithm = -1;
     private int maxheight = DEFAULT_MAX_HEIGHT; // Typo, but there are already worlds in the wild with this, so leave it
     private transient boolean dirty;
     private transient PropertyChangeSupport propertyChangeSupport = new PropertyChangeSupport(this);
@@ -526,25 +548,28 @@ public class World2 extends InstanceKeeper implements Serializable, Cloneable {
     private String generatorOptions;
     private MixedMaterial[] mixedMaterials = new MixedMaterial[Terrain.CUSTOM_TERRAIN_COUNT];
     private boolean extendedBlockIds;
+    private int wpVersion = CURRENT_WP_VERSION;
+    private transient Set<Warning> warnings;
 
+    @Deprecated
     public static final int BIOME_ALGORITHM_NONE                = -1;
-    public static final int BIOME_ALGORITHM_1_7_3               =  0;
-    public static final int BIOME_ALGORITHM_1_9                 =  1;
-    public static final int BIOME_ALGORITHM_1_8_1               =  2;
-    public static final int BIOME_ALGORITHM_1_0_0               =  3;
-    public static final int BIOME_ALGORITHM_1_1                 =  4;
-    public static final int BIOME_ALGORITHM_1_2_AND_1_3_DEFAULT =  5;
     @Deprecated
     public static final int BIOME_ALGORITHM_CUSTOM_BIOMES       =  6;
+    @Deprecated
     public static final int BIOME_ALGORITHM_AUTO_BIOMES         =  7; 
-    public static final int BIOME_ALGORITHM_1_3_LARGE           =  8;
     
     public static final int DEFAULT_MAX_HEIGHT = org.pepsoft.minecraft.Constants.DEFAULT_MAX_HEIGHT_2;
-    public static final long DEFAULT_OCEAN_SEED = 202961L; // A seed with a huge ocean around the origin, and not many mushroom islands nearby
-    public static final long DEFAULT_LAND_SEED = 141107L; // A seed with a huge continent around the origin
+    // Old 1.6 values:
+//    public static final long DEFAULT_OCEAN_SEED = 202961L; // A seed with a huge ocean around the origin, and not many mushroom islands nearby
+//    public static final long DEFAULT_LAND_SEED = 141107L; // A seed with a huge continent around the origin
+    // New 1.7 values:
+    public static final long DEFAULT_OCEAN_SEED = 27594263L; // A seed with a large ocean around the origin, and not many mushroom islands nearby. Should be used with Large Biomes
+    public static final long DEFAULT_LAND_SEED = 227290L; // A seed with a huge continent around the origin. Should be used with Large Biomes
     
-    public static final String[] BIOME_ALGORITHM_NAMES = {"Beta 1.7.3", "Beta 1.9", "Beta 1.8.1", "1.0.0", "1.1", "1.2 and 1.3 Default", "Custom", "Auto", "1.3 Large"};
+    private static final int CURRENT_WP_VERSION = 1;
 
     private static final Logger logger = Logger.getLogger(World2.class.getName());
     private static final long serialVersionUID = 2011062401L;
+    
+    enum Warning {AUTO_BIOMES_ENABLED, AUTO_BIOMES_DISABLED}
 }

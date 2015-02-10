@@ -36,9 +36,9 @@ import org.pepsoft.util.ProgressReceiver;
 import org.pepsoft.util.ProgressReceiver.OperationCancelled;
 import org.pepsoft.util.swing.ProgressDialog;
 import org.pepsoft.util.swing.ProgressTask;
-import org.pepsoft.util.swing.TileProvider;
 import org.pepsoft.worldpainter.App;
 import org.pepsoft.worldpainter.BiomeScheme;
+import org.pepsoft.worldpainter.ColourScheme;
 import org.pepsoft.worldpainter.Configuration;
 import org.pepsoft.worldpainter.NewWorldDialog;
 import org.pepsoft.worldpainter.World2;
@@ -49,22 +49,46 @@ import org.pepsoft.worldpainter.util.MinecraftUtil;
 import static org.pepsoft.worldpainter.Constants.*;
 import org.pepsoft.worldpainter.Generator;
 import org.pepsoft.worldpainter.biomeschemes.Minecraft1_3LargeBiomeScheme;
+import org.pepsoft.worldpainter.biomeschemes.Minecraft1_6BiomeScheme;
+import org.pepsoft.worldpainter.biomeschemes.Minecraft1_6LargeBiomeScheme;
+import org.pepsoft.worldpainter.biomeschemes.Minecraft1_7BiomeScheme;
+import org.pepsoft.worldpainter.biomeschemes.Minecraft1_7LargeBiomeScheme;
+import org.pepsoft.worldpainter.biomeschemes.Minecraft1_8BiomeScheme;
+import org.pepsoft.worldpainter.biomeschemes.Minecraft1_8LargeBiomeScheme;
 
 /**
  *
  * @author pepijn
  */
 public class BiomesViewerFrame extends JFrame {
-    public BiomesViewerFrame(long seed, BiomeScheme biomeScheme, SeedListener seedListener) throws HeadlessException {
+    public BiomesViewerFrame(long seed, BiomeScheme biomeScheme, ColourScheme colourScheme, SeedListener seedListener) throws HeadlessException {
+        this(seed, null, biomeScheme, colourScheme, seedListener);
+    }
+    
+    public BiomesViewerFrame(long seed, final Point marker, BiomeScheme biomeScheme, ColourScheme colourScheme, SeedListener seedListener) throws HeadlessException {
         super("WorldPainter - Biomes Viewer");
-        if ((! (biomeScheme instanceof Minecraft1_1BiomeScheme)) && (! (biomeScheme instanceof Minecraft1_2BiomeScheme)) && (! (biomeScheme instanceof Minecraft1_3LargeBiomeScheme))) {
-            throw new IllegalArgumentException("A Minecraft 1.5, 1.4, 1.3, 1.2 or 1.1 biome scheme must be selected");
+        if (! ((biomeScheme instanceof Minecraft1_1BiomeScheme)
+                || (biomeScheme instanceof Minecraft1_2BiomeScheme)
+                || (biomeScheme instanceof Minecraft1_3LargeBiomeScheme)
+                || (biomeScheme instanceof Minecraft1_6BiomeScheme)
+                || (biomeScheme instanceof Minecraft1_6LargeBiomeScheme)
+                || (biomeScheme instanceof Minecraft1_7BiomeScheme)
+                || (biomeScheme instanceof Minecraft1_7LargeBiomeScheme)
+                || (biomeScheme instanceof Minecraft1_8BiomeScheme)
+                || (biomeScheme instanceof Minecraft1_8LargeBiomeScheme))) {
+            throw new IllegalArgumentException("A Minecraft 1.8 or 1.1 - 1.7 biome scheme must be selected");
         }
         this.biomeScheme = biomeScheme;
+        this.colourScheme = colourScheme;
         this.seedListener = seedListener;
+        standAloneMode = App.getInstanceIfExists() == null;
         biomeScheme.setSeed(seed);
-        final BiomesTileProvider tileProvider = new BiomesTileProvider(biomeScheme);
-        imageViewer = new BiomesViewer(false);
+        final BiomesTileProvider tileProvider = new BiomesTileProvider(biomeScheme, colourScheme);
+        imageViewer = new BiomesViewer(standAloneMode, Math.max(Runtime.getRuntime().availableProcessors() - 1, 1), true);
+        if (marker != null) {
+            imageViewer.setMarkerCoords(marker);
+            imageViewer.moveToMarker();
+        }
         imageViewer.setTileProvider(tileProvider);
         imageViewer.addMouseWheelListener(new MouseWheelListener() {
             @Override
@@ -72,69 +96,72 @@ public class BiomesViewerFrame extends JFrame {
                 int rotation = e.getWheelRotation();
                 int zoom = imageViewer.getZoom();
                 if (rotation < 0) {
-                    for (int i = 0; i > rotation; i--) {
-                        if (zoom > 1) {
-                            zoom /= 2;
-                        }
-                    }
+                    zoom = Math.min(zoom + -rotation, 0);
                 } else {
-                    for (int i = 0; i < rotation; i++) {
-                        if (zoom < 16) {
-                            zoom *= 2;
-                        }
-                    }
+                    zoom = Math.max(zoom - rotation, -4);
                 }
                 imageViewer.setZoom(zoom);
             }
         });
-        Controller controller = new Controller(tileProvider);
-        imageViewer.addMouseListener(controller);
-        imageViewer.addMouseMotionListener(controller);
+        
+        if (! standAloneMode) {
+            Controller controller = new Controller();
+            imageViewer.addMouseListener(controller);
+            imageViewer.addMouseMotionListener(controller);
+        }
+        
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         getContentPane().add(imageViewer, BorderLayout.CENTER);
 
         JToolBar toolBar = new JToolBar();
         toolBar.add(new JLabel("Biome scheme:"));
-        schemeChooser = new JComboBox(new Object[] {"Minecraft 1.5 Default (or 1.2 - 1.4)", "Minecraft 1.5 Large Biomes (or 1.3 - 1.4)", "Minecraft 1.1"});
+        schemeChooser = new JComboBox(new Object[] {"Minecraft 1.7 or 1.8 Default", "Minecraft 1.7 or 1.8 Large Biomes", "Minecraft 1.6 Default (or 1.2 - 1.5)", "Minecraft 1.6 Large Biomes (or 1.3 - 1.5)", "Minecraft 1.1"});
         seedSpinner = new JSpinner(new SpinnerNumberModel(Long.valueOf(seed), Long.valueOf(Long.MIN_VALUE), Long.valueOf(Long.MAX_VALUE), Long.valueOf(1L)));
-        if (biomeScheme instanceof Minecraft1_1BiomeScheme) {
+        if ((biomeScheme instanceof Minecraft1_7LargeBiomeScheme) || (biomeScheme instanceof Minecraft1_8LargeBiomeScheme)) {
             schemeChooser.setSelectedIndex(1);
+        } else if (biomeScheme instanceof Minecraft1_6BiomeScheme) {
+            schemeChooser.setSelectedIndex(2);
+        } else if (biomeScheme instanceof Minecraft1_6LargeBiomeScheme) {
+            schemeChooser.setSelectedIndex(3);
+        } else if (biomeScheme instanceof Minecraft1_1BiomeScheme) {
+            schemeChooser.setSelectedIndex(4);
         }
         schemeChooser.addItemListener(new ItemListener() {
             @Override
             public void itemStateChanged(ItemEvent e) {
                 int selectedIndex = schemeChooser.getSelectedIndex();
+                BiomeScheme biomeScheme = null;
                 switch (selectedIndex) {
                     case 0:
-                        if (! (BiomesViewerFrame.this.biomeScheme instanceof Minecraft1_2BiomeScheme)) {
-                            BiomeScheme biomeScheme = BiomeSchemeManager.getBiomeScheme(World2.BIOME_ALGORITHM_1_2_AND_1_3_DEFAULT, BiomesViewerFrame.this);
-                            if (biomeScheme != null) {
-                                BiomesViewerFrame.this.biomeScheme = biomeScheme;
-                                BiomesViewerFrame.this.biomeScheme.setSeed(((Number) seedSpinner.getValue()).longValue());
-                                imageViewer.setTileProvider(new BiomesTileProvider(BiomesViewerFrame.this.biomeScheme, imageViewer.getZoom()));
-                            }
+                        if (! (BiomesViewerFrame.this.biomeScheme instanceof Minecraft1_7BiomeScheme)) {
+                            biomeScheme = BiomeSchemeManager.getBiomeScheme(BiomeSchemeManager.BIOME_ALGORITHM_1_7_DEFAULT, BiomesViewerFrame.this);
                         }
                         break;
                     case 1:
-                        if (! (BiomesViewerFrame.this.biomeScheme instanceof Minecraft1_3LargeBiomeScheme)) {
-                            BiomeScheme biomeScheme = BiomeSchemeManager.getBiomeScheme(World2.BIOME_ALGORITHM_1_3_LARGE, BiomesViewerFrame.this);
-                            if (biomeScheme != null) {
-                                BiomesViewerFrame.this.biomeScheme = biomeScheme;
-                                BiomesViewerFrame.this.biomeScheme.setSeed(((Number) seedSpinner.getValue()).longValue());
-                                imageViewer.setTileProvider(new BiomesTileProvider(BiomesViewerFrame.this.biomeScheme, imageViewer.getZoom()));
-                            }
+                        if (! (BiomesViewerFrame.this.biomeScheme instanceof Minecraft1_7LargeBiomeScheme)) {
+                            biomeScheme = BiomeSchemeManager.getBiomeScheme(BiomeSchemeManager.BIOME_ALGORITHM_1_7_LARGE, BiomesViewerFrame.this);
                         }
                         break;
                     case 2:
-                        if (! (BiomesViewerFrame.this.biomeScheme instanceof Minecraft1_1BiomeScheme)) {
-                            BiomeScheme biomeScheme = BiomeSchemeManager.getBiomeScheme(World2.BIOME_ALGORITHM_1_1, BiomesViewerFrame.this);
-                            if (biomeScheme != null) {
-                                BiomesViewerFrame.this.biomeScheme = biomeScheme;
-                                BiomesViewerFrame.this.biomeScheme.setSeed(((Number) seedSpinner.getValue()).longValue());
-                                imageViewer.setTileProvider(new BiomesTileProvider(BiomesViewerFrame.this.biomeScheme, imageViewer.getZoom()));
-                            }
+                        if (! (BiomesViewerFrame.this.biomeScheme instanceof Minecraft1_2BiomeScheme)) {
+                            biomeScheme = BiomeSchemeManager.getBiomeScheme(BiomeSchemeManager.BIOME_ALGORITHM_1_2_AND_1_3_DEFAULT, BiomesViewerFrame.this);
                         }
                         break;
+                    case 3:
+                        if (! (BiomesViewerFrame.this.biomeScheme instanceof Minecraft1_3LargeBiomeScheme)) {
+                            biomeScheme = BiomeSchemeManager.getBiomeScheme(BiomeSchemeManager.BIOME_ALGORITHM_1_3_LARGE, BiomesViewerFrame.this);
+                        }
+                        break;
+                    case 4:
+                        if (! (BiomesViewerFrame.this.biomeScheme instanceof Minecraft1_1BiomeScheme)) {
+                            biomeScheme = BiomeSchemeManager.getBiomeScheme(BiomeSchemeManager.BIOME_ALGORITHM_1_1, BiomesViewerFrame.this);
+                        }
+                        break;
+                }
+                if (biomeScheme != null) {
+                    BiomesViewerFrame.this.biomeScheme = biomeScheme;
+                    BiomesViewerFrame.this.biomeScheme.setSeed(((Number) seedSpinner.getValue()).longValue());
+                    imageViewer.setTileProvider(new BiomesTileProvider(BiomesViewerFrame.this.biomeScheme, BiomesViewerFrame.this.colourScheme, imageViewer.getZoom(), false));
                 }
             }
         });
@@ -146,7 +173,7 @@ public class BiomesViewerFrame extends JFrame {
             @Override
             public void stateChanged(ChangeEvent e) {
                 BiomesViewerFrame.this.biomeScheme.setSeed(((Number) seedSpinner.getValue()).longValue());
-                imageViewer.setTileProvider(new BiomesTileProvider(BiomesViewerFrame.this.biomeScheme, imageViewer.getZoom()));
+                imageViewer.setTileProvider(new BiomesTileProvider(BiomesViewerFrame.this.biomeScheme, BiomesViewerFrame.this.colourScheme, imageViewer.getZoom(), false));
             }
         });
         toolBar.add(seedSpinner);
@@ -158,10 +185,8 @@ public class BiomesViewerFrame extends JFrame {
             @Override
             public void actionPerformed(ActionEvent e) {
                 int zoom = imageViewer.getZoom();
-                if (zoom < 16) {
-                    zoom *= 2;
-                    imageViewer.setZoom(zoom);
-                }
+                zoom = Math.max(zoom - 1, -4);
+                imageViewer.setZoom(zoom);
             }
         });
         toolBar.add(button);
@@ -171,23 +196,23 @@ public class BiomesViewerFrame extends JFrame {
             @Override
             public void actionPerformed(ActionEvent e) {
                 int zoom = imageViewer.getZoom();
-                if (zoom > 1) {
-                    zoom /= 2;
-                    imageViewer.setZoom(zoom);
-                }
+                zoom = Math.min(zoom + 1, 0);
+                imageViewer.setZoom(zoom);
             }
         });
         toolBar.add(button);
         
         toolBar.add(Box.createHorizontalStrut(5));
         createWorldButton = new JButton("Create world");
-        createWorldButton.setToolTipText("Create a new WorldPainter world from the selected tiles");
-        createWorldButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                createWorld();
-            }
-        });
+        if (! standAloneMode) {
+            createWorldButton.setToolTipText("Create a new WorldPainter world from the selected tiles");
+            createWorldButton.addActionListener(new ActionListener() {
+                @Override
+                public void actionPerformed(ActionEvent e) {
+                    createWorld();
+                }
+            });
+        }
         createWorldButton.setEnabled(false);
         toolBar.add(createWorldButton);
         
@@ -197,6 +222,9 @@ public class BiomesViewerFrame extends JFrame {
             @Override
             public void actionPerformed(ActionEvent e) {
                 imageViewer.reset();
+                if (marker != null) {
+                    imageViewer.moveToMarker();
+                }
             }
         });
         toolBar.add(button);
@@ -208,7 +236,7 @@ public class BiomesViewerFrame extends JFrame {
             button.addActionListener(new ActionListener() {
                 @Override
                 public void actionPerformed(ActionEvent e) {
-                    BiomesViewerFrame.this.seedListener.setSeed(((Number) seedSpinner.getValue()).longValue());
+                    BiomesViewerFrame.this.seedListener.setSeed(((Number) seedSpinner.getValue()).longValue(), ((schemeChooser.getSelectedIndex() == 1) || (schemeChooser.getSelectedIndex() == 3)) ? Generator.LARGE_BIOMES : Generator.DEFAULT);
                 }
             });
             toolBar.add(button);
@@ -246,18 +274,15 @@ public class BiomesViewerFrame extends JFrame {
                 BiomeScheme biomeScheme = BiomesViewerFrame.this.biomeScheme;
                 Level level = new Level(Constants.DEFAULT_MAX_HEIGHT_1, (biomeScheme instanceof Minecraft1_1BiomeScheme) ? Constants.SUPPORTED_VERSION_1 : Constants.SUPPORTED_VERSION_2);
                 if (! (biomeScheme instanceof Minecraft1_1BiomeScheme)) {
-                    level.setGenerator((biomeScheme instanceof Minecraft1_3LargeBiomeScheme) ? Generator.LARGE_BIOMES : Generator.DEFAULT);
+                    level.setGenerator(((biomeScheme instanceof Minecraft1_3LargeBiomeScheme) || (biomeScheme instanceof Minecraft1_7LargeBiomeScheme) || (biomeScheme instanceof Minecraft1_8LargeBiomeScheme)) ? Generator.LARGE_BIOMES : Generator.DEFAULT);
                 }
                 level.setGameType(Constants.GAME_TYPE_SURVIVAL);
                 level.setMapFeatures(true);
                 level.setName(name);
                 level.setSeed(((Number) seedSpinner.getValue()).longValue());
-                int middleX = getWidth() / 2;
-                int middleY = getHeight() / 2;
-                int worldX = (imageViewer.getViewX() + middleX) * imageViewer.getZoom();
-                int worldY = (imageViewer.getViewY() + middleY) * imageViewer.getZoom();
-                level.setSpawnX(worldX);
-                level.setSpawnZ(worldY);
+                Point worldCoords = imageViewer.getViewLocation();
+                level.setSpawnX(worldCoords.x);
+                level.setSpawnZ(worldCoords.y);
                 level.setSpawnY(64);
                 try {
                     level.save(worldDir);
@@ -280,22 +305,21 @@ public class BiomesViewerFrame extends JFrame {
     }
 
     public void destroy() {
-        imageViewer.setTileProvider(null);
+        imageViewer.removeAllTileProviders();
     }
     
     private void createWorld() {
-        App app = App.getInstance();
+        App app = App.getInstanceIfExists();
         if (! app.saveIfNecessary()) {
             return;
         }
         final NewWorldDialog dialog = new NewWorldDialog(
-                app,
-                "Generated World",
-                ((Number) seedSpinner.getValue()).longValue(),
-                (schemeChooser.getSelectedIndex() < 2),
-                DIM_NORMAL,
-                Configuration.getInstance().getDefaultMaxHeight(),
-                imageViewer.getSelectedTiles());
+            app,
+            "Generated World",
+            ((Number) seedSpinner.getValue()).longValue(),
+            DIM_NORMAL,
+            Configuration.getInstance().getDefaultMaxHeight(),
+            imageViewer.getSelectedTiles());
         dialog.setVisible(true);
         if (! dialog.isCancelled()) {
             app.setWorld(null);
@@ -312,22 +336,16 @@ public class BiomesViewerFrame extends JFrame {
                 public World2 execute(ProgressReceiver progressReceiver) throws OperationCancelled {
                     return dialog.getSelectedWorld(progressReceiver);
                 }
-            }, true);
+            });
             if (newWorld != null) {
-                if (schemeChooser.getSelectedIndex() == 1) {
-                    newWorld.setGenerator(Generator.LARGE_BIOMES);
-                }
+                newWorld.setGenerator(((schemeChooser.getSelectedIndex() == 1) || (schemeChooser.getSelectedIndex() == 3)) ? Generator.LARGE_BIOMES : Generator.DEFAULT);
                 app.setWorld(newWorld);
-                if (newWorld.isCustomBiomes() && (app.getBiomeScheme() != null)) {
-                    // Initialise the custom biomes
-                    newWorld.getDimension(0).recalculateBiomes(app.getBiomeScheme(), this);
-                }
             }
         }
     }
     
     private void setControlStates() {
-        createWorldButton.setEnabled(! imageViewer.getSelectedTiles().isEmpty());
+        createWorldButton.setEnabled((! standAloneMode) && (! imageViewer.getSelectedTiles().isEmpty()));
     }
 
     private final WPTileSelectionViewer imageViewer;
@@ -335,20 +353,17 @@ public class BiomesViewerFrame extends JFrame {
     private final JButton createWorldButton;
     private final JSpinner seedSpinner;
     private final JComboBox schemeChooser;
+    private final ColourScheme colourScheme;
+    private final boolean standAloneMode;
     private BiomeScheme biomeScheme;
     
     private static final long serialVersionUID = 1L;
     
     public static interface SeedListener {
-        void selectBiomeScheme(int biomeScheme);
-        void setSeed(long seed);
+        void setSeed(long seed, Generator generator);
     }
     
     class Controller implements MouseListener, MouseMotionListener {
-        public Controller(TileProvider tileProvider) {
-            this.tileProvider = tileProvider;
-        }
-        
         @Override
         public void mouseClicked(MouseEvent e) {
             if (e.getButton() != MouseEvent.BUTTON1) {
@@ -430,13 +445,10 @@ public class BiomesViewerFrame extends JFrame {
         }
 
         private Point getTileLocation(int x, int y) {
-            int viewX = imageViewer.getViewX();
-            int viewY = imageViewer.getViewY();
-            int zoom = tileProvider.getZoom();
-            return new Point((x + viewX) * zoom / TILE_SIZE - ((x < -viewX) ? 1 : 0), (y + viewY) * zoom / TILE_SIZE - ((y < -viewY) ? 1 : 0));
+            Point coords = imageViewer.viewToWorld(x, y);
+            return new Point(coords.x >> TILE_SIZE_BITS, coords.y >> TILE_SIZE_BITS);
         }
 
-        private final TileProvider tileProvider;
         private boolean selecting;
         private Point selectionCorner1, selectionCorner2;
     }

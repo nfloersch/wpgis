@@ -11,8 +11,8 @@ package org.pepsoft.worldpainter.layers.renderers;
  */
 public class ReadOnlyRenderer implements BitLayerRenderer {
     public int getPixelColour(int x, int y, int underlyingColour, boolean value) {
-        x = x % 16;
-        y = y % 16;
+        x = x & 0xf;
+        y = y & 0xf;
         if (value  && ((x == y) || (x == (15 - y)))) {
             return BLACK;
         } else {

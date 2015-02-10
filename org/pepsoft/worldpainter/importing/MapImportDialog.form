@@ -11,6 +11,7 @@
   </Properties>
   <SyntheticProperties>
     <SyntheticProperty name="formSizePolicy" type="int" value="1"/>
+    <SyntheticProperty name="generateCenter" type="boolean" value="false"/>
   </SyntheticProperties>
   <AuxValues>
     <AuxValue name="FormSettings_autoResourcing" type="java.lang.Integer" value="0"/>
@@ -36,14 +37,14 @@
                       <Component id="buttonSelectFile" min="-2" max="-2" attributes="0"/>
                   </Group>
                   <Group type="102" alignment="1" attributes="0">
-                      <Component id="labelTooLarge" min="-2" max="-2" attributes="0"/>
-                      <EmptySpace max="32767" attributes="0"/>
+                      <EmptySpace min="0" pref="0" max="32767" attributes="0"/>
                       <Component id="buttonOK" min="-2" max="-2" attributes="0"/>
                       <EmptySpace max="-2" attributes="0"/>
                       <Component id="buttonCancel" min="-2" max="-2" attributes="0"/>
                   </Group>
                   <Group type="102" attributes="0">
                       <Group type="103" groupAlignment="0" attributes="0">
+                          <Component id="radioButtonReadOnlyManMadeAboveGround" min="-2" max="-2" attributes="0"/>
                           <Component id="radioButtonReadOnlyAll" min="-2" max="-2" attributes="0"/>
                           <Component id="radioButtonReadOnlyManMade" min="-2" max="-2" attributes="0"/>
                           <Component id="radioButtonReadOnlyNone" min="-2" max="-2" attributes="0"/>
@@ -90,7 +91,7 @@
                           </Group>
                           <Component id="jLabel5" alignment="0" min="-2" max="-2" attributes="0"/>
                       </Group>
-                      <EmptySpace min="0" pref="0" max="32767" attributes="0"/>
+                      <EmptySpace min="0" pref="107" max="32767" attributes="0"/>
                   </Group>
               </Group>
               <EmptySpace max="-2" attributes="0"/>
@@ -140,6 +141,8 @@
               <EmptySpace max="-2" attributes="0"/>
               <Component id="radioButtonReadOnlyNone" min="-2" max="-2" attributes="0"/>
               <EmptySpace max="-2" attributes="0"/>
+              <Component id="radioButtonReadOnlyManMadeAboveGround" min="-2" max="-2" attributes="0"/>
+              <EmptySpace max="-2" attributes="0"/>
               <Component id="radioButtonReadOnlyManMade" min="-2" max="-2" attributes="0"/>
               <EmptySpace max="-2" attributes="0"/>
               <Component id="radioButtonReadOnlyAll" min="-2" max="-2" attributes="0"/>
@@ -147,7 +150,6 @@
               <Group type="103" groupAlignment="3" attributes="0">
                   <Component id="buttonCancel" alignment="3" min="-2" max="-2" attributes="0"/>
                   <Component id="buttonOK" alignment="3" min="-2" max="-2" attributes="0"/>
-                  <Component id="labelTooLarge" alignment="3" min="-2" max="-2" attributes="0"/>
               </Group>
               <EmptySpace max="-2" attributes="0"/>
           </Group>
@@ -265,14 +267,6 @@
         <Property name="text" type="java.lang.String" value="include outlying chunks in import"/>
       </Properties>
     </Component>
-    <Component class="javax.swing.JLabel" name="labelTooLarge">
-      <Properties>
-        <Property name="icon" type="javax.swing.Icon" editor="org.netbeans.modules.form.editors2.IconEditor">
-          <Image iconType="3" name="/org/pepsoft/worldpainter/icons/error.png"/>
-        </Property>
-        <Property name="text" type="java.lang.String" value="This map is too large to import, even without outlying chunks!"/>
-      </Properties>
-    </Component>
     <Component class="javax.swing.JLabel" name="jLabel5">
       <Properties>
         <Property name="text" type="java.lang.String" value="Options:"/>
@@ -291,7 +285,6 @@
         <Property name="buttonGroup" type="javax.swing.ButtonGroup" editor="org.netbeans.modules.form.RADComponent$ButtonGroupPropertyEditor">
           <ComponentRef name="buttonGroup1"/>
         </Property>
-        <Property name="selected" type="boolean" value="true"/>
         <Property name="text" type="java.lang.String" value="mark chunks containing man-made blocks read-only"/>
       </Properties>
     </Component>
@@ -301,6 +294,15 @@
           <ComponentRef name="buttonGroup1"/>
         </Property>
         <Property name="text" type="java.lang.String" value="mark all chunks read-only"/>
+      </Properties>
+    </Component>
+    <Component class="javax.swing.JRadioButton" name="radioButtonReadOnlyManMadeAboveGround">
+      <Properties>
+        <Property name="buttonGroup" type="javax.swing.ButtonGroup" editor="org.netbeans.modules.form.RADComponent$ButtonGroupPropertyEditor">
+          <ComponentRef name="buttonGroup1"/>
+        </Property>
+        <Property name="selected" type="boolean" value="true"/>
+        <Property name="text" type="java.lang.String" value="&lt;html&gt;mark chunks containing man-made blocks &lt;i&gt;above ground&lt;/i&gt; read-only&lt;/html&gt;"/>
       </Properties>
     </Component>
   </SubComponents>

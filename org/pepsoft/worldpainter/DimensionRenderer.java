@@ -31,6 +31,10 @@ public class DimensionRenderer {
     public Set<Layer> getHiddenLayers() {
         return tileRenderer.getHiddenLayers();
     }
+    
+    public void setHiddenLayers(Set<Layer> hiddenLayers) {
+        tileRenderer.setHiddenLayers(hiddenLayers);
+    }
 
     public void renderTile(BufferedImage image, int x, int y) {
         Tile tile = dimension.getTile(x, y);

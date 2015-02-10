@@ -14,7 +14,7 @@ import org.pepsoft.worldpainter.layers.Layer;
 /**
  * An exporter which will be invoked in a second pass, after all chunks have
  * been generated. This is for exporters which need information from, or make
- * changes to, neightbouring chunks.
+ * changes to, neighbouring chunks.
  *
  * @author pepijn
  */

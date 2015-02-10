@@ -6,6 +6,7 @@ package org.pepsoft.worldpainter.panels;
 
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.util.List;
 import javax.swing.AbstractAction;
 import javax.swing.Action;
 import javax.swing.Icon;
@@ -19,9 +20,12 @@ import javax.swing.SpinnerNumberModel;
 import org.pepsoft.worldpainter.App;
 import org.pepsoft.worldpainter.BiomeScheme;
 import org.pepsoft.worldpainter.ColourScheme;
+import org.pepsoft.worldpainter.Dimension;
 import org.pepsoft.worldpainter.Terrain;
 import org.pepsoft.worldpainter.biomeschemes.AutoBiomeScheme;
-import org.pepsoft.worldpainter.biomeschemes.BiomeSchemeManager;
+import org.pepsoft.worldpainter.biomeschemes.BiomeHelper;
+import org.pepsoft.worldpainter.biomeschemes.CustomBiome;
+import org.pepsoft.worldpainter.biomeschemes.CustomBiomeManager;
 import org.pepsoft.worldpainter.layers.Biome;
 import org.pepsoft.worldpainter.layers.Layer;
 import org.pepsoft.worldpainter.layers.LayerManager;
@@ -45,8 +49,15 @@ public class BrushOptions extends javax.swing.JPanel {
     }
 
     public Filter getFilter() {
-        if (checkBoxAbove.isSelected() || checkBoxBelow.isSelected() || checkBoxReplace.isSelected() || checkBoxExceptOn.isSelected()) {
-            return new FilterImpl(App.getInstance().getDimension(), checkBoxAbove.isSelected() ? (Integer) spinnerAbove.getValue() : -1, checkBoxBelow.isSelected() ? (Integer) spinnerBelow.getValue() : -1, checkBoxFeather.isSelected(), checkBoxReplace.isSelected() ? onlyOn : (checkBoxExceptOn.isSelected() ? exceptOn : null), checkBoxExceptOn.isSelected());
+        if (checkBoxAbove.isSelected() || checkBoxBelow.isSelected() || checkBoxReplace.isSelected() || checkBoxExceptOn.isSelected() || checkBoxAboveSlope.isSelected() || checkBoxBelowSlope.isSelected()) {
+            return new FilterImpl(App.getInstance().getDimension(),
+                    checkBoxAbove.isSelected() ? (Integer) spinnerAbove.getValue() : -1,
+                    checkBoxBelow.isSelected() ? (Integer) spinnerBelow.getValue() : -1,
+                    checkBoxFeather.isSelected(),
+                    checkBoxReplace.isSelected() ? onlyOn : (checkBoxExceptOn.isSelected() ? exceptOn : null),
+                    checkBoxExceptOn.isSelected(),
+                    (checkBoxAboveSlope.isSelected() || checkBoxBelowSlope.isSelected()) ? (Integer) spinnerSlope.getValue() : -1,
+                    checkBoxAboveSlope.isSelected());
         } else {
             return null;
         }
@@ -58,6 +69,8 @@ public class BrushOptions extends javax.swing.JPanel {
             checkBoxBelow.setSelected(false);
             checkBoxReplace.setSelected(false);
             checkBoxExceptOn.setSelected(false);
+            checkBoxAboveSlope.setSelected(false);
+            checkBoxBelowSlope.setSelected(false);
         } else {
             FilterImpl myFilter = (FilterImpl) filter;
             checkBoxAbove.setSelected(myFilter.levelType == LevelType.ABOVE || myFilter.levelType == LevelType.BETWEEN || myFilter.levelType == LevelType.OUTSIDE);
@@ -68,22 +81,27 @@ public class BrushOptions extends javax.swing.JPanel {
             if (myFilter.belowLevel >= 0) {
                 spinnerBelow.setValue(myFilter.belowLevel);
             }
+            checkBoxAboveSlope.setSelected(myFilter.checkSlope && myFilter.slopeIsAbove);
+            checkBoxBelowSlope.setSelected(myFilter.checkSlope && (! myFilter.slopeIsAbove));
+            if (myFilter.degrees >= 0) {
+                spinnerSlope.setValue(myFilter.degrees);
+            }
             checkBoxReplace.setSelected((myFilter.objectType != null) && (! myFilter.replaceIsExcept));
             checkBoxExceptOn.setSelected((myFilter.objectType != null) && myFilter.replaceIsExcept);
             if (myFilter.objectType != null) {
+                final App app = App.getInstance();
                 switch (myFilter.objectType) {
                     case BIOME:
                         int biome = myFilter.biome;
-                        App app = App.getInstance();
-                        BiomeScheme biomeScheme = (app.getBiomeScheme() != null) ? app.getBiomeScheme() : autoBiomeScheme;
+                        BiomeHelper biomeHelper = new BiomeHelper(autoBiomeScheme, app.getColourScheme(), app.getCustomBiomeManager());
                         if (myFilter.replaceIsExcept) {
                             exceptOn = biome;
-                            buttonExceptOn.setText(biomeScheme.getBiomeNames()[biome]);
-                            buttonExceptOn.setIcon(new ImageIcon(BiomeSchemeManager.createImage(biomeScheme, biome, app.getColourScheme())));
+                            buttonExceptOn.setText(biomeHelper.getBiomeName(biome));
+                            buttonExceptOn.setIcon(biomeHelper.getBiomeIcon(biome));
                         } else {
                             onlyOn = biome;
-                            buttonReplace.setText(biomeScheme.getBiomeNames()[biome]);
-                            buttonReplace.setIcon(new ImageIcon(BiomeSchemeManager.createImage(biomeScheme, biome, app.getColourScheme())));
+                            buttonReplace.setText(biomeHelper.getBiomeName(biome));
+                            buttonReplace.setIcon(biomeHelper.getBiomeIcon(biome));
                         }
                         break;
                     case BIT_LAYER:
@@ -101,14 +119,37 @@ public class BrushOptions extends javax.swing.JPanel {
                         break;
                     case TERRAIN:
                         Terrain terrain = myFilter.terrain;
+                        ColourScheme colourScheme = app.getColourScheme();
                         if (myFilter.replaceIsExcept) {
                             exceptOn = terrain;
                             buttonExceptOn.setText(terrain.getName());
-                            buttonExceptOn.setIcon(new ImageIcon(terrain.getIcon()));
+                            buttonExceptOn.setIcon(new ImageIcon(terrain.getIcon(colourScheme)));
                         } else {
                             onlyOn = terrain;
                             buttonReplace.setText(terrain.getName());
-                            buttonReplace.setIcon(new ImageIcon(terrain.getIcon()));
+                            buttonReplace.setIcon(new ImageIcon(terrain.getIcon(colourScheme)));
+                        }
+                        break;
+                    case WATER:
+                        if (myFilter.replaceIsExcept) {
+                            exceptOn = WATER;
+                            buttonExceptOn.setText("Water");
+                            buttonExceptOn.setIcon(null);
+                        } else {
+                            onlyOn = WATER;
+                            buttonReplace.setText("Water");
+                            buttonReplace.setIcon(null);
+                        }
+                        break;
+                    case LAND:
+                        if (myFilter.replaceIsExcept) {
+                            exceptOn = LAND;
+                            buttonExceptOn.setText("Land");
+                            buttonExceptOn.setIcon(null);
+                        } else {
+                            onlyOn = LAND;
+                            buttonReplace.setText("Land");
+                            buttonReplace.setIcon(null);
                         }
                         break;
                 }
@@ -141,12 +182,13 @@ public class BrushOptions extends javax.swing.JPanel {
     public void setListener(Listener listener) {
         this.listener = listener;
     }
-    
+
 //    * also add to global operations tool
     
     private void setControlStates() {
         spinnerAbove.setEnabled(checkBoxAbove.isSelected());
         spinnerBelow.setEnabled(checkBoxBelow.isSelected());
+        spinnerSlope.setEnabled(checkBoxAboveSlope.isSelected() || checkBoxBelowSlope.isSelected());
         buttonReplace.setEnabled(checkBoxReplace.isSelected());
         buttonExceptOn.setEnabled(checkBoxExceptOn.isSelected());
         checkBoxFeather.setEnabled(checkBoxAbove.isSelected() || checkBoxBelow.isSelected());
@@ -177,11 +219,34 @@ public class BrushOptions extends javax.swing.JPanel {
     }
     
     private JPopupMenu createObjectSelectionMenu(final ObjectSelectionListener listener) {
+        JMenuItem waterItem = new JMenuItem("Water");
+        waterItem.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                listener.objectSelected(WATER, "Water", null);
+            }
+        });
+        JPopupMenu popupMenu = new JPopupMenu();
+        popupMenu.add(waterItem);
+
+        JMenuItem landItem = new JMenuItem("Land");
+        landItem.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                listener.objectSelected(LAND, "Land", null);
+            }
+        });
+        popupMenu.add(landItem);
+        
         JMenu terrainMenu = new JMenu("Terrain");
-        for (Terrain terrain: Terrain.getConfiguredValue()) {
+        JMenu customTerrainMenu = new JMenu("Custom");
+        JMenu stainedClayTerrainMenu = new JMenu("Stained Clay");
+        App app = App.getInstance();
+        ColourScheme colourScheme = app.getColourScheme();
+        for (Terrain terrain: Terrain.getConfiguredValues()) {
             final Terrain selectedTerrain = terrain;
             final String name = terrain.getName();
-            final Icon icon = new ImageIcon(terrain.getIcon());
+            final Icon icon = new ImageIcon(terrain.getIcon(colourScheme));
             JMenuItem menuItem = new JMenuItem(name, icon);
             menuItem.addActionListener(new ActionListener() {
                 @Override
@@ -189,9 +254,18 @@ public class BrushOptions extends javax.swing.JPanel {
                     listener.objectSelected(selectedTerrain, name, icon);
                 }
             });
-            terrainMenu.add(menuItem);
+            if (terrain.isCustom()) {
+                customTerrainMenu.add(menuItem);
+            } else if (terrain.getName().endsWith(" Clay") && (terrain != Terrain.HARDENED_CLAY)) {
+                stainedClayTerrainMenu.add(menuItem);
+            } else {
+                terrainMenu.add(menuItem);
+            }
         }
-        JPopupMenu popupMenu = new JPopupMenu();
+        terrainMenu.add(stainedClayTerrainMenu);
+        if (customTerrainMenu.getMenuComponentCount() > 0) {
+            terrainMenu.add(customTerrainMenu);
+        }
         popupMenu.add(terrainMenu);
         
         JMenu layerMenu = new JMenu("Layer");
@@ -211,7 +285,6 @@ public class BrushOptions extends javax.swing.JPanel {
             });
             layerMenu.add(menuItem);
         }
-        App app = App.getInstance();
         for (Layer layer: app.getCustomLayers()) {
             final Layer selectedLayer = layer;
             final String name = layer.getName();
@@ -227,16 +300,33 @@ public class BrushOptions extends javax.swing.JPanel {
         }
         popupMenu.add(layerMenu);
         
-        BiomeScheme biomeScheme = (app.getBiomeScheme() != null) ? app.getBiomeScheme() : autoBiomeScheme;
-        ColourScheme colourScheme = app.getColourScheme();
-        if (biomeScheme != null) {
-            JMenu biomeMenu = new JMenu("Biome");
-            String[] names = biomeScheme.getBiomeNames();
-            for (int i = 0; i < names.length; i++) {
+        final JMenu biomeMenu = new JMenu("Biome");
+        final CustomBiomeManager customBiomeManager = app.getCustomBiomeManager();
+        final BiomeHelper biomeHelper = new BiomeHelper(autoBiomeScheme, colourScheme, customBiomeManager);
+        List<CustomBiome> customBiomes = customBiomeManager.getCustomBiomes();
+        if ((customBiomes != null) && (! customBiomes.isEmpty())) {
+            JMenu customBiomeMenu = new JMenu("Custom");
+            for (CustomBiome customBiome: customBiomes) {
+                final int selectedBiome = customBiome.getId();
+                final String name = biomeHelper.getBiomeName(selectedBiome);
+                final Icon icon = biomeHelper.getBiomeIcon(selectedBiome);
+                final JMenuItem menuItem = new JMenuItem(name, icon);
+                menuItem.addActionListener(new ActionListener() {
+                    @Override
+                    public void actionPerformed(ActionEvent e) {
+                        listener.objectSelected(selectedBiome, name, icon);
+                    }
+                });
+                customBiomeMenu.add(menuItem);
+            }
+            biomeMenu.add(customBiomeMenu);
+        }
+        for (int i = 0; i < autoBiomeScheme.getBiomeCount(); i++) {
+            if (autoBiomeScheme.isBiomePresent(i) && (! (autoBiomeScheme.getBiomeName(i).endsWith("+") || autoBiomeScheme.getBiomeName(i).endsWith(" F") || autoBiomeScheme.getBiomeName(i).endsWith(" M") || autoBiomeScheme.getBiomeName(i).endsWith(" F M") || autoBiomeScheme.getBiomeName(i).endsWith(" Edge") || autoBiomeScheme.getBiomeName(i).endsWith(" Shore")))) {
                 final int selectedBiome = i;
-                final String name = names[i];
-                final Icon icon = new ImageIcon(BiomeSchemeManager.createImage(biomeScheme, i, colourScheme));
-                JMenuItem menuItem = new JMenuItem(name, icon);
+                final String name = biomeHelper.getBiomeName(i);
+                final Icon icon = biomeHelper.getBiomeIcon(i);
+                final JMenuItem menuItem = new JMenuItem(name, icon);
                 menuItem.addActionListener(new ActionListener() {
                     @Override
                     public void actionPerformed(ActionEvent e) {
@@ -245,8 +335,48 @@ public class BrushOptions extends javax.swing.JPanel {
                 });
                 biomeMenu.add(menuItem);
             }
-            popupMenu.add(biomeMenu);
         }
+        JMenu autoBiomeSubMenu = new JMenu("Auto Biomes");
+        JMenuItem autoBiomesMenuItem = new JMenuItem("All Auto Biomes");
+        autoBiomesMenuItem.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                listener.objectSelected(AUTO_BIOMES, "All Auto Biomes", null);
+            }
+        });
+        autoBiomeSubMenu.add(autoBiomesMenuItem);
+        for (int autoBiome: Dimension.POSSIBLE_AUTO_BIOMES) {
+            final int selectedBiome = -autoBiome;
+            final String name = biomeHelper.getBiomeName(autoBiome);
+            final Icon icon = biomeHelper.getBiomeIcon(autoBiome);
+            final JMenuItem menuItem = new JMenuItem(name, icon);
+            menuItem.addActionListener(new ActionListener() {
+                @Override
+                public void actionPerformed(ActionEvent e) {
+                    listener.objectSelected(selectedBiome, name, icon);
+                }
+            });
+            autoBiomeSubMenu.add(menuItem);
+        }
+        biomeMenu.add(autoBiomeSubMenu);
+        JMenu biomeSubMenu = new JMenu("Variants");
+        for (int i = 0; i < autoBiomeScheme.getBiomeCount(); i++) {
+            if (autoBiomeScheme.isBiomePresent(i) && (autoBiomeScheme.getBiomeName(i).endsWith("+") || autoBiomeScheme.getBiomeName(i).endsWith(" F") || autoBiomeScheme.getBiomeName(i).endsWith(" M") || autoBiomeScheme.getBiomeName(i).endsWith(" F M") || autoBiomeScheme.getBiomeName(i).endsWith(" Edge") || autoBiomeScheme.getBiomeName(i).endsWith(" Shore"))) {
+                final int selectedBiome = i;
+                final String name = biomeHelper.getBiomeName(i);
+                final Icon icon = biomeHelper.getBiomeIcon(i);
+                final JMenuItem menuItem = new JMenuItem(name, icon);
+                menuItem.addActionListener(new ActionListener() {
+                    @Override
+                    public void actionPerformed(ActionEvent e) {
+                        listener.objectSelected(selectedBiome, name, icon);
+                    }
+                });
+                biomeSubMenu.add(menuItem);
+            }
+        }
+        biomeMenu.add(biomeSubMenu);
+        popupMenu.add(biomeMenu);
         return popupMenu;
     }
     
@@ -316,6 +446,10 @@ public class BrushOptions extends javax.swing.JPanel {
         checkBoxFeather = new javax.swing.JCheckBox();
         checkBoxExceptOn = new javax.swing.JCheckBox();
         buttonExceptOn = new javax.swing.JButton();
+        checkBoxAboveSlope = new javax.swing.JCheckBox();
+        checkBoxBelowSlope = new javax.swing.JCheckBox();
+        spinnerSlope = new javax.swing.JSpinner();
+        jLabel1 = new javax.swing.JLabel();
 
         checkBoxAbove.setFont(checkBoxAbove.getFont().deriveFont(checkBoxAbove.getFont().getSize()-1f));
         checkBoxAbove.setText("at or above");
@@ -394,22 +528,61 @@ public class BrushOptions extends javax.swing.JPanel {
             }
         });
 
+        checkBoxAboveSlope.setFont(checkBoxAboveSlope.getFont().deriveFont(checkBoxAboveSlope.getFont().getSize()-1f));
+        checkBoxAboveSlope.setText("above");
+        checkBoxAboveSlope.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                checkBoxAboveSlopeActionPerformed(evt);
+            }
+        });
+
+        checkBoxBelowSlope.setFont(checkBoxBelowSlope.getFont().deriveFont(checkBoxBelowSlope.getFont().getSize()-1f));
+        checkBoxBelowSlope.setText("below");
+        checkBoxBelowSlope.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                checkBoxBelowSlopeActionPerformed(evt);
+            }
+        });
+
+        spinnerSlope.setFont(spinnerSlope.getFont().deriveFont(spinnerSlope.getFont().getSize()-1f));
+        spinnerSlope.setModel(new javax.swing.SpinnerNumberModel(45, 0, 89, 1));
+        spinnerSlope.setEnabled(false);
+        spinnerSlope.addChangeListener(new javax.swing.event.ChangeListener() {
+            public void stateChanged(javax.swing.event.ChangeEvent evt) {
+                spinnerSlopeStateChanged(evt);
+            }
+        });
+
+        jLabel1.setFont(jLabel1.getFont().deriveFont(jLabel1.getFont().getSize()-1f));
+        jLabel1.setText("degrees");
+
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(this);
         this.setLayout(layout);
         layout.setHorizontalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addComponent(checkBoxAbove)
-            .addComponent(checkBoxReplace)
-            .addComponent(checkBoxBelow)
-            .addComponent(checkBoxExceptOn)
             .addGroup(layout.createSequentialGroup()
-                .addContainerGap()
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addComponent(spinnerAbove, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(spinnerBelow, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(buttonReplace)
-                    .addComponent(checkBoxFeather)
-                    .addComponent(buttonExceptOn)))
+                    .addComponent(checkBoxAbove)
+                    .addComponent(checkBoxBelow)
+                    .addComponent(checkBoxReplace)
+                    .addComponent(checkBoxExceptOn)
+                    .addGroup(layout.createSequentialGroup()
+                        .addComponent(checkBoxAboveSlope)
+                        .addGap(0, 0, 0)
+                        .addComponent(checkBoxBelowSlope))
+                    .addGroup(layout.createSequentialGroup()
+                        .addContainerGap()
+                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addComponent(spinnerAbove, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addComponent(spinnerBelow, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addComponent(checkBoxFeather)
+                            .addComponent(buttonReplace)
+                            .addComponent(buttonExceptOn)
+                            .addGroup(layout.createSequentialGroup()
+                                .addComponent(spinnerSlope, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addGap(0, 0, 0)
+                                .addComponent(jLabel1)))))
+                .addGap(0, 0, 0))
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -429,8 +602,16 @@ public class BrushOptions extends javax.swing.JPanel {
                 .addComponent(buttonReplace)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(checkBoxExceptOn)
+                .addGap(0, 0, 0)
+                .addComponent(buttonExceptOn)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(buttonExceptOn))
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(checkBoxAboveSlope)
+                    .addComponent(checkBoxBelowSlope))
+                .addGap(0, 0, 0)
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(spinnerSlope, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(jLabel1)))
         );
     }// </editor-fold>//GEN-END:initComponents
 
@@ -448,7 +629,9 @@ public class BrushOptions extends javax.swing.JPanel {
 
     private void checkBoxReplaceActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_checkBoxReplaceActionPerformed
         initialiseIfNecessary();
-        checkBoxExceptOn.setSelected(false);
+        if (checkBoxReplace.isSelected()) {
+            checkBoxExceptOn.setSelected(false);
+        }
         setControlStates();
         if (checkBoxReplace.isSelected() && (onlyOn == null)) {
             showReplaceMenu();
@@ -475,7 +658,9 @@ public class BrushOptions extends javax.swing.JPanel {
 
     private void checkBoxExceptOnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_checkBoxExceptOnActionPerformed
         initialiseIfNecessary();
-        checkBoxReplace.setSelected(false);
+        if (checkBoxExceptOn.isSelected()) {
+            checkBoxReplace.setSelected(false);
+        }
         setControlStates();
         if (checkBoxExceptOn.isSelected() && (exceptOn == null)) {
             showExceptOnMenu();
@@ -488,22 +673,52 @@ public class BrushOptions extends javax.swing.JPanel {
         showExceptOnMenu();
     }//GEN-LAST:event_buttonExceptOnActionPerformed
 
+    private void checkBoxAboveSlopeActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_checkBoxAboveSlopeActionPerformed
+        initialiseIfNecessary();
+        if (checkBoxAboveSlope.isSelected()) {
+            checkBoxBelowSlope.setSelected(false);
+        }
+        setControlStates();
+        filterChanged();
+    }//GEN-LAST:event_checkBoxAboveSlopeActionPerformed
+
+    private void checkBoxBelowSlopeActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_checkBoxBelowSlopeActionPerformed
+        initialiseIfNecessary();
+        if (checkBoxBelowSlope.isSelected()) {
+            checkBoxAboveSlope.setSelected(false);
+        }
+        setControlStates();
+        filterChanged();
+    }//GEN-LAST:event_checkBoxBelowSlopeActionPerformed
+
+    private void spinnerSlopeStateChanged(javax.swing.event.ChangeEvent evt) {//GEN-FIRST:event_spinnerSlopeStateChanged
+        filterChanged();
+    }//GEN-LAST:event_spinnerSlopeStateChanged
+
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JButton buttonExceptOn;
     private javax.swing.JButton buttonReplace;
     private javax.swing.JCheckBox checkBoxAbove;
+    private javax.swing.JCheckBox checkBoxAboveSlope;
     private javax.swing.JCheckBox checkBoxBelow;
+    private javax.swing.JCheckBox checkBoxBelowSlope;
     private javax.swing.JCheckBox checkBoxExceptOn;
     private javax.swing.JCheckBox checkBoxFeather;
     private javax.swing.JCheckBox checkBoxReplace;
+    private javax.swing.JLabel jLabel1;
     private javax.swing.JSpinner spinnerAbove;
     private javax.swing.JSpinner spinnerBelow;
+    private javax.swing.JSpinner spinnerSlope;
     // End of variables declaration//GEN-END:variables
 
     private Object onlyOn, exceptOn;
     private BiomeScheme autoBiomeScheme;
     private Listener listener;
     private boolean initialised;
+    
+    public static final String LAND = "Land";
+    public static final String WATER = "Water";
+    public static final String AUTO_BIOMES = "Automatic Biomes";
     
     private static final long serialVersionUID = 1L;
     

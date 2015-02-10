@@ -7,7 +7,6 @@ package org.pepsoft.worldpainter;
 
 import java.awt.Point;
 import java.awt.Rectangle;
-import java.awt.Window;
 import java.beans.PropertyChangeListener;
 import java.beans.PropertyChangeSupport;
 import java.io.File;
@@ -20,6 +19,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -32,17 +32,15 @@ import javax.imageio.stream.FileImageInputStream;
 import javax.imageio.stream.ImageInputStream;
 import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
+import javax.vecmath.Point3i;
 
 import org.pepsoft.util.MathUtils;
 import org.pepsoft.util.PerlinNoise;
 import org.pepsoft.util.ProgressReceiver;
 import org.pepsoft.util.ProgressReceiver.OperationCancelled;
-import org.pepsoft.util.swing.ProgressDialog;
-import org.pepsoft.util.swing.ProgressTask;
 import org.pepsoft.util.undo.UndoManager;
 import org.pepsoft.worldpainter.gardenofeden.Garden;
 import org.pepsoft.worldpainter.gardenofeden.Seed;
-import org.pepsoft.worldpainter.layers.Biome;
 import org.pepsoft.worldpainter.layers.DeciduousForest;
 import org.pepsoft.worldpainter.layers.FloodWithLava;
 import org.pepsoft.worldpainter.layers.Frost;
@@ -57,23 +55,35 @@ import org.pepsoft.worldpainter.layers.exporters.ResourcesExporter.ResourcesExpo
 
 import static org.pepsoft.minecraft.Constants.*;
 import static org.pepsoft.worldpainter.Constants.*;
-import static org.pepsoft.worldpainter.biomeschemes.AbstractMinecraft1_2BiomeScheme.*;
+import static org.pepsoft.worldpainter.biomeschemes.AbstractMinecraft1_7BiomeScheme.*;
+import org.pepsoft.worldpainter.biomeschemes.CustomBiome;
+import org.pepsoft.worldpainter.layers.CustomLayer;
+import org.pepsoft.worldpainter.layers.LayerContainer;
+import org.pepsoft.worldpainter.layers.River;
 
 /**
  *
  * @author pepijn
  */
 public class Dimension extends InstanceKeeper implements TileProvider, Serializable, Tile.Listener, Cloneable {
-    public Dimension(long minecraftSeed, long worldpainterSeed, TileFactory tileFactory, int dim, int maxHeight) {
-        this.seed = worldpainterSeed;
+    public Dimension(long minecraftSeed, TileFactory tileFactory, int dim, int maxHeight) {
+        this(minecraftSeed, tileFactory, dim, maxHeight, true);
+    }
+    
+    public Dimension(long minecraftSeed, TileFactory tileFactory, int dim, int maxHeight, boolean init) {
+        this.seed = tileFactory.getSeed();
         this.minecraftSeed = minecraftSeed;
         this.tileFactory = tileFactory;
         this.dim = dim;
         this.maxHeight = maxHeight;
-        if (dim == 0) {
-            layerSettings.put(Resources.INSTANCE, new ResourcesExporterSettings(maxHeight));
+        if (init) {
+            if (dim == DIM_NORMAL) {
+                layerSettings.put(Resources.INSTANCE, new ResourcesExporterSettings(maxHeight));
+            } else if (dim == DIM_NETHER) {
+                layerSettings.put(Resources.INSTANCE, new ResourcesExporterSettings(maxHeight, true));
+            }
+            topLayerDepthNoise = new PerlinNoise(seed + TOP_LAYER_DEPTH_SEED_OFFSET);
         }
-        topLayerDepthNoise = new PerlinNoise(seed + TOP_LAYER_DEPTH_SEED_OFFSET);
     }
 
     public World2 getWorld() {
@@ -205,15 +215,99 @@ public class Dimension extends InstanceKeeper implements TileProvider, Serializa
         return tileFactory;
     }
 
+    /**
+     * Determines whether a tile is present in the dimension on specific
+     * coordinates.
+     * 
+     * @param x The world X coordinate for which to determine whether a tile is
+     *     present.
+     * @param y The world Y coordinate for which to determine whether a tile is
+     *     present.
+     * @return <code>true</code> if the dimension contains a tile at the
+     *     specified location.
+     */
     @Override
-    public Tile getTile(int x, int y) {
-        return getTile(new Point(x, y));
+    public synchronized boolean isTilePresent(final int x, final int y) {
+        return tiles.containsKey(new Point(x, y));
+    }
+    
+    /**
+     * Indicates whether the specified tile is a border tile.
+     * 
+     * @param x The X coordinate of the tile for which to check whether it is a
+     *     border tile.
+     * @param y The Y coordinate of the tile for which to check whether it is a
+     *     border tile.
+     * @return <code>true</code> if it is a border tile.
+     */
+    public synchronized boolean isBorderTile(int x, int y) {
+        if ((border == null)
+                || (x < (lowestX - borderSize))
+                || (x > (highestX + borderSize))
+                || (y < (lowestY - borderSize))
+                || (y > (highestY + borderSize))) {
+            // Couldn't possibly be a border tile
+            return false;
+        } else if (tiles.containsKey(new Point(x, y))) {
+            // There's a tile in the dimension at these coordinates, so not a
+            // border tile
+            return false;
+        } else {
+            for (int r = 1; r <= borderSize; r++) {
+                for (int i = 0; i <= (r * 2); i++) {
+                    if (tiles.containsKey(new Point(x + i - r, y - r))
+                        || tiles.containsKey(new Point(x + r, y + i - r))
+                        || tiles.containsKey(new Point(x + r - i, y + r))
+                        || tiles.containsKey(new Point(x - r, y - i + r))) {
+                        // Found a tile in the dimension <= borderSize tiles
+                        // away, so this is a border tile
+                        return true;
+                    }
+                }
+            }
+            // No tiles in dimension <= borderSize tiles away, so not a border
+            // tile
+            return false;
+        }
+    }
+    
+    /**
+     * Get the tile for a particular set of world or absolute block coordinates.
+     * 
+     * @param x The world X coordinate for which to get the tile.
+     * @param y The world Y coordinate for which to get the tile.
+     * @return The tile on which the specified coordinates lie, or
+     *     <code>null</code> if there is no tile for those coordinates
+     */
+    @Override
+    public synchronized Tile getTile(final int x, final int y) {
+        final TileCache myTileCache = tileCache.get();
+        if ((x != myTileCache.x) || (y != myTileCache.y)) {
+            final Tile tile = tiles.get(new Point(x, y));
+            myTileCache.tile = tile;
+            myTileCache.x = x;
+            myTileCache.y = y;
+        }
+        return myTileCache.tile;
     }
 
-    public Tile getTile(Point coords) {
-        return tiles.get(coords);
+    public synchronized Tile getTile(final Point coords) {
+        final int x = coords.x, y = coords.y;
+        final TileCache myTileCache = tileCache.get();
+        if ((x != myTileCache.x) || (y != myTileCache.y)) {
+            final Tile tile = tiles.get(coords);
+            myTileCache.tile = tile;
+            myTileCache.x = x;
+            myTileCache.y = y;
+        }
+        return myTileCache.tile;
     }
 
+    @Override
+    public Rectangle getExtent() {
+        return new Rectangle(lowestX, lowestY, (highestX - lowestX) + 1, (highestY - lowestY) + 1);
+    }
+    
     public int getTileCount() {
         return tiles.size();
     }
@@ -222,13 +316,13 @@ public class Dimension extends InstanceKeeper implements TileProvider, Serializa
         return Collections.unmodifiableCollection(tiles.values());
     }
 
-    public void addTile(Tile tile) {
+    public synchronized void addTile(Tile tile) {
         if (tile.getMaxHeight() != maxHeight) {
             throw new IllegalArgumentException("Tile has different max height (" + tile.getMaxHeight() + ") than dimension (" + maxHeight + ")");
         }
-        int x = tile.getX();
-        int y = tile.getY();
-        Point key = new Point(x, y);
+        final int x = tile.getX();
+        final int y = tile.getY();
+        final Point key = new Point(x, y);
         if (tiles.containsKey(key)) {
             throw new IllegalStateException("Tile already set");
         }
@@ -237,6 +331,14 @@ public class Dimension extends InstanceKeeper implements TileProvider, Serializa
             tile.register(undoManager);
         }
         tiles.put(key, tile);
+        // Invalidate all thread local tile caches, as the fact that this tile
+        // didn't exist may be cached somewhere
+        tileCache = new ThreadLocal<TileCache>() {
+            @Override
+            protected TileCache initialValue() {
+                return new TileCache();
+            }
+        };
         if (x < lowestX) {
             lowestX = x;
         }
@@ -254,19 +356,20 @@ public class Dimension extends InstanceKeeper implements TileProvider, Serializa
 //        biomesCalculated = false;
     }
     
-    public void removeTile(Point coords) {
-        removeTile(coords, getTile(coords));
+    public void removeTile(Point tileCoords) {
+        removeTile(tileCoords.x, tileCoords.y);
     }
     
     public void removeTile(Tile tile) {
-        removeTile(new Point(tile.getX(), tile.getY()), tile);
+        removeTile(tile.getX(), tile.getY());
     }
     
-    public void removeTile(Point coords, Tile tile) {
+    public void removeTile(int tileX, int tileY) {
+        final Point coords = new Point(tileX, tileY);
         if (! tiles.containsKey(coords)) {
             throw new IllegalStateException("Tile not set");
         }
-        tile = tiles.remove(coords);
+        final Tile tile = tiles.remove(coords);
         if (undoManager != null) {
             tile.unregister();
         }
@@ -279,18 +382,18 @@ public class Dimension extends InstanceKeeper implements TileProvider, Serializa
             lowestY = Integer.MAX_VALUE;
             highestY = Integer.MIN_VALUE;
             for (Tile myTile: tiles.values()) {
-                int tileX = myTile.getX(), tileY = myTile.getY();
-                if (tileX < lowestX) {
-                    lowestX = tileX;
+                int myTileX = myTile.getX(), myTileY = myTile.getY();
+                if (myTileX < lowestX) {
+                    lowestX = myTileX;
                 }
-                if (tileX > highestX) {
-                    highestX = tileX;
+                if (myTileX > highestX) {
+                    highestX = myTileX;
                 }
-                if (tileY < lowestY) {
-                    lowestY = tileY;
+                if (myTileY < lowestY) {
+                    lowestY = myTileY;
                 }
-                if (tileY > highestY) {
-                    highestY = tileY;
+                if (myTileY > highestY) {
+                    highestY = myTileY;
                 }
             }
         }
@@ -330,33 +433,27 @@ public class Dimension extends InstanceKeeper implements TileProvider, Serializa
         }
     }
     
-    public final Point getTileCoordinates(int worldX, int worldY) {
-        return new Point(worldX >> 7, worldY >> 7);
+    public int getIntHeightAt(int x, int y) {
+        return getIntHeightAt(x, y, -1);
     }
     
-    public final Point getTileCoordinates(Point worldCoords) {
-        return getTileCoordinates(worldCoords.x, worldCoords.y);
-    }
-
-    public int getIntHeightAt(int x, int y) {
-        Point tileCoords = getTileCoordinates(x, y);
-        Tile tile = getTile(tileCoords);
+    public int getIntHeightAt(int x, int y, int defaultHeight) {
+        Tile tile = getTile(x >> TILE_SIZE_BITS, y >> TILE_SIZE_BITS);
         if (tile != null) {
-            return tile.getIntHeight(x & COORD_MASK, y & COORD_MASK);
+            return tile.getIntHeight(x & TILE_SIZE_MASK, y & TILE_SIZE_MASK);
         } else {
-            return -1;
+            return defaultHeight;
         }
     }
     
     public int getIntHeightAt(Point coords) {
-        return getIntHeightAt(coords.x, coords.y);
+        return getIntHeightAt(coords.x, coords.y, -1);
     }
 
     public float getHeightAt(int x, int y) {
-        Point tileCoords = getTileCoordinates(x, y);
-        Tile tile = getTile(tileCoords);
+        Tile tile = getTile(x >> TILE_SIZE_BITS, y >> TILE_SIZE_BITS);
         if (tile != null) {
-            return tile.getHeight(x & COORD_MASK, y & COORD_MASK);
+            return tile.getHeight(x & TILE_SIZE_MASK, y & TILE_SIZE_MASK);
         } else {
             return Float.MIN_VALUE;
         }
@@ -367,29 +464,24 @@ public class Dimension extends InstanceKeeper implements TileProvider, Serializa
     }
 
     public void setHeightAt(int x, int y, float height) {
-        Point tileCoords = getTileCoordinates(x, y);
-        Tile tile = getTile(tileCoords);
+        Tile tile = getTile(x >> TILE_SIZE_BITS, y >> TILE_SIZE_BITS);
         if (tile != null) {
             if (eventsInhibited && (! dirtyTiles.contains(tile))) {
                 tile.setEventsInhibited(true);
                 dirtyTiles.add(tile);
             }
-            tile.setHeight(x & COORD_MASK, y & COORD_MASK, height);
-            if (autoUpdateBiomes) {
-                updateBiome(tile, x & COORD_MASK, y & COORD_MASK);
-            }
+            tile.setHeight(x & TILE_SIZE_MASK, y & TILE_SIZE_MASK, height);
         }
     }
 
-    public void setHeightAt(Point coords, int height) {
+    public void setHeightAt(Point coords, float height) {
         setHeightAt(coords.x, coords.y, height);
     }
 
     public int getRawHeightAt(int x, int y) {
-        Point tileCoords = getTileCoordinates(x, y);
-        Tile tile = getTile(tileCoords);
+        Tile tile = getTile(x >> TILE_SIZE_BITS, y >> TILE_SIZE_BITS);
         if (tile != null) {
-            return tile.getRawHeight(x & COORD_MASK, y & COORD_MASK);
+            return tile.getRawHeight(x & TILE_SIZE_MASK, y & TILE_SIZE_MASK);
         } else {
             return Integer.MIN_VALUE;
         }
@@ -400,46 +492,56 @@ public class Dimension extends InstanceKeeper implements TileProvider, Serializa
     }
 
     public void setRawHeightAt(int x, int y, int rawHeight) {
-        Point tileCoords = getTileCoordinates(x, y);
-        Tile tile = getTile(tileCoords);
+        Tile tile = getTile(x >> TILE_SIZE_BITS, y >> TILE_SIZE_BITS);
         if (tile != null) {
             if (eventsInhibited && (! dirtyTiles.contains(tile))) {
                 tile.setEventsInhibited(true);
                 dirtyTiles.add(tile);
             }
-            tile.setRawHeight(x & COORD_MASK, y & COORD_MASK, rawHeight);
-            if (autoUpdateBiomes) {
-                updateBiome(tile, x & COORD_MASK, y & COORD_MASK);
-            }
+            tile.setRawHeight(x & TILE_SIZE_MASK, y & TILE_SIZE_MASK, rawHeight);
         }
     }
 
     public void setRawHeightAt(Point coords, int rawHeight) {
         setRawHeightAt(coords.x, coords.y, rawHeight);
     }
+
+    public float getSlope(int x, int y) {
+        final int xInTile = x & TILE_SIZE_MASK, yInTile = y & TILE_SIZE_MASK;
+        if ((xInTile > 0) && (xInTile < (TILE_SIZE - 1)) && (yInTile > 0) && (yInTile < (TILE_SIZE - 1))) {
+            // Inside one tile; delegate to tile
+            Tile tile = getTile(x >> TILE_SIZE_BITS, y >> TILE_SIZE_BITS);
+            if (tile != null) {
+                return tile.getSlope(xInTile, yInTile);
+            } else {
+                return 0.0f;
+            }
+        } else {
+            // Spanning tiles; do it ourselves
+            return Math.max(Math.max(Math.abs(getHeightAt(x + 1, y) - getHeightAt(x - 1, y)) / 2,
+                Math.abs(getHeightAt(x + 1, y + 1) - getHeightAt(x - 1, y - 1)) / ROOT_EIGHT),
+                Math.max(Math.abs(getHeightAt(x, y + 1) - getHeightAt(x, y - 1)) / 2,
+                Math.abs(getHeightAt(x - 1, y + 1) - getHeightAt(x + 1, y - 1)) / ROOT_EIGHT));
+        }
+    }
     
     public Terrain getTerrainAt(int x, int y) {
-        Point tileCoords = getTileCoordinates(x, y);
-        Tile tile = getTile(tileCoords);
+        Tile tile = getTile(x >> TILE_SIZE_BITS, y >> TILE_SIZE_BITS);
         if (tile != null) {
-            return tile.getTerrain(x & COORD_MASK, y & COORD_MASK);
+            return tile.getTerrain(x & TILE_SIZE_MASK, y & TILE_SIZE_MASK);
         } else {
             return null;
         }
     }
 
     public void setTerrainAt(int x, int y, Terrain terrain) {
-        Point tileCoords = getTileCoordinates(x, y);
-        Tile tile = getTile(tileCoords);
+        Tile tile = getTile(x >> TILE_SIZE_BITS, y >> TILE_SIZE_BITS);
         if (tile != null) {
             if (eventsInhibited && (! dirtyTiles.contains(tile))) {
                 tile.setEventsInhibited(true);
                 dirtyTiles.add(tile);
             }
-            tile.setTerrain(x & COORD_MASK, y & COORD_MASK, terrain);
-            if (autoUpdateBiomes) {
-                updateBiome(tile, x & COORD_MASK, y & COORD_MASK);
-            }
+            tile.setTerrain(x & TILE_SIZE_MASK, y & TILE_SIZE_MASK, terrain);
         }
     }
 
@@ -448,25 +550,20 @@ public class Dimension extends InstanceKeeper implements TileProvider, Serializa
     }
 
     public void applyTheme(int x, int y) {
-        Point tileCoords = getTileCoordinates(x, y);
-        Tile tile = getTile(tileCoords);
+        Tile tile = getTile(x >> TILE_SIZE_BITS, y >> TILE_SIZE_BITS);
         if (tile != null) {
             if (eventsInhibited && (! dirtyTiles.contains(tile))) {
                 tile.setEventsInhibited(true);
                 dirtyTiles.add(tile);
             }
-            tileFactory.applyTheme(seed, tile, x & COORD_MASK, y & COORD_MASK);
-            if (autoUpdateBiomes) {
-                updateBiome(tile, x & COORD_MASK, y & COORD_MASK);
-            }
+            tileFactory.applyTheme(tile, x & TILE_SIZE_MASK, y & TILE_SIZE_MASK);
         }
     }
 
     public int getWaterLevelAt(int x, int y) {
-        Point tileCoords = getTileCoordinates(x, y);
-        Tile tile = getTile(tileCoords);
+        Tile tile = getTile(x >> TILE_SIZE_BITS, y >> TILE_SIZE_BITS);
         if (tile != null) {
-            return tile.getWaterLevel(x & COORD_MASK, y & COORD_MASK);
+            return tile.getWaterLevel(x & TILE_SIZE_MASK, y & TILE_SIZE_MASK);
         } else {
             return Integer.MIN_VALUE;
         }
@@ -477,27 +574,22 @@ public class Dimension extends InstanceKeeper implements TileProvider, Serializa
     }
 
     public void setWaterLevelAt(int x, int y, int waterLevel) {
-        Point tileCoords = getTileCoordinates(x, y);
-        Tile tile = getTile(tileCoords);
+        Tile tile = getTile(x >> TILE_SIZE_BITS, y >> TILE_SIZE_BITS);
         if (tile != null) {
             if (eventsInhibited && (! dirtyTiles.contains(tile))) {
                 tile.setEventsInhibited(true);
                 dirtyTiles.add(tile);
             }
-            tile.setWaterLevel(x & COORD_MASK, y & COORD_MASK, waterLevel);
-            if (autoUpdateBiomes) {
-                updateBiome(tile, x & COORD_MASK, y & COORD_MASK);
-            }
+            tile.setWaterLevel(x & TILE_SIZE_MASK, y & TILE_SIZE_MASK, waterLevel);
         }
     }
 
     public int getLayerValueAt(Layer layer, int x, int y) {
-        Point tileCoords = getTileCoordinates(x, y);
-        Tile tile = getTile(tileCoords);
+        Tile tile = getTile(x >> TILE_SIZE_BITS, y >> TILE_SIZE_BITS);
         if (tile != null) {
-            return tile.getLayerValue(layer, x & COORD_MASK, y & COORD_MASK);
+            return tile.getLayerValue(layer, x & TILE_SIZE_MASK, y & TILE_SIZE_MASK);
         } else {
-            return 0;
+            return layer.getDefaultValue();
         }
     }
 
@@ -506,37 +598,47 @@ public class Dimension extends InstanceKeeper implements TileProvider, Serializa
     }
 
     public void setLayerValueAt(Layer layer, int x, int y, int value) {
-        Point tileCoords = getTileCoordinates(x, y);
-        Tile tile = getTile(tileCoords);
+        Tile tile = getTile(x >> TILE_SIZE_BITS, y >> TILE_SIZE_BITS);
         if (tile != null) {
             if (eventsInhibited && (! dirtyTiles.contains(tile))) {
                 tile.setEventsInhibited(true);
                 dirtyTiles.add(tile);
             }
-            tile.setLayerValue(layer, x & COORD_MASK, y & COORD_MASK, value);
-            if (autoUpdateBiomes) {
-                updateBiome(tile, x & COORD_MASK, y & COORD_MASK);
-            }
+            tile.setLayerValue(layer, x & TILE_SIZE_MASK, y & TILE_SIZE_MASK, value);
         }
     }
 
     public boolean getBitLayerValueAt(Layer layer, int x, int y) {
-        Tile tile = getTile(getTileCoordinates(x, y));
+        Tile tile = getTile(x >> TILE_SIZE_BITS, y >> TILE_SIZE_BITS);
         if (tile != null) {
-            return tile.getBitLayerValue(layer, x & COORD_MASK, y & COORD_MASK);
+            return tile.getBitLayerValue(layer, x & TILE_SIZE_MASK, y & TILE_SIZE_MASK);
         } else {
             return false;
         }
     }
 
 
-    public synchronized int getBitLayerCount(Layer layer, int x, int y, int r) {
-        if (((x - r) >= 0) && (x + r < TILE_SIZE) && ((y - r) >= 0) && ((y + r) < TILE_SIZE)) {
+    /**
+     * Count the number of blocks where the specified bit layer is set in a
+     * square around a particular location
+     * 
+     * @param layer The bit layer to count.
+     * @param x The global X coordinate of the location around which to count
+     *     the layer.
+     * @param y The global Y coordinate of the location around which to count
+     *     the layer.
+     * @param r The radius of the square.
+     * @return The number of blocks in the specified square where the specified
+     *     bit layer is set.
+     */
+    public synchronized int getBitLayerCount(final Layer layer, final int x, final int y, final int r) {
+        final int tileX = x >> TILE_SIZE_BITS, tileY = y >> TILE_SIZE_BITS;
+        if (((x - r) >> TILE_SIZE_BITS == tileX) && ((x + r) >> TILE_SIZE_BITS == tileX) && ((y - r) >> TILE_SIZE_BITS == tileY) && ((y + r) >> TILE_SIZE_BITS == tileY)) {
             // The requested area is completely contained in one tile, optimise
             // by delegating to the tile
-            Tile tile = getTile(getTileCoordinates(x, y));
+            final Tile tile = getTile(tileX, tileY);
             if (tile != null) {
-                return tile.getBitLayerCount(layer, x & COORD_MASK, y & COORD_MASK, r);
+                return tile.getBitLayerCount(layer, x & TILE_SIZE_MASK, y & TILE_SIZE_MASK, r);
             } else {
                 return 0;
             }
@@ -555,6 +657,67 @@ public class Dimension extends InstanceKeeper implements TileProvider, Serializa
     }
 
     /**
+     * Gets all layers that are set at the specified location, along with their
+     * intensities. For bit valued layers the intensity is zero for off, one for
+     * on.
+     * 
+     * @param x The X location for which to retrieve all layers.
+     * @param y The Y location for which to retrieve all layers.
+     * @return A map with all layers set at the specified location, mapped to
+     *     their intensities at that location. May either be <code>null</code>
+     *     or an empty map if no layers are present.
+     */
+    public Map<Layer, Integer> getLayersAt(int x, int y) {
+        Tile tile = getTile(x >> TILE_SIZE_BITS, y >> TILE_SIZE_BITS);
+        if (tile != null) {
+            return tile.getLayersAt(x & TILE_SIZE_MASK, y & TILE_SIZE_MASK);
+        } else {
+            return null;
+        }
+    }
+    
+    /**
+     * Count the number of blocks that are flooded in a square around a
+     * particular location
+     * 
+     * @param x The global X coordinate of the location around which to count
+     *     flooded blocks.
+     * @param y The global Y coordinate of the location around which to count
+     *     flooded blocks.
+     * @param r The radius of the square.
+     * @param lava Whether to check for lava (when <code>true</code>) or water
+     *     (when <code>false</code>).
+     * @return The number of blocks in the specified square that are flooded.
+     */
+    public synchronized int getFloodedCount(final int x, final int y, final int r, final boolean lava) {
+        final int tileX = x >> TILE_SIZE_BITS, tileY = y >> TILE_SIZE_BITS;
+        if (((x - r) >> TILE_SIZE_BITS == tileX) && ((x + r) >> TILE_SIZE_BITS == tileX) && ((y - r) >> TILE_SIZE_BITS == tileY) && ((y + r) >> TILE_SIZE_BITS == tileY)) {
+            // The requested area is completely contained in one tile, optimise
+            // by delegating to the tile
+            final Tile tile = getTile(tileX, tileY);
+            if (tile != null) {
+                return tile.getFloodedCount(x & TILE_SIZE_MASK, y & TILE_SIZE_MASK, r, lava);
+            } else {
+                return 0;
+            }
+        } else {
+            // The requested area overlaps tile boundaries; do it the slow way
+            int count = 0;
+            for (int dx = -r; dx <= r; dx++) {
+                for (int dy = -r; dy <= r; dy++) {
+                    final int xx = x + dx, yy = y + dy;
+                    if ((getWaterLevelAt(xx, yy) > getIntHeightAt(xx, yy))
+                            && (lava ? getBitLayerValueAt(FloodWithLava.INSTANCE, xx, yy)
+                                : (! getBitLayerValueAt(FloodWithLava.INSTANCE, xx, yy)))) {
+                        count++;
+                    }
+                }
+            }
+            return count;
+        }
+    }
+    
+    /**
      * Get the distance from the specified coordinate to the nearest pixel where
      * the specified layer is <em>not</em> set.
      *
@@ -565,84 +728,77 @@ public class Dimension extends InstanceKeeper implements TileProvider, Serializa
      * @param maxDistance The maximum distance to return. If the actual distance is further, this value will be returned.
      * @return The distance from the specified location to the nearest pixel
      *     where the specified layer is not set, or maxDistance, whichever is
-     *     smaller.
+     *     smaller. If the layer is not set at the specified coordinates, 0 is
+     *     returned.
      */
-    public synchronized float getDistanceToEdge(Layer layer, int x, int y, float maxDistance) {
-        int r = (int) (maxDistance + 0.999f);
-        if (((x - r) >= 0) && (x + r < TILE_SIZE) && ((y - r) >= 0) && ((y + r) < TILE_SIZE)) {
+    public synchronized float getDistanceToEdge(final Layer layer, final int x, final int y, final float maxDistance) {
+        final int r = (int) Math.ceil(maxDistance);
+        final int tileX = x >> TILE_SIZE_BITS, tileY = y >> TILE_SIZE_BITS;
+        if (((x - r) >> TILE_SIZE_BITS == tileX) && ((x + r) >> TILE_SIZE_BITS == tileX) && ((y - r) >> TILE_SIZE_BITS == tileY) && ((y + r) >> TILE_SIZE_BITS == tileY)) {
             // The requested area is completely contained in one tile, optimise
             // by delegating to the tile
-            Tile tile = getTile(getTileCoordinates(x, y));
+            final Tile tile = getTile(tileX, tileY);
             if (tile != null) {
-                return tile.getDistanceToEdge(layer, x & COORD_MASK, y & COORD_MASK, maxDistance);
+                return tile.getDistanceToEdge(layer, x & TILE_SIZE_MASK, y & TILE_SIZE_MASK, maxDistance);
             } else {
-                return maxDistance;
+                return 0;
             }
         } else {
+            if (! getBitLayerValueAt(layer, x, y)) {
+                return 0;
+            }
             float distance = maxDistance;
-            for (int dx = -r; dx <= r; dx++) {
-                for (int dy = -r; dy <= r; dy++) {
-                    if (! getBitLayerValueAt(layer, x + dx, y + dy)) {
-                        float tDistance = MathUtils.getDistance(dx, dy);
+            for (int i = 1; i <= r; i++) {
+                if (((! getBitLayerValueAt(layer, x - i, y))
+                            || (! getBitLayerValueAt(layer, x + i, y))
+                            || (! getBitLayerValueAt(layer, x, y - i))
+                            || (! getBitLayerValueAt(layer, x, y + i)))
+                        && (i < distance)) {
+                    // If we get here there's no possible way a shorter
+                    // distance could be found later, so return immediately
+                    return i;
+                }
+                for (int d = 1; d <= i; d++) {
+                    if ((! getBitLayerValueAt(layer, x - i, y - d))
+                            || (! getBitLayerValueAt(layer, x + d, y - i))
+                            || (! getBitLayerValueAt(layer, x + i, y + d))
+                            || (! getBitLayerValueAt(layer, x - d, y + i))
+                            || ((d < i) && ((! getBitLayerValueAt(layer, x - i, y + d))
+                                || (! getBitLayerValueAt(layer, x - d, y - i))
+                                || (! getBitLayerValueAt(layer, x + i, y - d))
+                                || (! getBitLayerValueAt(layer, x + d, y + i))))) {
+                        float tDistance = MathUtils.getDistance(i, d);
                         if (tDistance < distance) {
                             distance = tDistance;
                         }
+                        // We won't find a shorter distance this round, so
+                        // skip to the next round
+                        break;
                     }
                 }
             }
             return distance;
-//            for (int i = 1; i <= r; i++) {
-//                if ((! getBitLayerValueAt(layer, x - i, y))
-//                        || (! getBitLayerValueAt(layer, x + i, y))
-//                        || (! getBitLayerValueAt(layer, x, y - i))
-//                        || (! getBitLayerValueAt(layer, x, y + i))) {
-//                    return Math.min(i, maxDistance);
-//                }
-//                for (int d = 1; d <= i; d++) {
-//                    if ((! getBitLayerValueAt(layer, x - i, y - d))
-//                            || (! getBitLayerValueAt(layer, x + d, y - i))
-//                            || (! getBitLayerValueAt(layer, x + i, y + d))
-//                            || (! getBitLayerValueAt(layer, x - d, y + i))
-//                            || ((d < i) && ((! getBitLayerValueAt(layer, x - i, y + d))
-//                                || (! getBitLayerValueAt(layer, x - d, y - i))
-//                                || (! getBitLayerValueAt(layer, x + i, y - d))
-//                                || (! getBitLayerValueAt(layer, x + d, y + i))))) {
-//                        return Math.min(MathUtils.getDistance(i, d), maxDistance);
-//                    }
-//                }
-//            }
-//            return maxDistance;
         }
     }
 
     public void setBitLayerValueAt(Layer layer, int x, int y, boolean value) {
-        Point tileCoords = getTileCoordinates(x, y);
-        Tile tile = getTile(tileCoords);
+        Tile tile = getTile(x >> TILE_SIZE_BITS, y >> TILE_SIZE_BITS);
         if (tile != null) {
             if (eventsInhibited && (! dirtyTiles.contains(tile))) {
                 tile.setEventsInhibited(true);
                 dirtyTiles.add(tile);
             }
-            tile.setBitLayerValue(layer, x & COORD_MASK, y & COORD_MASK, value);
-            if (autoUpdateBiomes) {
-                updateBiome(tile, x & COORD_MASK, y & COORD_MASK);
-            }
-        }
-    }
-    
-    public void updateBiome(Tile tile, int x, int y) {
-        int biome = getAutoBiome(tile, x, y);
-        if (biome != -1) {
-            tile.setLayerValue(Biome.INSTANCE, x, y, biome);
+            tile.setBitLayerValue(layer, x & TILE_SIZE_MASK, y & TILE_SIZE_MASK, value);
         }
     }
     
     public void clearLayerData(Layer layer) {
         for (Tile tile: tiles.values()) {
+            if (eventsInhibited && (! dirtyTiles.contains(tile))) {
+                tile.setEventsInhibited(true);
+                dirtyTiles.add(tile);
+            }
             tile.clearLayerData(layer);
-        }
-        if (layer.equals(Biome.INSTANCE) && biomesCalculated) {
-            biomesCalculated = false;
         }
     }
 
@@ -677,7 +833,7 @@ public class Dimension extends InstanceKeeper implements TileProvider, Serializa
         return layerSettings.get(layer);
     }
     
-    public void setLayerSettings(Layer layer, ExporterSettings settings) {
+    public <L extends Layer> void setLayerSettings(L layer, ExporterSettings<L> settings) {
         if ((! layerSettings.containsKey(layer)) || (! settings.equals(layerSettings.get(layer)))) {
             layerSettings.put(layer, settings);
             dirty = true;
@@ -695,7 +851,6 @@ public class Dimension extends InstanceKeeper implements TileProvider, Serializa
                 undoManager.clear();
             }
             this.minecraftSeed = minecraftSeed;
-            biomesCalculated = false;
             dirty = true;
             propertyChangeSupport.firePropertyChange("minecraftSeed", oldMinecraftSeed, minecraftSeed);
         }
@@ -816,14 +971,6 @@ public class Dimension extends InstanceKeeper implements TileProvider, Serializa
         }
     }
 
-    public boolean isAutoUpdateBiomes() {
-        return autoUpdateBiomes;
-    }
-
-    public void setAutoUpdateBiomes(boolean autoUpdateBiomes) {
-        this.autoUpdateBiomes = autoUpdateBiomes;
-    }
-
     public int getContourSeparation() {
         return contourSeparation;
     }
@@ -904,15 +1051,81 @@ public class Dimension extends InstanceKeeper implements TileProvider, Serializa
         }
     }
 
+    public List<CustomBiome> getCustomBiomes() {
+        return customBiomes;
+    }
+
+    public void setCustomBiomes(List<CustomBiome> customBiomes) {
+        this.customBiomes = customBiomes;
+        if ((customBiomes != null) ? (! customBiomes.equals(this.customBiomes)) : (this.customBiomes != null)) {
+            List<CustomBiome> oldCustomBiomes = this.customBiomes;
+            this.customBiomes = customBiomes;
+            dirty = true;
+            propertyChangeSupport.firePropertyChange("customBiomes", oldCustomBiomes, customBiomes);
+        }
+    }
+
+    public boolean isCoverSteepTerrain() {
+        return coverSteepTerrain;
+    }
+
+    public void setCoverSteepTerrain(boolean coverSteepTerrain) {
+        if (coverSteepTerrain != this.coverSteepTerrain) {
+            this.coverSteepTerrain = coverSteepTerrain;
+            dirty = true;
+            propertyChangeSupport.firePropertyChange("coverSteepTerrain", ! coverSteepTerrain, coverSteepTerrain);
+        }
+    }
+
+    public boolean isFixOverlayCoords() {
+        return fixOverlayCoords;
+    }
+
+    public void setFixOverlayCoords(boolean fixOverlayCoords) {
+        this.fixOverlayCoords = fixOverlayCoords;
+    }
+
     public Garden getGarden() {
         return garden;
     }
+
+    public List<CustomLayer> getCustomLayers() {
+        return customLayers;
+    }
+
+    public void setCustomLayers(List<CustomLayer> customLayers) {
+        this.customLayers = customLayers;
+    }
     
-    public Set<Layer> getAllLayers() {
+    /**
+     * Returns the set of all layers currently in use on the world, optionally
+     * including layers that are included in combined layers.
+     * 
+     * @param applyCombinedLayers Whether to include layers from combined layers
+     *     which are not used independently in the dimension.
+     * @return The set of all layers currently in use on the world.
+     */
+    public Set<Layer> getAllLayers(boolean applyCombinedLayers) {
         Set<Layer> allLayers = new HashSet<Layer>();
         for (Tile tile: tiles.values()) {
             allLayers.addAll(tile.getLayers());
         }
+        
+        if (applyCombinedLayers) {
+            Set<LayerContainer> containersProcessed = new HashSet<LayerContainer>();
+            boolean containersFound;
+            do {
+                containersFound = false;
+                for (Layer layer: new HashSet<Layer>(allLayers)) {
+                    if ((layer instanceof LayerContainer) && (! containersProcessed.contains(layer))) {
+                        allLayers.addAll(((LayerContainer) layer).getLayers());
+                        containersProcessed.add((LayerContainer) layer);
+                        containersFound = true;
+                    }
+                }
+            } while (containersFound);
+        }
+        
         return allLayers;
     }
     
@@ -936,6 +1149,10 @@ public class Dimension extends InstanceKeeper implements TileProvider, Serializa
         applyTheme(coords.x, coords.y);
     }
 
+    public boolean isUndoAvailable() {
+        return undoManager != null;
+    }
+    
     public void register(UndoManager undoManager) {
         this.undoManager = undoManager;
         for (Tile tile: tiles.values()) {
@@ -944,7 +1161,7 @@ public class Dimension extends InstanceKeeper implements TileProvider, Serializa
 //        garden.register(undoManager);
     }
     
-    public boolean undoIfDirty() {
+    public boolean undoChanges() {
         if ((undoManager != null) && undoManager.isDirty()) {
             return undoManager.undo();
         } else {
@@ -964,6 +1181,16 @@ public class Dimension extends InstanceKeeper implements TileProvider, Serializa
         }
     }
     
+    public void rememberChanges() {
+        if (undoManager != null) {
+            if (undoManager.isDirty()) {
+                undoManager.savePoint();
+            } else {
+                undoManager.armSavePoint();
+            }
+        }
+    }
+    
     public void clearRedo() {
         if (undoManager != null) {
             undoManager.clearRedo();
@@ -978,79 +1205,10 @@ public class Dimension extends InstanceKeeper implements TileProvider, Serializa
         undoManager = null;
     }
 
-    public boolean isBiomesCalculated() {
-        return biomesCalculated;
-    }
-
-    public void recalculateBiomes(final BiomeScheme biomeScheme, Window parent) {
-        if (dim != 0) {
-            // Biomes don't apply to the Nether or the End
-            return;
-        }
-        logger.info("Recalculating biomes for " + tiles.size() + " tiles");
-//        System.out.println("Recalculating biomes...");
-//        long start = System.currentTimeMillis();
-        // Merely recalculating the biomes should not cause the dimension to
-        // become dirty
-        boolean wasDirty = dirty;
-        biomeScheme.setSeed(minecraftSeed);
-        setEventsInhibited(true);
-        try {
-            if (tiles.size() > 100) {
-                ProgressDialog.executeTask(parent, new ProgressTask<Map<Point, Tile>>() {
-                    @Override
-                    public String getName() {
-                        return "Recalculating biomes";
-                    }
-
-                    @Override
-                    public Map<Point, Tile> execute(ProgressReceiver progressReceiver) throws OperationCancelled {
-                        int totalTileCount = tiles.size(), tileCount = 0;
-                        for (Tile tile: tiles.values()) {
-                            recalculateBiomes(tile, biomeScheme);
-                            tileCount++;
-                            progressReceiver.setProgress((float) tileCount / totalTileCount);
-                        }
-                        return tiles;
-                    }
-                }, false);
-            } else {
-                for (Tile tile: tiles.values()) {
-                    recalculateBiomes(tile, biomeScheme);
-                }
-            }
-        } finally {
-            setEventsInhibited(false);
-        }
-        biomesCalculated = true;
-        dirty = wasDirty;
-//        System.out.println("Recalculating biomes took " + (System.currentTimeMillis() - start) + "ms");
-    }
-    
-    public void recalculateBiomes(Tile tile, BiomeScheme biomeScheme) {
-        int[] biomes = biomeScheme.getBiomes(tile.getX() * TILE_SIZE, tile.getY() * TILE_SIZE, TILE_SIZE, TILE_SIZE);
-        if (eventsInhibited) {
-            dirtyTiles.add(tile);
-        }
-        tile.setEventsInhibited(true);
-        try {
-            for (int x = 0; x < TILE_SIZE; x++) {
-                for (int y = 0; y < TILE_SIZE; y++) {
-                    tile.setLayerValue(Biome.INSTANCE, x, y, biomes[x + y * TILE_SIZE]);
-                }
-            }
-        } finally {
-            if (! eventsInhibited) {
-                tile.setEventsInhibited(false);
-            }
-        }
-    }
-
     public final int getAutoBiome(int x, int y) {
-        Point tileCoords = getTileCoordinates(x, y);
-        Tile tile = getTile(tileCoords);
+        Tile tile = getTile(x >> TILE_SIZE_BITS, y >> TILE_SIZE_BITS);
         if (tile != null) {
-            return getAutoBiome(tile, x & COORD_MASK, y & COORD_MASK);
+            return getAutoBiome(tile, x & TILE_SIZE_MASK, y & TILE_SIZE_MASK);
         } else {
             return -1;
         }
@@ -1059,11 +1217,13 @@ public class Dimension extends InstanceKeeper implements TileProvider, Serializa
     public final int getAutoBiome(Tile tile, int x, int y) {
         int biome;
         if (tile.getBitLayerValue(Frost.INSTANCE, x, y)) {
-            if ((tile.getLayerValue(DeciduousForest.INSTANCE, x, y) > 0)
+            if (tile.getBitLayerValue(River.INSTANCE, x, y)) {
+                biome = BIOME_FROZEN_RIVER;
+            } else if ((tile.getLayerValue(DeciduousForest.INSTANCE, x, y) > 0)
                     || (tile.getLayerValue(PineForest.INSTANCE, x, y) > 0)
                     || (tile.getLayerValue(SwampLand.INSTANCE, x, y) > 0)
                     || (tile.getLayerValue(Jungle.INSTANCE, x, y) > 0)) {
-                biome = BIOME_TAIGA;
+                biome = BIOME_COLD_TAIGA;
             } else if (tile.getTerrain(x, y) == Terrain.WATER) {
                 biome = BIOME_FROZEN_RIVER;
             } else {
@@ -1079,7 +1239,9 @@ public class Dimension extends InstanceKeeper implements TileProvider, Serializa
                 }
             }
         } else {
-            if (tile.getLayerValue(SwampLand.INSTANCE, x, y) > 0) {
+            if (tile.getBitLayerValue(River.INSTANCE, x, y)) {
+                biome = BIOME_RIVER;
+            } else if (tile.getLayerValue(SwampLand.INSTANCE, x, y) > 0) {
                 biome = BIOME_SWAMPLAND;
             } else if (tile.getLayerValue(Jungle.INSTANCE, x, y) > 0) {
                 biome = BIOME_JUNGLE;
@@ -1088,13 +1250,32 @@ public class Dimension extends InstanceKeeper implements TileProvider, Serializa
                 if ((waterLevel > 0) && (! tile.getBitLayerValue(FloodWithLava.INSTANCE, x, y))) {
                     if (waterLevel <= 5) {
                         biome = BIOME_RIVER;
-                    } else {
+                    } else if (waterLevel <= 20) {
                         biome = BIOME_OCEAN;
+                    } else {
+                        biome = BIOME_DEEP_OCEAN;
                     }
-                } else if ((tile.getLayerValue(DeciduousForest.INSTANCE, x, y) > 0) || (tile.getLayerValue(PineForest.INSTANCE, x, y) > 0)) {
-                    biome = BIOME_FOREST;
                 } else {
-                    biome = tile.getTerrain(x, y).getDefaultBiome();
+                    final Terrain terrain = tile.getTerrain(x, y);
+                    // TODO: we have reports from the wild of the custom terrain
+                    // returned here somehow not being configured, so check that
+                    // even though we don't understand how that could happen
+                    final int defaultBiome = terrain.isConfigured() ? terrain.getDefaultBiome() : BIOME_PLAINS;
+                    if (((tile.getLayerValue(DeciduousForest.INSTANCE, x, y) > 0)
+                            || (tile.getLayerValue(PineForest.INSTANCE, x, y) > 0))
+                            && (defaultBiome != BIOME_DESERT)
+                            && (defaultBiome != BIOME_DESERT_HILLS)
+                            && (defaultBiome != BIOME_DESERT_M)
+                            && (defaultBiome != BIOME_MESA)
+                            && (defaultBiome != BIOME_MESA_BRYCE)
+                            && (defaultBiome != BIOME_MESA_PLATEAU)
+                            && (defaultBiome != BIOME_MESA_PLATEAU_F)
+                            && (defaultBiome != BIOME_MESA_PLATEAU_F_M)
+                            && (defaultBiome != BIOME_MESA_PLATEAU_M)) {
+                        biome = BIOME_FOREST;
+                    } else {
+                        biome = defaultBiome;
+                    }
                 }
             }
         }
@@ -1298,49 +1479,16 @@ public class Dimension extends InstanceKeeper implements TileProvider, Serializa
         return null;
     }
 
-//    private void writeObject(ObjectOutputStream out) throws IOException {
-//        Map<Point, Tile> tmpTiles = tiles;
-//        tiles = null;
-//        try {
-//            out.defaultWriteObject();
-//            out.writeInt(tmpTiles.size());
-//            // Write out the tiles from the inside to the outside; so that if
-//            // the file gets corrupted the tiles nearest the centre are the most
-//            // likely to be recoverable
-//            List<Tile> sortedTiles = new ArrayList<Tile>(tmpTiles.values());
-//            final int x0 = (lowestX + highestX) / 2, y0 = (lowestY + highestY) / 2;
-//            Collections.sort(sortedTiles, new Comparator<Tile>() {
-//                @Override
-//                public int compare(Tile t1, Tile t2) {
-//                    float d1 = MathUtils.getDistance(t1.getX(), t1.getY(), x0, y0);
-//                    float d2 = MathUtils.getDistance(t2.getX(), t2.getY(), x0, y0);
-//                    if (d1 < d2) {
-//                        return -1;
-//                    } else if (d1 > d2) {
-//                        return 1;
-//                    } else {
-//                        return 0;
-//                    }
-//                }
-//            });
-//            for (Tile tile: sortedTiles) {
-//                out.writeObject(tile);
-//            }
-//        } finally {
-//            tiles = tmpTiles;
-//        }
-//    }
-    
     private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
         in.defaultReadObject();
-//        if (tiles == null) {
-//            tiles = new HashMap<Point, Tile>();
-//            int tileCount = in.readInt();
-//            for (int i = 0; i < tileCount; i++) {
-//                Tile tile = (Tile) in.readObject();
-//                tiles.put(new Point(tile.getX(), tile.getY()), tile);
-//            }
-//        }
+
+        tileCache = new ThreadLocal<TileCache>() {
+            @Override
+            protected TileCache initialValue() {
+                return new TileCache();
+            }
+        };
+        
         init();
     }
     
@@ -1361,68 +1509,97 @@ public class Dimension extends InstanceKeeper implements TileProvider, Serializa
         }
         
         // Legacy support
-        if (borderSize == 0) {
-            borderSize = 2;
-        }
-        if (overlayScale == 0.0f) {
-            overlayScale = 1.0f;
-        }
-        if (overlayTransparency == 0.0f) {
-            overlayTransparency = 0.5f;
-        }
-        if (gridSize == 0) {
-            gridSize = 128;
-        }
-        if (! biomesConverted) {
-            // Convert the nibble sized biomes data from a legacy map (by
-            // deleting it so that it will be recalculated
-            for (Tile tile: tiles.values()) {
-                tile.clearLayerData(Biome.INSTANCE);
+        if (wpVersion < 1) {
+            if (borderSize == 0) {
+                borderSize = 2;
             }
-            biomesConverted = true;
-            biomesCalculated = false;
+            if (overlayScale == 0.0f) {
+                overlayScale = 1.0f;
+            }
+            if (overlayTransparency == 0.0f) {
+                overlayTransparency = 0.5f;
+            }
+            if (gridSize == 0) {
+                gridSize = 128;
+            }
+            if (! biomesConverted) {
+                // Convert the nibble sized biomes data from a legacy map (by
+                // deleting it so that it will be recalculated
+                for (Tile tile: tiles.values()) {
+                    tile.convertBiomeData();
+                }
+                biomesConverted = true;
+            }
+            if (maxHeight == 0) {
+                maxHeight = 128;
+            }
+            if (subsurfaceMaterial == Terrain.RESOURCES) {
+                subsurfaceMaterial = Terrain.STONE;
+
+                // Load legacy settings
+                ResourcesExporterSettings settings = new ResourcesExporterSettings(maxHeight);
+                settings.setChance(BLK_GOLD_ORE,         1);
+                settings.setChance(BLK_IRON_ORE,         5);
+                settings.setChance(BLK_COAL,             9);
+                settings.setChance(BLK_LAPIS_LAZULI_ORE, 1);
+                settings.setChance(BLK_DIAMOND_ORE,      1);
+                settings.setChance(BLK_REDSTONE_ORE,     6);
+                settings.setChance(BLK_WATER,            1);
+                settings.setChance(BLK_LAVA,             1);
+                settings.setChance(BLK_DIRT,             9);
+                settings.setChance(BLK_GRAVEL,           9);
+                settings.setMaxLevel(BLK_GOLD_ORE,         Terrain.GOLD_LEVEL);
+                settings.setMaxLevel(BLK_IRON_ORE,         Terrain.IRON_LEVEL);
+                settings.setMaxLevel(BLK_COAL,             Terrain.COAL_LEVEL);
+                settings.setMaxLevel(BLK_LAPIS_LAZULI_ORE, Terrain.LAPIS_LAZULI_LEVEL);
+                settings.setMaxLevel(BLK_DIAMOND_ORE,      Terrain.DIAMOND_LEVEL);
+                settings.setMaxLevel(BLK_REDSTONE_ORE,     Terrain.REDSTONE_LEVEL);
+                settings.setMaxLevel(BLK_WATER,            Terrain.WATER_LEVEL);
+                settings.setMaxLevel(BLK_LAVA,             Terrain.LAVA_LEVEL);
+                settings.setMaxLevel(BLK_DIRT,             Terrain.DIRT_LEVEL);
+                settings.setMaxLevel(BLK_GRAVEL,           Terrain.GRAVEL_LEVEL);
+
+                layerSettings.put(Resources.INSTANCE, settings);
+            }
+            if (contourSeparation == 0) {
+                contourSeparation = 10;
+            }
+            if (topLayerMinDepth == 0) {
+                topLayerMinDepth = 3;
+                topLayerVariation = 4;
+            }
+            if (lastViewPosition == null) {
+                lastViewPosition = new Point();
+            }
+            if ((customLayers == null) || customLayers.isEmpty()) { // The customLayers.isEmpty() is to fix a bug which escaped in a beta
+                customLayers = new ArrayList<CustomLayer>();
+                for (Layer layer: getAllLayers(false)) {
+                    if (layer instanceof CustomLayer) {
+                        customLayers.add((CustomLayer) layer);
+                    }
+                }
+            }
         }
-        if (maxHeight == 0) {
-            maxHeight = 128;
+        if (wpVersion < 2) {
+            if (overlay != null) {
+                fixOverlayCoords = true;
+            }
         }
-        if (subsurfaceMaterial == Terrain.RESOURCES) {
-            subsurfaceMaterial = Terrain.STONE;
-            
-            // Load legacy settings
-            ResourcesExporterSettings settings = new ResourcesExporterSettings(maxHeight);
-            settings.setChance(BLK_GOLD_ORE,         1);
-            settings.setChance(BLK_IRON_ORE,         5);
-            settings.setChance(BLK_COAL,             9);
-            settings.setChance(BLK_LAPIS_LAZULI_ORE, 1);
-            settings.setChance(BLK_DIAMOND_ORE,      1);
-            settings.setChance(BLK_REDSTONE_ORE,     6);
-            settings.setChance(BLK_WATER,            1);
-            settings.setChance(BLK_LAVA,             1);
-            settings.setChance(BLK_DIRT,             9);
-            settings.setChance(BLK_GRAVEL,           9);
-            settings.setMaxLevel(BLK_GOLD_ORE,         Terrain.GOLD_LEVEL);
-            settings.setMaxLevel(BLK_IRON_ORE,         Terrain.IRON_LEVEL);
-            settings.setMaxLevel(BLK_COAL,             Terrain.COAL_LEVEL);
-            settings.setMaxLevel(BLK_LAPIS_LAZULI_ORE, Terrain.LAPIS_LAZULI_LEVEL);
-            settings.setMaxLevel(BLK_DIAMOND_ORE,      Terrain.DIAMOND_LEVEL);
-            settings.setMaxLevel(BLK_REDSTONE_ORE,     Terrain.REDSTONE_LEVEL);
-            settings.setMaxLevel(BLK_WATER,            Terrain.WATER_LEVEL);
-            settings.setMaxLevel(BLK_LAVA,             Terrain.LAVA_LEVEL);
-            settings.setMaxLevel(BLK_DIRT,             Terrain.DIRT_LEVEL);
-            settings.setMaxLevel(BLK_GRAVEL,           Terrain.GRAVEL_LEVEL);
-            
-            layerSettings.put(Resources.INSTANCE, settings);
+        wpVersion = CURRENT_WP_VERSION;
+
+        // Make sure that any custom layers which somehow ended up in the world
+        // are on the custom layer list so they will be added to a palette in
+        // the GUI. TODO: fix this properly
+        for (Layer layer: getAllLayers(false)) {
+            if ((layer instanceof CustomLayer) && (! customLayers.contains(layer))) {
+                if ((! (customLayers instanceof ArrayList)) && (! (customLayers instanceof LinkedList))) {
+                    // Make sure customLayers isn't some weird read-only list
+                    customLayers = new ArrayList<CustomLayer>(customLayers);
+                }
+                customLayers.add((CustomLayer) layer);
+            }
         }
-        if (contourSeparation == 0) {
-            contourSeparation = 10;
-        }
-        if (topLayerMinDepth == 0) {
-            topLayerMinDepth = 3;
-            topLayerVariation = 4;
-        }
-        if (lastViewPosition == null) {
-            lastViewPosition = new Point();
-        }
+    
     }
     
     private World2 world;
@@ -1438,7 +1615,6 @@ public class Dimension extends InstanceKeeper implements TileProvider, Serializa
     private boolean darkLevel, bedrockWall;
     private Map<Layer, ExporterSettings> layerSettings = new HashMap<Layer, ExporterSettings>();
     private long minecraftSeed = Long.MIN_VALUE;
-    private boolean biomesCalculated;
     private File overlay;
     private float overlayScale = 1.0f, overlayTransparency = 0.5f;
     private int overlayOffsetX, overlayOffsetY, gridSize = 128;
@@ -1448,6 +1624,11 @@ public class Dimension extends InstanceKeeper implements TileProvider, Serializa
     private int topLayerMinDepth = 3, topLayerVariation = 4;
     private boolean bottomless;
     private Point lastViewPosition = new Point();
+    private List<CustomBiome> customBiomes;
+    private boolean coverSteepTerrain = true;
+    private List<CustomLayer> customLayers = new ArrayList<CustomLayer>();
+    private int wpVersion = CURRENT_WP_VERSION;
+    private boolean fixOverlayCoords;
     private transient List<Listener> listeners = new ArrayList<Listener>();
     private transient boolean eventsInhibited;
     private transient Set<Tile> dirtyTiles = new HashSet<Tile>();
@@ -1457,12 +1638,23 @@ public class Dimension extends InstanceKeeper implements TileProvider, Serializa
     private transient UndoManager undoManager;
     private transient PropertyChangeSupport propertyChangeSupport = new PropertyChangeSupport(this);
     private transient WPGarden garden = new WPGarden();
-    private transient boolean autoUpdateBiomes;
     private transient PerlinNoise topLayerDepthNoise;
+    private transient ThreadLocal<TileCache> tileCache = new ThreadLocal<TileCache>() {
+        @Override
+        protected TileCache initialValue() {
+            return new TileCache();
+        }
+    };
 
-    private static final int COORD_MASK = TILE_SIZE - 1;
+    public static final int[] POSSIBLE_AUTO_BIOMES = {BIOME_PLAINS, BIOME_FOREST,
+        BIOME_SWAMPLAND, BIOME_JUNGLE, BIOME_MESA, BIOME_DESERT, BIOME_BEACH,
+        BIOME_RIVER, BIOME_OCEAN, BIOME_DEEP_OCEAN, BIOME_ICE_PLAINS,
+        BIOME_COLD_TAIGA, BIOME_FROZEN_RIVER, BIOME_FROZEN_OCEAN,
+        BIOME_MUSHROOM_ISLAND, BIOME_HELL, BIOME_SKY};
+    
     private static final long TOP_LAYER_DEPTH_SEED_OFFSET = 180728193;
-    private static final int DEFAULT_BIOME = BIOME_PLAINS;
+    private static final float ROOT_EIGHT = (float) Math.sqrt(8.0);
+    private static final int CURRENT_WP_VERSION = 2;
     private static final Logger logger = Logger.getLogger(Dimension.class.getName());
     private static final long serialVersionUID = 2011062401L;
 
@@ -1535,22 +1727,31 @@ public class Dimension extends InstanceKeeper implements TileProvider, Serializa
         }
 
         @Override
+        public boolean isWater(int x, int y) {
+            return (getLayerValueAt(GardenCategory.INSTANCE, x, y) == GardenCategory.CATEGORY_WATER) || ((getWaterLevelAt(x, y) > getIntHeightAt(x, y)) && (! getBitLayerValueAt(FloodWithLava.INSTANCE, x, y)));
+        }
+
+        @Override
+        public boolean isLava(int x, int y) {
+            return (getWaterLevelAt(x, y) > getIntHeightAt(x, y)) && getBitLayerValueAt(FloodWithLava.INSTANCE, x, y);
+        }
+
+        @Override
         public void plantSeed(Seed seed) {
-            Point location = seed.getLocation();
+            Point3i location = seed.getLocation();
             if ((location.x < lowestX * TILE_SIZE) || (location.x > (highestX + 1) * TILE_SIZE - 1) || (location.y < lowestY * TILE_SIZE) || (location.y > (highestY + 1) * TILE_SIZE - 1)) {
                 return;
             }
-            Point tileCoords = new Point(location.x >> 7, location.y >> 7);
-            Tile tile = getTile(tileCoords);
+            Tile tile = getTile(location.x >> TILE_SIZE_BITS, location.y >> TILE_SIZE_BITS);
             if (tile != null) {
                 tile.plantSeed(seed);
-                activeTiles.add(tileCoords);
+                activeTiles.add(new Point(location.x >> TILE_SIZE_BITS, location.y >> TILE_SIZE_BITS));
             }
         }
 
         @Override
         public void removeSeed(Seed seed) {
-            Point location = seed.getLocation();
+            Point3i location = seed.getLocation();
             if ((location.x < lowestX * TILE_SIZE) || (location.x > (highestX + 1) * TILE_SIZE - 1) || (location.y < lowestY * TILE_SIZE) || (location.y > (highestY + 1) * TILE_SIZE - 1)) {
                 return;
             }
@@ -1577,7 +1778,7 @@ public class Dimension extends InstanceKeeper implements TileProvider, Serializa
             // the seed sets from the tiles, because they may change out from
             // under us
             for (Point tileCoords: (HashSet<Point>) activeTiles.clone()) {
-                Tile tile = getTile(tileCoords);
+                Tile tile = getTile(tileCoords.x, tileCoords.y);
                 if (tile != null) {
                     for (Seed seed: (HashSet<Seed>) tile.getSeeds().clone()) {
                         seed.tick();
@@ -1590,7 +1791,7 @@ public class Dimension extends InstanceKeeper implements TileProvider, Serializa
             boolean finished = true;
             for (Iterator<Point> i = activeTiles.iterator(); i.hasNext(); ) {
                 Point tileCoords = i.next();
-                Tile tile = getTile(tileCoords);
+                Tile tile = getTile(tileCoords.x, tileCoords.y);
                 boolean tileFinished = true;
                 if (tile != null) {
                     for (Seed seed: tile.getSeeds()) {
@@ -1612,7 +1813,7 @@ public class Dimension extends InstanceKeeper implements TileProvider, Serializa
         @Override
         public void neutralise() {
             for (Point tileCoords: activeTiles) {
-                Tile tile = getTile(tileCoords);
+                Tile tile = getTile(tileCoords.x, tileCoords.y);
                 if (tile != null) {
                     for (Seed seed: tile.getSeeds()) {
                         if (! seed.isFinished()) {
@@ -1625,5 +1826,10 @@ public class Dimension extends InstanceKeeper implements TileProvider, Serializa
         }
         
         private final HashSet<Point> activeTiles = new HashSet<Point>();
+    }
+    
+    static class TileCache {
+        int x = Integer.MIN_VALUE, y = Integer.MIN_VALUE;
+        Tile tile;
     }
 }

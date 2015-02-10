@@ -55,13 +55,16 @@ public class LightingCalculator {
                     int currentBlockLightLevel = world.getBlockLightLevel(x, z, y);
                     int newSkyLightLevel;
                     int newBlockLightLevel;
-                    if (! BLOCK_TRANSPARENCY.containsKey(blockType)) {
+                    if ((blockType <= HIGHEST_KNOWN_BLOCK_ID) && (BLOCK_TRANSPARENCY[blockType] == 15)) {
                         // Opaque block
                         newSkyLightLevel = 0;
-                        newBlockLightLevel = LIGHT_SOURCES.containsKey(blockType) ? currentBlockLightLevel : 0;
+                        newBlockLightLevel = (LIGHT_SOURCES[blockType] > 0) ? currentBlockLightLevel : 0;
                     } else {
+                        // Transparent block, or unknown block. We err on the
+                        // side of transparency for unknown blocks to try and
+                        // cause less visible lighting bugs
                         newSkyLightLevel = (currentSkylightLevel < 15) ? calculateSkyLightLevel(x, y, z) : 15;
-                        newBlockLightLevel = LIGHT_SOURCES.containsKey(blockType) ? currentBlockLightLevel : calculateBlockLightLevel(x, y, z);
+                        newBlockLightLevel = ((blockType <= HIGHEST_KNOWN_BLOCK_ID) && (LIGHT_SOURCES[blockType] > 0)) ? currentBlockLightLevel : calculateBlockLightLevel(x, y, z);
                     }
                     if ((newSkyLightLevel != currentSkylightLevel) || (newBlockLightLevel != currentBlockLightLevel)) {
                         if (newSkyLightLevel != currentSkylightLevel) {
@@ -106,11 +109,14 @@ public class LightingCalculator {
                     int blockLightLevel = chunk.getBlockLightLevel(x, y, z);
                     int skyLightLevel = chunk.getSkyLightLevel(x, y, z);
                     int newBlockLightLevel, newSkyLightLevel;
-                    if (BLOCK_TRANSPARENCY.containsKey(blockType)) {
+                    if ((blockType > HIGHEST_KNOWN_BLOCK_ID) || (BLOCK_TRANSPARENCY[blockType] < 15)) {
+                        // Transparent block, or unknown block. We err on the
+                        // side of transparency for unknown blocks to try and
+                        // cause less visible lighting bugs
                         if (y < lightingVolumeLowMark) {
                             lightingVolumeLowMark = y;
                         }
-                        int transparency = BLOCK_TRANSPARENCY.get(blockType);
+                        int transparency = (blockType > HIGHEST_KNOWN_BLOCK_ID) ? 0 : BLOCK_TRANSPARENCY[blockType];
                         if ((transparency == 0) && (DAYLIGHT[x][z])) {
                             // Propagate daylight down
                             newSkyLightLevel = 15;
@@ -129,14 +135,14 @@ public class LightingCalculator {
                         newSkyLightLevel = 0;
                         DAYLIGHT[x][z] = false;
                     }
-                    if (LIGHT_SOURCES.containsKey(blockType)) {
+                    if ((blockType <= HIGHEST_KNOWN_BLOCK_ID) && (LIGHT_SOURCES[blockType] > 0)) {
                         if (y > lightingVolumeHighMark) {
                             lightingVolumeHighMark = y;
                         }
                         if (y < lightingVolumeLowMark) {
                             lightingVolumeLowMark = y;
                         }
-                        newBlockLightLevel = LIGHT_SOURCES.get(blockType);
+                        newBlockLightLevel = LIGHT_SOURCES[blockType];
                     } else {
                         newBlockLightLevel = 0;
                     }
@@ -173,8 +179,11 @@ public class LightingCalculator {
                     int blockLightLevel = chunk.getBlockLightLevel(x & 0xf, y, z & 0xf);
                     int skyLightLevel = chunk.getSkyLightLevel(x & 0xf, y, z & 0xf);
                     int newBlockLightLevel, newSkyLightLevel;
-                    if (BLOCK_TRANSPARENCY.containsKey(blockType)) {
-                        int transparency = BLOCK_TRANSPARENCY.get(blockType);
+                    if ((blockType > HIGHEST_KNOWN_BLOCK_ID) || (BLOCK_TRANSPARENCY[blockType] < 15)) {
+                        // Transparent block, or unknown block. We err on the
+                        // side of transparency for unknown blocks to try and
+                        // cause less visible lighting bugs
+                        int transparency = (blockType > HIGHEST_KNOWN_BLOCK_ID) ? 0 : BLOCK_TRANSPARENCY[blockType];
                         if ((transparency == 0) && daylight) {
                             // Propagate daylight down
                             newSkyLightLevel = 15;
@@ -186,8 +195,8 @@ public class LightingCalculator {
                         newSkyLightLevel = 0;
                         daylight = false;
                     }
-                    if (LIGHT_SOURCES.containsKey(blockType)) {
-                        newBlockLightLevel = LIGHT_SOURCES.get(blockType);
+                    if ((blockType <= HIGHEST_KNOWN_BLOCK_ID) && (LIGHT_SOURCES[blockType] > 0)) {
+                        newBlockLightLevel = LIGHT_SOURCES[blockType];
                     } else {
                         newBlockLightLevel = 0;
                     }
@@ -236,7 +245,7 @@ public class LightingCalculator {
                 }
             }
         }
-        return Math.max(highestSurroundingSkyLight - Math.max(BLOCK_TRANSPARENCY.get(blockType), 1), 0);
+        return Math.max(highestSurroundingSkyLight - Math.max((blockType <= HIGHEST_KNOWN_BLOCK_ID) ? BLOCK_TRANSPARENCY[blockType] : 0, 1), 0);
     }
 
     private int calculateBlockLightLevel(int x, int y, int z) {
@@ -263,7 +272,7 @@ public class LightingCalculator {
         if (blockLightLevel > highestSurroundingBlockLight) {
             highestSurroundingBlockLight = blockLightLevel;
         }
-        return Math.max(highestSurroundingBlockLight - Math.max(BLOCK_TRANSPARENCY.get(blockType), 1), 0);
+        return Math.max(highestSurroundingBlockLight - Math.max((blockType <= HIGHEST_KNOWN_BLOCK_ID) ? BLOCK_TRANSPARENCY[blockType] : 0, 1), 0);
     }
 
     private int getSkyLightLevelAt(int x, int y, int z) {

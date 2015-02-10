@@ -7,7 +7,9 @@ package org.pepsoft.worldpainter.layers;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.ObjectInputStream;
+import java.util.List;
 import java.util.Random;
+import javax.swing.Action;
 import org.pepsoft.worldpainter.layers.renderers.LayerRenderer;
 import org.pepsoft.worldpainter.layers.renderers.TransparentColourRenderer;
 
@@ -26,6 +28,17 @@ public abstract class CustomLayer extends Layer {
         super(createId(name), name, description, dataSize, priority, mnemonic);
         this.colour = colour;
         renderer = new TransparentColourRenderer(colour);
+    }
+
+    /**
+     * Custom layers have names independent of their ID, so changing the name
+     * after creation is not a problem.
+     * 
+     * @param name The new name of the layer.
+     */
+    @Override
+    public void setName(String name) {
+        super.setName(name);
     }
     
     public int getColour() {
@@ -48,6 +61,22 @@ public abstract class CustomLayer extends Layer {
         this.biome = biome;
     }
 
+    public boolean isHide() {
+        return hide;
+    }
+
+    public void setHide(boolean hide) {
+        this.hide = hide;
+    }
+
+    public String getPalette() {
+        return palette;
+    }
+
+    public void setPalette(String palette) {
+        this.palette = palette;
+    }
+
     @Override
     public BufferedImage getIcon() {
         if (icon == null) {
@@ -59,6 +88,18 @@ public abstract class CustomLayer extends Layer {
     @Override
     public LayerRenderer getRenderer() {
         return renderer;
+    }
+    
+    /**
+     * Get any actions (in addition to the standard add, edit and remove
+     * actions) for this custom layer. They will be added to the popup menu of
+     * the layer button.
+     * 
+     * @return Any custom actions for this layer, or <code>null</code> if there
+     * aren't any.
+     */
+    public List<Action> getActions() {
+        return null;
     }
     
     private BufferedImage createIcon() {
@@ -81,6 +122,9 @@ public abstract class CustomLayer extends Layer {
         if (version < 1) {
             biome = -1;
         }
+        if (version < 2) {
+            palette = "Custom Layers";
+        }
         version = CURRENT_VERSION;
     }
     
@@ -89,10 +133,12 @@ public abstract class CustomLayer extends Layer {
     }
     
     private int colour, biome = -1, version = CURRENT_VERSION;
+    private boolean hide;
+    private String palette = "Custom Layers";
     private transient BufferedImage icon;
     private transient LayerRenderer renderer;
     
-    private static final int CURRENT_VERSION = 1;
+    private static final int CURRENT_VERSION = 2;
     private static final Random ID_GENERATOR = new Random();
     private static final long serialVersionUID = 1L;
 }

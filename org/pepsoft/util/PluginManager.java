@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
@@ -31,7 +32,13 @@ public final class PluginManager {
     }
     
     public static void loadPlugins(File pluginDir, PublicKey publicKey) {
-        logger.info("Loading plugins");
+        loadPlugins(pluginDir, publicKey, "");
+    }
+    
+    public static void loadPlugins(File pluginDir, PublicKey publicKey, String logPrefix) {
+        if (logger.isLoggable(Level.FINE)) {
+            logger.fine(logPrefix + "Loading plugins");
+        }
         File[] pluginFiles = pluginDir.listFiles(new FilenameFilter() {
             @Override
             public boolean accept(File dir, String name) {
@@ -43,7 +50,7 @@ public final class PluginManager {
                 try {
                     JarFile jarFile = new JarFile(pluginFile);
                     if (! isSigned(jarFile, publicKey)) {
-                        logger.severe(jarFile.getName() + " is not official or has been tampered with; not loading it");
+                        logger.severe(logPrefix + jarFile.getName() + " is not official or has been tampered with; not loading it");
                         continue;
                     }
                     ClassLoader pluginClassLoader = new URLClassLoader(new URL[] {pluginFile.toURI().toURL()});
@@ -57,14 +64,10 @@ public final class PluginManager {
         }
     }
     
-    public static <T> List<T> findPlugins(Class<T> type) {
-        return findPlugins(type, type.getName() + ".plugins");
-    }
-    
-    public static <T> List<T> findPlugins(Class<T> type, String filename) {
+    public static <T> List<T> findPlugins(Class<T> type, String filename, ClassLoader classLoader) {
         try {
             List<T> plugins = new ArrayList<T>();
-            findPlugins(filename, ClassLoader.getSystemClassLoader(), plugins);
+            findPlugins(filename, classLoader, plugins);
             for (JarFile pluginJar: pluginJars.keySet()) {
                 findPlugins(filename, pluginJar, plugins);
             }
@@ -84,6 +87,7 @@ public final class PluginManager {
         return classLoader;
     }
     
+    @SuppressWarnings("empty-statement")
     private static boolean isSigned(JarFile jarFile, PublicKey publicKey) throws IOException {
         for (Enumeration<JarEntry> e = jarFile.entries(); e.hasMoreElements(); ) {
             JarEntry jarEntry = e.nextElement();

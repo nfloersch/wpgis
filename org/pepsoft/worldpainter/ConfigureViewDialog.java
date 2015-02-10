@@ -11,7 +11,12 @@
 package org.pepsoft.worldpainter;
 
 import java.awt.Frame;
+import java.awt.Graphics2D;
+import java.awt.GraphicsConfiguration;
+import java.awt.RenderingHints;
+import java.awt.Transparency;
 import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
 import java.awt.event.WindowEvent;
 import java.awt.event.WindowListener;
@@ -21,6 +26,8 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.imageio.ImageIO;
 import javax.swing.AbstractAction;
 import javax.swing.ActionMap;
@@ -29,6 +36,7 @@ import javax.swing.JComponent;
 import javax.swing.JFileChooser;
 import javax.swing.JOptionPane;
 import javax.swing.KeyStroke;
+import javax.swing.Timer;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import javax.swing.filechooser.FileFilter;
@@ -56,7 +64,7 @@ public class ConfigureViewDialog extends javax.swing.JDialog implements Document
         if (dimension.getOverlay() != null) {
             fieldImage.setText(dimension.getOverlay().getAbsolutePath());
         }
-        spinnerScale.setValue((int) (view.getOverlayScale() * 100));
+        spinnerScale.setValue((int) (dimension.getOverlayScale() * 100));
         spinnerTransparency.setValue((int) (view.getOverlayTransparency() * 100));
         spinnerXOffset.setValue(view.getOverlayOffsetX());
         spinnerYOffset.setValue(view.getOverlayOffsetY());
@@ -132,15 +140,67 @@ public class ConfigureViewDialog extends javax.swing.JDialog implements Document
     private void updateImageFile() {
         File file = new File(fieldImage.getText());
         if (file.isFile() && file.canRead()) {
-            if (! file.equals(dimension.getOverlay())) {
-                try {
-                    BufferedImage image = ImageIO.read(file);
-                    dimension.setOverlay(file);
-                    view.setOverlay(image);
-                } catch (IOException e) {
-                    JOptionPane.showMessageDialog(this, "The selected file is not a valid and supported image file!", "Invalid File", JOptionPane.ERROR_MESSAGE);
-                }
+            logger.info("Loading image");
+            BufferedImage image;
+            try {
+                image = ImageIO.read(file);
+            } catch (IOException e) {
+                logger.log(Level.SEVERE, "I/O error while loading image " + file ,e);
+                JOptionPane.showMessageDialog(this, "An error occurred while loading the overlay image.\nIt may not be a valid or supported image file, or the file may be corrupted.", "Error Loading Image", JOptionPane.ERROR_MESSAGE);
+                return;
+            } catch (RuntimeException e) {
+                logger.log(Level.SEVERE, e.getClass().getSimpleName() + " while loading image " + file ,e);
+                JOptionPane.showMessageDialog(this, "An error occurred while loading the overlay image.\nThere may not be enough available memory, or the image may be too large.", "Error Loading Image", JOptionPane.ERROR_MESSAGE);
+                return;
+            } catch (Error e) {
+                logger.log(Level.SEVERE, e.getClass().getSimpleName() + " while loading image " + file ,e);
+                JOptionPane.showMessageDialog(this, "An error occurred while loading the overlay image.\nThere may not be enough available memory, or the image may be too large.", "Error Loading Image", JOptionPane.ERROR_MESSAGE);
+                return;
             }
+            image = scaleImage(image, getGraphicsConfiguration(), (Integer) spinnerScale.getValue());
+            if (image != null) {
+                // The scaling succeeded
+                dimension.setOverlay(file);
+                view.setOverlay(image);
+            }
+        }
+    }
+    
+    static BufferedImage scaleImage(BufferedImage image, GraphicsConfiguration graphicsConfiguration, int scale) {
+        try {
+            boolean alpha = image.getColorModel().hasAlpha();
+            if (scale == 100) {
+                logger.info("Optimising image");
+                BufferedImage optimumImage = graphicsConfiguration.createCompatibleImage(image.getWidth(), image.getHeight(), alpha ? Transparency.TRANSLUCENT : Transparency.OPAQUE);
+                Graphics2D g2 = optimumImage.createGraphics();
+                try {
+                    g2.drawImage(image, 0, 0, null);
+                } finally {
+                    g2.dispose();
+                }
+                return optimumImage;
+            } else {
+                logger.info("Scaling image");
+                int width = image.getWidth() * scale / 100;
+                int height = image.getHeight() * scale / 100;
+                BufferedImage optimumImage = graphicsConfiguration.createCompatibleImage(width, height, alpha ? Transparency.TRANSLUCENT : Transparency.OPAQUE);
+                Graphics2D g2 = optimumImage.createGraphics();
+                try {
+                    g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
+                    g2.drawImage(image, 0, 0, width, height, null);
+                } finally {
+                    g2.dispose();
+                }
+                return optimumImage;
+            }
+        } catch (RuntimeException e) {
+            logger.log(Level.SEVERE, e.getClass().getSimpleName() + " while scaling image of size " + image.getWidth() + "x" + image.getHeight() + " and type " + image.getType() + " to " + scale + "%", e);
+            JOptionPane.showMessageDialog(null, "An error occurred while scaling the overlay image.\nThere may not be enough available memory, or the image may be too large.", "Error Scaling Image", JOptionPane.ERROR_MESSAGE);
+            return null;
+        } catch (Error e) {
+            logger.log(Level.SEVERE, e.getClass().getSimpleName() + " while scaling image of size " + image.getWidth() + "x" + image.getHeight() + " and type " + image.getType() + " to " + scale + "%", e);
+            JOptionPane.showMessageDialog(null, "An error occurred while scaling the overlay image.\nThere may not be enough available memory, or the image may be too large.", "Error Scaling Image", JOptionPane.ERROR_MESSAGE);
+            return null;
         }
     }
     
@@ -204,6 +264,22 @@ public class ConfigureViewDialog extends javax.swing.JDialog implements Document
             view.setDrawOverlay(false);
             dimension.setOverlayEnabled(false);
             setControlStates();
+        }
+    }
+
+    private void scheduleImageUpdate() {
+        if (imageUpdateTimer == null) {
+            imageUpdateTimer = new Timer(1000, new ActionListener() {
+                @Override
+                public void actionPerformed(ActionEvent e) {
+                    updateImageFile();
+                    imageUpdateTimer = null;
+                }
+            });
+            imageUpdateTimer.setRepeats(false);
+            imageUpdateTimer.start();
+        } else {
+            imageUpdateTimer.restart();
         }
     }
     
@@ -305,7 +381,7 @@ public class ConfigureViewDialog extends javax.swing.JDialog implements Document
 
         jLabel7.setText("X offset:");
 
-        spinnerXOffset.setModel(new javax.swing.SpinnerNumberModel(0, -99999, 99999, 1));
+        spinnerXOffset.setModel(new javax.swing.SpinnerNumberModel(0, -999999, 999999, 1));
         spinnerXOffset.setEnabled(false);
         spinnerXOffset.addChangeListener(new javax.swing.event.ChangeListener() {
             public void stateChanged(javax.swing.event.ChangeEvent evt) {
@@ -315,7 +391,7 @@ public class ConfigureViewDialog extends javax.swing.JDialog implements Document
 
         jLabel8.setText(", Y offset:");
 
-        spinnerYOffset.setModel(new javax.swing.SpinnerNumberModel(0, -99999, 99999, 1));
+        spinnerYOffset.setModel(new javax.swing.SpinnerNumberModel(0, -999999, 999999, 1));
         spinnerYOffset.setEnabled(false);
         spinnerYOffset.addChangeListener(new javax.swing.event.ChangeListener() {
             public void stateChanged(javax.swing.event.ChangeEvent evt) {
@@ -466,8 +542,8 @@ public class ConfigureViewDialog extends javax.swing.JDialog implements Document
 
     private void spinnerScaleStateChanged(javax.swing.event.ChangeEvent evt) {//GEN-FIRST:event_spinnerScaleStateChanged
         float scale = ((Number) spinnerScale.getValue()).intValue() / 100.0f;
-        view.setOverlayScale(scale);
         dimension.setOverlayScale(scale);
+        scheduleImageUpdate();
     }//GEN-LAST:event_spinnerScaleStateChanged
 
     private void spinnerTransparencyStateChanged(javax.swing.event.ChangeEvent evt) {//GEN-FIRST:event_spinnerTransparencyStateChanged
@@ -492,6 +568,7 @@ public class ConfigureViewDialog extends javax.swing.JDialog implements Document
         setControlStates();
         boolean overlayEnabled = checkBoxImageOverlay.isSelected();
         view.setDrawOverlay(overlayEnabled);
+        overlayEnabled = view.isDrawOverlay(); // Enabling the overlay may have failed
         dimension.setOverlayEnabled(overlayEnabled);
         if (overlayEnabled && (dimension.getOverlay() == null)) {
             selectImage();
@@ -505,6 +582,11 @@ public class ConfigureViewDialog extends javax.swing.JDialog implements Document
     }//GEN-LAST:event_spinnerGridSizeStateChanged
 
     private void buttonCloseActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_buttonCloseActionPerformed
+        if (imageUpdateTimer != null) {
+            imageUpdateTimer.stop();
+            imageUpdateTimer = null;
+            updateImageFile();
+        }
         dispose();
     }//GEN-LAST:event_buttonCloseActionPerformed
 
@@ -550,6 +632,8 @@ public class ConfigureViewDialog extends javax.swing.JDialog implements Document
     private final Dimension dimension;
     private final WorldPainter view;
     private final boolean enableOverlay;
+    private Timer imageUpdateTimer;
 
+    private static final Logger logger = Logger.getLogger(ConfigureViewDialog.class.getName());
     private static final long serialVersionUID = 1L;
 }

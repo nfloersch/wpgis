@@ -28,7 +28,7 @@ public class TransparentColourRenderer implements NibbleLayerRenderer, BitLayerR
 
     @Override
     public int getPixelColour(int x, int y, int underlyingColour, boolean value) {
-        return value ? colour : underlyingColour;
+        return value ? ColourUtils.mix(colour, underlyingColour) : underlyingColour;
     }
 
     private final int colour;

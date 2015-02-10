@@ -14,8 +14,6 @@ import java.awt.Font;
 import java.awt.Point;
 import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
-import java.awt.event.WindowEvent;
-import java.awt.event.WindowListener;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
@@ -32,17 +30,17 @@ import javax.swing.text.html.HTMLDocument;
 import org.pepsoft.worldpainter.layers.Layer;
 
 import static org.pepsoft.worldpainter.Constants.TILE_SIZE;
+import org.pepsoft.worldpainter.biomeschemes.CustomBiomeManager;
 
 /**
  *
  * @author pepijn
  */
-public class TileEditor extends javax.swing.JDialog implements WindowListener, TileSelector.Listener {
+public class TileEditor extends javax.swing.JDialog implements TileSelector.Listener {
     /** Creates new form TileEditor */
-    public TileEditor(java.awt.Frame parent, Dimension dimension, ColourScheme colourScheme, BiomeScheme biomeScheme, Collection<Layer> hiddenLayers, boolean contourLines, TileRenderer.LightOrigin lightOrigin) {
+    public TileEditor(java.awt.Frame parent, Dimension dimension, ColourScheme colourScheme, BiomeScheme biomeScheme, CustomBiomeManager customBiomeManager, Collection<Layer> hiddenLayers, boolean contourLines, int contourSeparation, TileRenderer.LightOrigin lightOrigin) {
         super(parent, true);
         this.dimension = dimension;
-        this.biomeScheme = biomeScheme;
         initComponents();
         
         // Fix the incredibly ugly default font of the JTextPane
@@ -64,8 +62,10 @@ public class TileEditor extends javax.swing.JDialog implements WindowListener, T
         tileSelector1.setBiomeScheme(biomeScheme);
         tileSelector1.setHiddenLayers(hiddenLayers);
         tileSelector1.setContourLines(contourLines);
+        tileSelector1.setContourSeparation(contourSeparation);
         tileSelector1.setLightOrigin(lightOrigin);
         tileSelector1.setDimension(dimension);
+        tileSelector1.setCustomBiomeManager(customBiomeManager);
         tileSelector1.addListener(this);
 
         InputMap inputMap = rootPane.getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT);
@@ -74,24 +74,8 @@ public class TileEditor extends javax.swing.JDialog implements WindowListener, T
         getRootPane().setDefaultButton(buttonClose);
         
         setLocationRelativeTo(parent);
-        
-        addWindowListener(this);
     }
     
-    // WindowListener
-
-    @Override
-    public void windowClosed(WindowEvent e) {
-        tileSelector1.destroy();
-    }
-
-    @Override public void windowOpened(WindowEvent e) {}
-    @Override public void windowClosing(WindowEvent e) {}
-    @Override public void windowIconified(WindowEvent e) {}
-    @Override public void windowDeiconified(WindowEvent e) {}
-    @Override public void windowActivated(WindowEvent e) {}
-    @Override public void windowDeactivated(WindowEvent e) {}
-
     // TileSelector.Listener
     
     @Override
@@ -175,11 +159,8 @@ public class TileEditor extends javax.swing.JDialog implements WindowListener, T
         dimension.clearUndo();
         try {
             for (Point newTileCoords: tilesToAdd) {
-                Tile newTile = dimension.getTileFactory().createTile(dimension.getSeed(), newTileCoords.x, newTileCoords.y);
+                Tile newTile = dimension.getTileFactory().createTile(newTileCoords.x, newTileCoords.y);
                 dimension.addTile(newTile);
-                if (biomeScheme != null) {
-                    dimension.recalculateBiomes(newTile, biomeScheme);
-                }
             }
         } finally {
             dimension.setEventsInhibited(false);
@@ -260,6 +241,8 @@ public class TileEditor extends javax.swing.JDialog implements WindowListener, T
             }
         });
 
+        tileSelector1.setAllowNonExistentTileSelection(true);
+
         jTextPane1.setEditable(false);
         jTextPane1.setContentType("text/html"); // NOI18N
         jTextPane1.setText("WorldPainter works in tiles of 128 by 128 blocks. On this screen you can add or remove tiles.<br><br>Select tiles to the right using the left mouse button, move the map with the middle or right buttons, then select an action below:<br><br><b>Note:</b> this will remove all undo information!");
@@ -324,7 +307,6 @@ public class TileEditor extends javax.swing.JDialog implements WindowListener, T
     // End of variables declaration//GEN-END:variables
 
     private final Dimension dimension;
-    private final BiomeScheme biomeScheme;
     
     private static final long serialVersionUID = 1L;
 }

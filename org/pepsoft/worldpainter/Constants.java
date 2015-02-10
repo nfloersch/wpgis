@@ -5,6 +5,7 @@
 
 package org.pepsoft.worldpainter;
 
+import org.pepsoft.util.Version;
 import org.pepsoft.worldpainter.vo.AttributeKeyVO;
 
 /**
@@ -36,7 +37,6 @@ public final class Constants {
     public static final float SMALL_BLOBS    =   16.411f;
     public static final float TINY_BLOBS     =    4.099f;
     
-    public static final int VOID_COLOUR             = 0xC0FFFF;
     public static final int UNKNOWN_MATERIAL_COLOUR = 0xFF00FF;
     
     public static final int DIM_NORMAL = 0;
@@ -68,8 +68,23 @@ public final class Constants {
     public static final String EVENT_KEY_ACTION_MIGRATE_HEIGHT    = "action.migrateHeight";
     public static final String EVENT_KEY_ACTION_MIGRATE_ROTATION  = "action.migrateRotation";
     public static final String EVENT_KEY_DONATION_DONATE          = "donation.donate";
+    public static final String EVENT_KEY_DONATION_DONATE_BITCOIN  = "donation.donateBitcoin";
     public static final String EVENT_KEY_DONATION_ALREADY_DONATED = "donation.alreadyDonated";
     public static final String EVENT_KEY_DONATION_ASK_LATER       = "donation.askLater";
     public static final String EVENT_KEY_DONATION_NO_THANKS       = "donation.noThanks";
     public static final String EVENT_KEY_DONATION_CLOSED          = "donation.closed";
+
+    public static final Version JAVA_VERSION = Version.parse(System.getProperty("java.specification.version"));
+    /**
+     * Java version is 1.6 or higher.
+     */
+    public static final boolean JAVA_6 = JAVA_VERSION.compareTo(new Version(1, 6)) >= 0;
+    /**
+     * Java version is 1.7 or higher.
+     */
+    public static final boolean JAVA_7 = JAVA_VERSION.compareTo(new Version(1, 7)) >= 0;
+    /**
+     * Java version is 1.8 or higher.
+     */
+    public static final boolean JAVA_8 = JAVA_VERSION.compareTo(new Version(1, 8)) >= 0;
 }

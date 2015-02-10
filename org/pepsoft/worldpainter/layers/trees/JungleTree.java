@@ -58,7 +58,7 @@ public class JungleTree extends TreeType {
                 renderRoot(x, y, height, size, (float) (random.nextDouble() * Math.PI * 2), world, random);
             }
         }
-        renderVines(x, y, height, size, world, random, VINE_INCIDENCE, 5, 8);
+        renderVines(x, y, height, size, world, random, VINE_INCIDENCE, 5, 5);
         if ((size < 12) &&  (random.nextInt(5) == 0)) {
             renderCocoaPods(x, y, height, size, world, random);
         }
@@ -66,13 +66,7 @@ public class JungleTree extends TreeType {
 
     private void renderRoot(int x, int y, int height, int size, float angle, MinecraftWorld world, Random random) {
         int h = (int) (size / 5f + 0.5f);
-        Material capMaterial;
-        if (trunkMaterial.getBlockType() == BLK_WOOD) {
-            capMaterial = Material.get(trunkMaterial.getBlockType(), (trunkMaterial.getData() & 0x3) | 0xC);
-        } else {
-            capMaterial = trunkMaterial;
-        }
-        float slope = random.nextFloat() / 10 - 0.5f;
+        Material capMaterial = getCapMaterial();
         int i = 1, maxDepth = -1;
         int previousDx = Integer.MIN_VALUE, previousDy = Integer.MIN_VALUE;
         while (h > 0) {
@@ -88,7 +82,7 @@ public class JungleTree extends TreeType {
             int worldX = x + dx, worldY = y + dy;
             int depth = 0;
             for (int z = height + h; z > 0; z--) {
-                if (! VERY_INSUBSTANTIAL_BLOCKS.contains(world.getBlockTypeAt(worldX, worldY, z))) {
+                if (! VERY_INSUBSTANTIAL_BLOCKS.get(world.getBlockTypeAt(worldX, worldY, z))) {
                     depth++;
                 }
                 world.setMaterialAt(worldX, worldY, z, (z < (height + h)) ? trunkMaterial : capMaterial);
@@ -121,13 +115,13 @@ public class JungleTree extends TreeType {
                 minecraftWorld.setMaterialAt(blockInWorldX,     blockInWorldY + 1, height + i, trunkMaterial);
                 minecraftWorld.setMaterialAt(blockInWorldX + 1, blockInWorldY + 1, height + i, trunkMaterial);
             }
-            Material capMaterial = (trunkMaterial.getBlockType() == BLK_WOOD) ? Material.get(trunkMaterial.getBlockType(), (trunkMaterial.getData() & 0x3) | 0xC) : trunkMaterial;
+            Material capMaterial = getCapMaterial();
             minecraftWorld.setMaterialAt(blockInWorldX,     blockInWorldY,     height + size, capMaterial);
             minecraftWorld.setMaterialAt(blockInWorldX + 1, blockInWorldY,     height + size, capMaterial);
             minecraftWorld.setMaterialAt(blockInWorldX,     blockInWorldY + 1, height + size, capMaterial);
             minecraftWorld.setMaterialAt(blockInWorldX + 1, blockInWorldY + 1, height + size, capMaterial);
         } else {
-            Material capMaterial = (trunkMaterial.getBlockType() == BLK_WOOD) ? Material.get(trunkMaterial.getBlockType(), (trunkMaterial.getData() & 0x3) | 0xC) : trunkMaterial;
+            Material capMaterial = getCapMaterial();
             for (int dx = -1; dx < 3; dx++) {
                 for (int dy = -1; dy < 3; dy++) {
                     if (((dx == -1) || (dx == 2)) && ((dy == -1) || (dy == 2))) {
@@ -177,11 +171,11 @@ public class JungleTree extends TreeType {
     protected void renderBranch(int x, int y, int height, int size, float angle, MinecraftWorld world, Random random) {
         int l = (int) (size / 5f + 0.5f);
         Material branchMaterial, capMaterial;
-        if (trunkMaterial.getBlockType() == BLK_WOOD) {
+        if ((trunkMaterial.getBlockType() == BLK_WOOD) || (trunkMaterial.getBlockType() == BLK_WOOD2)) {
             branchMaterial = ((angle < (0.25 * Math.PI)) || ((angle > (0.75 * Math.PI)) && (angle < (1.25 * Math.PI))) || (angle > (1.75 * Math.PI)))
                 ? Material.get(trunkMaterial.getBlockType(), (trunkMaterial.getData() & 0x3) | 0x8)
                 : Material.get(trunkMaterial.getBlockType(), (trunkMaterial.getData() & 0x3) | 0x4);
-            capMaterial = Material.get(trunkMaterial.getBlockType(), (trunkMaterial.getData() & 0x3) | 0xC);
+            capMaterial = getCapMaterial();
         } else {
             branchMaterial = capMaterial = trunkMaterial;
         }
@@ -190,7 +184,7 @@ public class JungleTree extends TreeType {
             int dx = (int) (Math.sin(angle) * i + 0.5f);
             int dy = (int) (Math.cos(angle) * i + 0.5f);
             int dz = (int) (i * slope);
-            if (! VERY_INSUBSTANTIAL_BLOCKS.contains(world.getBlockTypeAt(x + dx, y + dy, height + size + dz + 1))) {
+            if (! VERY_INSUBSTANTIAL_BLOCKS.get(world.getBlockTypeAt(x + dx, y + dy, height + size + dz + 1))) {
                 continue;
             }
             world.setMaterialAt(x + dx, y + dy, height + size + dz, (i < (l - 1)) ? branchMaterial : capMaterial);

@@ -8,11 +8,12 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.zip.GZIPInputStream;
+import org.pepsoft.minecraft.Constants;
+import org.pepsoft.util.FileUtils;
 import org.pepsoft.util.ProgressReceiver;
 import org.pepsoft.util.ProgressReceiver.OperationCancelled;
+import org.pepsoft.worldpainter.Configuration;
 import org.pepsoft.worldpainter.MixedMaterial;
 import org.pepsoft.worldpainter.Terrain;
 import org.pepsoft.worldpainter.World2;
@@ -25,8 +26,18 @@ import org.pepsoft.worldpainter.util.MinecraftUtil;
  */
 public class Export {
     public static void main(String args[]) throws IOException, ClassNotFoundException, OperationCancelled {
-        Logger rootLogger = Logger.getLogger("");
-        rootLogger.setLevel(Level.OFF);
+//        Logger rootLogger = Logger.getLogger("");
+//        rootLogger.setLevel(Level.OFF);
+        
+        // Load or initialise configuration
+        Configuration config = Configuration.load(); // This will migrate the configuration directory if necessary
+        if (config == null) {
+            System.out.println("Creating new configuration");
+            config = new Configuration();
+        }
+        Configuration.setInstance(config);
+        System.out.println("Installation ID: " + config.getUuid());
+        
         File worldFile = new File(args[0]);
         System.out.println("Loading " + worldFile);
         World2 world;
@@ -41,6 +52,13 @@ public class Export {
             MixedMaterial material = world.getMixedMaterial(i);
             Terrain.setCustomMaterial(i, material);
         }
+        if (world.getVersion() == 0) {
+            if (world.getMaxHeight() == Constants.DEFAULT_MAX_HEIGHT_2) {
+                world.setVersion(Constants.SUPPORTED_VERSION_2);
+            } else {
+                world.setVersion(Constants.SUPPORTED_VERSION_1);
+            }
+        }
         
         File exportDir;
         if (args.length > 1) {
@@ -52,7 +70,7 @@ public class Export {
         System.out.println("Exporting to " + exportDir);
         System.out.println("+---------+---------+---------+---------+---------+");
         WorldExporter exporter = new WorldExporter(world);
-        exporter.export(exportDir, world.getName(), new ProgressReceiver() {
+        exporter.export(exportDir, world.getName(), exporter.selectBackupDir(new File(exportDir, FileUtils.sanitiseName(world.getName()))), new ProgressReceiver() {
             @Override
             public void setProgress(float progressFraction) throws OperationCancelled {
                 int progress = (int) (progressFraction * 50);
@@ -68,6 +86,11 @@ public class Export {
                 System.exit(1);
             }
 
+            @Override public void reset() {
+                System.out.println();
+                previousProgress = -1;
+            }
+            
             @Override public void done() {}
             @Override public void setMessage(String message) throws OperationCancelled {}
             @Override public void checkForCancellation() throws OperationCancelled {}

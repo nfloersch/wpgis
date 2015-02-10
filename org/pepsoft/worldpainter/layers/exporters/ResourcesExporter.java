@@ -16,7 +16,6 @@ import static org.pepsoft.minecraft.Constants.*;
 import org.pepsoft.util.PerlinNoise;
 import static org.pepsoft.worldpainter.Constants.*;
 import org.pepsoft.worldpainter.Dimension;
-import org.pepsoft.worldpainter.Terrain;
 import org.pepsoft.worldpainter.Tile;
 import org.pepsoft.worldpainter.exporting.AbstractLayerExporter;
 import org.pepsoft.worldpainter.exporting.FirstPassLayerExporter;
@@ -40,7 +39,7 @@ public class ResourcesExporter extends AbstractLayerExporter<Resources> implemen
             seedOffsets = new long[256];
             minLevels = new int[256];
             maxLevels = new int[256];
-            chances = new float[256];
+            chances = new float[256][16];
             activeOreCount = 0;
             for (int blockType: resourcesSettings.getBlockTypes()) {
                 if (resourcesSettings.getChance(blockType) == 0) {
@@ -51,7 +50,10 @@ public class ResourcesExporter extends AbstractLayerExporter<Resources> implemen
                 seedOffsets[blockType] = resourcesSettings.getSeedOffset(blockType);
                 minLevels[blockType] = resourcesSettings.getMinLevel(blockType);
                 maxLevels[blockType] = resourcesSettings.getMaxLevel(blockType);
-                chances[blockType] = PerlinNoise.getLevelForPromillage(resourcesSettings.getChance(blockType));
+                chances[blockType] = new float[16];
+                for (int i = 0; i < 16; i++) {
+                    chances[blockType][i] = PerlinNoise.getLevelForPromillage(Math.min(resourcesSettings.getChance(blockType) * i / 8f, 1000f));
+                }
             }
         }
     }
@@ -64,11 +66,12 @@ public class ResourcesExporter extends AbstractLayerExporter<Resources> implemen
             setSettings(settings);
         }
         
-        int minimumLevel = settings.getMinimumLevel();
-        int xOffset = (chunk.getxPos() & 7) << 4;
-        int zOffset = (chunk.getzPos() & 7) << 4;
-        long seed = dimension.getSeed();
-        int[] oreTypes = new int[activeOreCount];
+        final int minimumLevel = settings.getMinimumLevel();
+        final int xOffset = (chunk.getxPos() & 7) << 4;
+        final int zOffset = (chunk.getzPos() & 7) << 4;
+        final long seed = dimension.getSeed();
+        final int[] oreTypes = new int[activeOreCount];
+        final int maxY = dimension.getMaxHeight() - 1;
         int i = 0;
         for (int oreType: settings.getBlockTypes()) {
             if (settings.getChance(oreType) == 0) {
@@ -81,42 +84,51 @@ public class ResourcesExporter extends AbstractLayerExporter<Resources> implemen
                 noiseGenerators[blockType].setSeed(seed + seedOffsets[blockType]);
             }
         }
-        Terrain subsurfaceMaterial = dimension.getSubsurfaceMaterial();
+//        int[] counts = new int[256];
         for (int x = 0; x < 16; x++) {
             for (int z = 0; z < 16; z++) {
-                int localX = xOffset + x, localY = zOffset + z;
-                int worldX = tile.getX() * TILE_SIZE + localX, worldY = tile.getY() * TILE_SIZE + localY;
+                final int localX = xOffset + x, localY = zOffset + z;
+                final int worldX = tile.getX() * TILE_SIZE + localX, worldY = tile.getY() * TILE_SIZE + localY;
                 if (tile.getBitLayerValue(org.pepsoft.worldpainter.layers.Void.INSTANCE, localX, localY)) {
                     continue;
                 }
-                int resourcesValue = Math.max(minimumLevel, tile.getLayerValue(Resources.INSTANCE, localX, localY));
+                final int resourcesValue = Math.max(minimumLevel, tile.getLayerValue(Resources.INSTANCE, localX, localY));
                 if (resourcesValue > 0) {
-                    float bias = (float) Math.pow(0.9, resourcesValue - 8);
-                    int terrainheight = tile.getIntHeight(localX, localY);
-                    double dx = worldX / TINY_BLOBS, dy = worldY / TINY_BLOBS;
-                    double dirtX = worldX / SMALL_BLOBS, dirtY = worldY / SMALL_BLOBS;
-                    for (int y = terrainheight - dimension.getTopLayerDepth(worldX, worldY, terrainheight); y > 0; y--) {
-                        int blockType = chunk.getBlockType(x, y, z);
-                        int terrainBlockType = subsurfaceMaterial.getMaterial(seed, x, y, z, terrainheight).getBlockType();
-                        if (blockType == terrainBlockType) {
-                            double dz = y / TINY_BLOBS;
-                            double dirtZ = y / SMALL_BLOBS;
-                            for (int oreType: oreTypes) {
-                                float chance = bias * chances[oreType];
-                                if ((chance <= 0.5f) && (y >= minLevels[oreType]) && (y <= maxLevels[oreType])
-                                        && (((oreType == BLK_DIRT) || (oreType == BLK_GRAVEL))
-                                            ? (noiseGenerators[oreType].getPerlinNoise(dirtX, dirtY, dirtZ) >= chance)
-                                            : (noiseGenerators[oreType].getPerlinNoise(dx, dy, dz) >= chance))) {
-                                    chunk.setBlockType(x, y, z, oreType);
-                                    chunk.setDataValue(x, y, z, 0);
-                                    break;
-                                }
+                    final int terrainheight = tile.getIntHeight(localX, localY);
+                    final double dx = worldX / TINY_BLOBS, dy = worldY / TINY_BLOBS;
+                    final double dirtX = worldX / SMALL_BLOBS, dirtY = worldY / SMALL_BLOBS;
+                    // Capping to maxY really shouldn't be necessary, but we've
+                    // had several reports from the wild of this going higher
+                    // than maxHeight, so there must be some obscure way in
+                    // which the terrainHeight can be raised too high
+                    for (int y = Math.min(terrainheight - dimension.getTopLayerDepth(worldX, worldY, terrainheight), maxY); y > 0; y--) {
+                        final double dz = y / TINY_BLOBS;
+                        final double dirtZ = y / SMALL_BLOBS;
+                        for (int oreType: oreTypes) {
+                            final float chance = chances[oreType][resourcesValue];
+                            if ((chance <= 0.5f)
+                                    && (y >= minLevels[oreType])
+                                    && (y <= maxLevels[oreType])
+                                    && (((oreType == BLK_DIRT) || (oreType == BLK_GRAVEL))
+                                        ? (noiseGenerators[oreType].getPerlinNoise(dirtX, dirtY, dirtZ) >= chance)
+                                        : (noiseGenerators[oreType].getPerlinNoise(dx, dy, dz) >= chance))) {
+//                                counts[oreType]++;
+                                chunk.setBlockType(x, y, z, oreType);
+                                chunk.setDataValue(x, y, z, 0);
+                                break;
                             }
                         }
                     }
                 }
             }
         }
+//        System.out.println("Tile " + tile.getX() + "," + tile.getY());
+//        for (i = 0; i < 256; i++) {
+//            if (counts[i] > 0) {
+//                System.out.printf("Exported %6d of ore type %3d%n", counts[i], i);
+//            }
+//        }
+//        System.out.println();
     }
     
 //  TODO: resource frequenties onderzoeken met Statistics tool!
@@ -124,12 +136,16 @@ public class ResourcesExporter extends AbstractLayerExporter<Resources> implemen
     private PerlinNoise[] noiseGenerators;
     private long[] seedOffsets;
     private int[] minLevels, maxLevels;
-    private float[] chances;
+    private float[][] chances;
     private int activeOreCount;
     private long currentSeed;
     
     public static class ResourcesExporterSettings implements ExporterSettings<Resources> {
         public ResourcesExporterSettings(int maxHeight) {
+            this(maxHeight, false);
+        }
+        
+        public ResourcesExporterSettings(int maxHeight, boolean nether) {
             minLevels.put(BLK_GOLD_ORE,         0);
             minLevels.put(BLK_IRON_ORE,         0);
             minLevels.put(BLK_COAL,             0);
@@ -141,6 +157,7 @@ public class ResourcesExporter extends AbstractLayerExporter<Resources> implemen
             minLevels.put(BLK_DIRT,             0);
             minLevels.put(BLK_GRAVEL,           0);
             minLevels.put(BLK_EMERALD_ORE,      0);
+            minLevels.put(BLK_QUARTZ_ORE,       0);
             
             maxLevels.put(BLK_GOLD_ORE,         31);
             maxLevels.put(BLK_IRON_ORE,         63);
@@ -153,21 +170,38 @@ public class ResourcesExporter extends AbstractLayerExporter<Resources> implemen
             maxLevels.put(BLK_DIRT,             maxHeight - 1);
             maxLevels.put(BLK_GRAVEL,           maxHeight - 1);
             maxLevels.put(BLK_EMERALD_ORE,      31);
+            maxLevels.put(BLK_QUARTZ_ORE,       maxHeight - 1);
             
-            chances.put(BLK_GOLD_ORE,          1);
-            chances.put(BLK_IRON_ORE,          6);
-            chances.put(BLK_COAL,             10);
-            chances.put(BLK_LAPIS_LAZULI_ORE,  1);
-            chances.put(BLK_DIAMOND_ORE,       1);
-            chances.put(BLK_REDSTONE_ORE,      8);
-            chances.put(BLK_WATER,             1);
-            chances.put(BLK_LAVA,              2);
-            chances.put(BLK_DIRT,             57);
-            chances.put(BLK_GRAVEL,           28);
-            if (maxHeight != DEFAULT_MAX_HEIGHT_2) {
-                chances.put(BLK_EMERALD_ORE,   0);
+            if (nether) {
+                chances.put(BLK_GOLD_ORE,         0);
+                chances.put(BLK_IRON_ORE,         0);
+                chances.put(BLK_COAL,             0);
+                chances.put(BLK_LAPIS_LAZULI_ORE, 0);
+                chances.put(BLK_DIAMOND_ORE,      0);
+                chances.put(BLK_REDSTONE_ORE,     0);
+                chances.put(BLK_WATER,            0);
+                chances.put(BLK_LAVA,             0);
+                chances.put(BLK_DIRT,             0);
+                chances.put(BLK_GRAVEL,           0);
+                chances.put(BLK_EMERALD_ORE,      0);
+                chances.put(BLK_QUARTZ_ORE,       6);
             } else {
-                chances.put(BLK_EMERALD_ORE,   1);
+                chances.put(BLK_GOLD_ORE,          1);
+                chances.put(BLK_IRON_ORE,          6);
+                chances.put(BLK_COAL,             10);
+                chances.put(BLK_LAPIS_LAZULI_ORE,  1);
+                chances.put(BLK_DIAMOND_ORE,       1);
+                chances.put(BLK_REDSTONE_ORE,      8);
+                chances.put(BLK_WATER,             1);
+                chances.put(BLK_LAVA,              2);
+                chances.put(BLK_DIRT,             57);
+                chances.put(BLK_GRAVEL,           28);
+                if (maxHeight != DEFAULT_MAX_HEIGHT_2) {
+                    chances.put(BLK_EMERALD_ORE,   0);
+                } else {
+                    chances.put(BLK_EMERALD_ORE,   1);
+                }
+                chances.put(BLK_QUARTZ_ORE,        0);
             }
             
             Random random = new Random();
@@ -262,14 +296,21 @@ public class ResourcesExporter extends AbstractLayerExporter<Resources> implemen
                 maxLevels.put(BLK_EMERALD_ORE, 31);
                 chances.put(BLK_EMERALD_ORE, 0);
             }
+            Random random = new Random();
             if (! seedOffsets.containsKey(BLK_EMERALD_ORE)) {
-                seedOffsets.put(BLK_EMERALD_ORE, new Random().nextLong());
+                seedOffsets.put(BLK_EMERALD_ORE, random.nextLong());
             }
             if (minLevels == null) {
                 minLevels = new HashMap<Integer, Integer>();
                 for (int blockType: maxLevels.keySet()) {
                     minLevels.put(blockType, 0);
                 }
+            }
+            if (! minLevels.containsKey(BLK_QUARTZ_ORE)) {
+                minLevels.put(BLK_QUARTZ_ORE, 0);
+                maxLevels.put(BLK_QUARTZ_ORE, 255);
+                chances.put(BLK_QUARTZ_ORE, 0);
+                seedOffsets.put(BLK_QUARTZ_ORE, random.nextLong());
             }
         }
         

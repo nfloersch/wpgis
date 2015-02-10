@@ -109,6 +109,16 @@ public class RotateWorldDialog extends javax.swing.JDialog implements ProgressRe
         // Do nothing
     }
 
+    @Override
+    public void reset() {
+        doOnEventThread(new Runnable() {
+            @Override
+            public void run() {
+                jProgressBar1.setValue(0);
+            }
+        });
+    }
+
     private void rotate() {
         final CoordinateTransform transform;
         if (jRadioButton1.isSelected()) {

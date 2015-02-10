@@ -12,6 +12,11 @@ public final class ConstantHeightMap extends AbstractHeightMap {
     public ConstantHeightMap(float height) {
         this.height = height;
     }
+
+    public ConstantHeightMap(String name, float height) {
+        super(name);
+        this.height = height;
+    }
     
     @Override
     public float getHeight(int x, int y) {

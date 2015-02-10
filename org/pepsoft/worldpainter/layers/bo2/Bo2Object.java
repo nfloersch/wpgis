@@ -104,12 +104,43 @@ public final class Bo2Object extends AbstractObject implements Bo2ObjectProvider
 
     @Override
     public Map<String, Serializable> getAttributes() {
-        return (attributes != null) ? new HashMap<String, Serializable>(attributes) : null;
+        return attributes;
     }
 
     @Override
     public void setAttributes(Map<String, Serializable> attributes) {
-        this.attributes = (attributes != null) ? new HashMap<String, Serializable>(attributes) : null;
+        this.attributes = attributes;
+    }
+
+    @Override
+    public void setAttribute(String key, Serializable value) {
+        if (value != null) {
+            if (attributes == null) {
+                attributes = new HashMap<String, Serializable>();
+            }
+            attributes.put(key, value);
+        } else if (attributes != null) {
+            attributes.remove(key);
+            if (attributes.isEmpty()) {
+                attributes = null;
+            }
+        }
+    }
+
+    @Override
+    public void setSeed(long seed) {
+        // Do nothing
+    }
+
+    @Override
+    public Bo2Object clone() {
+        Bo2Object clone = (Bo2Object) super.clone();
+        clone.origin = (Point3i) origin.clone();
+        clone.dimensions = (Point3i) dimensions.clone();
+        if (attributes != null) {
+            clone.attributes = new HashMap<String, Serializable>(attributes);
+        }
+        return clone;
     }
     
     public static Bo2Object load(File file) throws IOException {
@@ -147,6 +178,12 @@ public final class Bo2Object extends AbstractObject implements Bo2ObjectProvider
                 attributes.put(WPObject.ATTRIBUTE_SPAWN_IN_WATER, true);
             }
             version = 1;
+        }
+        if (version == 1) {
+            if (! attributes.containsKey(ATTRIBUTE_LEAF_DECAY_MODE)) {
+                attributes.put(ATTRIBUTE_LEAF_DECAY_MODE, LEAF_DECAY_ON);
+            }
+            version = 2;
         }
     }
     
@@ -236,14 +273,14 @@ public final class Bo2Object extends AbstractObject implements Bo2ObjectProvider
     private String name;
     private final Map<String, String> properties;
     private final Map<Point3i, Bo2BlockSpec> blocks;
-    private final Point3i origin, dimensions;
+    private Point3i origin, dimensions;
     private Map<String, Serializable> attributes;
-    private int version = 1;
+    private int version = 2;
     
-    public static final String KEY_SPAWN_WATER       = "spawnWater";
-    public static final String KEY_SPAWN_LAVA        = "spawnLava";
-    public static final String KEY_NEEDS_FOUNDATION  = "needsFoundation";
-    public static final String KEY_RANDOM_ROTATION   = "randomRotation";
+    public static final String KEY_SPAWN_WATER              = "spawnWater";
+    public static final String KEY_SPAWN_LAVA               = "spawnLava";
+    public static final String KEY_NEEDS_FOUNDATION         = "needsFoundation";
+    public static final String KEY_RANDOM_ROTATION          = "randomRotation";
     
     private static final long serialVersionUID = 1L;
 }

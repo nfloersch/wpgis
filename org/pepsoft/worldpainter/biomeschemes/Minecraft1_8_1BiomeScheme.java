@@ -18,10 +18,6 @@ public final class Minecraft1_8_1BiomeScheme extends MinecraftJarBiomeScheme {
         super(minecraftJar, md5Sum, HASHES_TO_CLASSNAMES, "1.8.1");
     }
     
-    public static boolean isCompatible(Checksum md5Sum) {
-        return HASHES_TO_CLASSNAMES.containsKey(md5Sum);
-    }
-    
     private static final Map<Checksum, String[]> HASHES_TO_CLASSNAMES = new HashMap<Checksum, String[]>();
     
     static {

@@ -5,6 +5,8 @@
 
 package org.pepsoft.worldpainter.layers.exporters;
 
+import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.util.Random;
 import org.pepsoft.minecraft.Chunk;
 import org.pepsoft.minecraft.Constants;
@@ -28,15 +30,14 @@ public class ChasmsExporter extends AbstractLayerExporter<Chasms> implements Fir
 
     @Override
     public void render(Dimension dimension, Tile tile, Chunk chunk) {
-        ChasmsSettings settings = (ChasmsSettings) getSettings();
-        boolean surfaceBreaking = settings.isSurfaceBreaking();
-        boolean floodWithLava = settings.isFloodWithLava();
-        boolean glassCeiling = settings.isGlassCeiling();
-        boolean leaveWater = settings.isLeaveWater();
-        boolean fallThrough = dimension.isBottomless();
-        int waterLevel = (settings.getWaterLevel() > 0) ? settings.getWaterLevel() : -1; // To avoid rendering a layer of water when fallThrough is true
-        int minimumLevel = settings.getChasmsEverywhereLevel();
-        long seed = dimension.getSeed();
+        final ChasmsSettings settings = (ChasmsSettings) getSettings();
+        final boolean surfaceBreaking = settings.isSurfaceBreaking();
+        final boolean floodWithLava = settings.isFloodWithLava();
+        final boolean glassCeiling = settings.isGlassCeiling();
+        final boolean leaveWater = settings.isLeaveWater();
+        final int waterLevel = (settings.getWaterLevel() > 0) ? settings.getWaterLevel() : -1; // To avoid rendering a layer of water when fallThrough is true
+        final int minimumLevel = settings.getChasmsEverywhereLevel();
+        final long seed = dimension.getSeed();
         if ((seed + SEED_OFFSET) != perlinNoise.getSeed()) {
             perlinNoise.setSeed(seed + SEED_OFFSET);
             perlinNoise2.setSeed(seed + SEED_OFFSET2);
@@ -45,29 +46,32 @@ public class ChasmsExporter extends AbstractLayerExporter<Chasms> implements Fir
             perlinNoise5.setSeed(seed + SEED_OFFSET5);
             perlinNoise6.setSeed(seed + SEED_OFFSET6);
         }
-        int xOffset = (chunk.getxPos() & 7) << 4;
-        int zOffset = (chunk.getzPos() & 7) << 4;
-        int maxY = dimension.getMaxHeight() - 1;
+        final int xOffset = (chunk.getxPos() & 7) << 4;
+        final int zOffset = (chunk.getzPos() & 7) << 4;
+        final int minY = settings.getMinimumLevel();
+        final boolean fallThrough = (minY == 0) && dimension.isBottomless();
+        final int minYAdjusted = Math.max(minY, 1);
+        final int maxY = Math.min(settings.getMaximumLevel(), dimension.getMaxHeight() - 1);
         for (int x = 0; x < 16; x++) {
             for (int z = 0; z < 16; z++) {
-                int localX = xOffset + x, localY = zOffset + z;
+                final int localX = xOffset + x, localY = zOffset + z;
                 if (tile.getBitLayerValue(org.pepsoft.worldpainter.layers.Void.INSTANCE, localX, localY)) {
                     continue;
                 }
-                int chasmsValue = Math.max(minimumLevel, tile.getLayerValue(Chasms.INSTANCE, localX, localY));
+                final int chasmsValue = Math.max(minimumLevel, tile.getLayerValue(Chasms.INSTANCE, localX, localY));
                 if (chasmsValue > 0) {
-                    int worldX = tile.getX() * TILE_SIZE + localX, worldY = tile.getY() * TILE_SIZE + localY;
+                    final int worldX = tile.getX() * TILE_SIZE + localX, worldY = tile.getY() * TILE_SIZE + localY;
 //                    final float px = worldX / MEDIUM_BLOBS, py = worldY / MEDIUM_BLOBS;
 //                    final float px = worldX / SMALL_BLOBS, py = worldY / SMALL_BLOBS; // [2] ravine?
                     final float px = worldX / MEDIUM_BLOBS, py = worldY / MEDIUM_BLOBS; // [3] tunnellike
                     // Maximising it shouldn't be necessary, but there are
                     // worlds in the wild with heights above the maximum:
-                    int terrainheight = Math.min(tile.getIntHeight(localX, localY), maxY);
+                    final int terrainheight = Math.min(tile.getIntHeight(localX, localY), maxY);
 //                    if ((x == 0) && (z == 0)) {
 //                        System.out.println("terrainHeight: " + terrainheight);
 //                    }
                     boolean breachedCeiling = false, previousBlockInCavern = false;
-                    for (int y = terrainheight; fallThrough ? (y >= 0) : (y > 0); y--) {
+                    for (int y = terrainheight; fallThrough ? (y >= 0) : (y >= minYAdjusted); y--) {
                         int existingBlockType = chunk.getBlockType(x, y, z);
                         if (existingBlockType == BLK_AIR) {
                             // There is already a void here; assume that things
@@ -81,8 +85,8 @@ public class ChasmsExporter extends AbstractLayerExporter<Chasms> implements Fir
                                 * Math.max(
                                 0.1f * (10 - Math.min(
                                         Math.min(
-                                                surfaceBreaking ? Integer.MAX_VALUE : (terrainheight - 3 - y),
-                                                y - 1),
+                                            surfaceBreaking ? Integer.MAX_VALUE : (terrainheight - Math.max(dimension.getTopLayerDepth(worldX, worldY, terrainheight), 3) - y),
+                                            (fallThrough ? Integer.MAX_VALUE : (y - 1)) - minY),
                                         10)),
                                 1.0f - chasmsValue / 15.0f);
 //                                0.5f - chasmsValue / 15.0f); // TODO: higher than 50% has no effect
@@ -95,8 +99,8 @@ public class ChasmsExporter extends AbstractLayerExporter<Chasms> implements Fir
                         final float pz = (y + 15) / MEDIUM_BLOBS; // [3] tunnellike
 //                        float cavernLikelyhood = Math.min(perlinNoise.getPerlinNoise(px, py, pz), perlinNoise2.getPerlinNoise(px, py, pz)) + 0.5f - bias;
 //                        double cavernLikelyhood = Math.min(Math.sin(perlinNoise.getPerlinNoise(px, py, pz) * 10), Math.cos(perlinNoise2.getPerlinNoise(px, py, pz) * 10)) / 2 + 0.5f - bias; // [2] ravine?
-                        double cavernLikelyhood = Math.min(perlinNoise3.getPerlinNoise(px, py, pz) - bias, Math.min(Math.sin(perlinNoise.getPerlinNoise(px, py, pz) * 25), Math.cos(perlinNoise2.getPerlinNoise(px, py, pz) * 25)) / 2) + 0.5f; // [3] tunnellike
-                        double cavernLikelyhood2 = Math.min(perlinNoise6.getPerlinNoise(px, py, pz) - bias, Math.min(Math.sin(perlinNoise4.getPerlinNoise(px, py, pz) * 25), Math.cos(perlinNoise5.getPerlinNoise(px, py, pz) * 25)) / 2) + 0.5f; // [3] tunnellike
+                        final double cavernLikelyhood = Math.min(perlinNoise3.getPerlinNoise(px, py, pz) - bias, Math.min(Math.sin(perlinNoise.getPerlinNoise(px, py, pz) * 25), Math.cos(perlinNoise2.getPerlinNoise(px, py, pz) * 25)) / 2) + 0.5f; // [3] tunnellike
+                        final double cavernLikelyhood2 = Math.min(perlinNoise6.getPerlinNoise(px, py, pz) - bias, Math.min(Math.sin(perlinNoise4.getPerlinNoise(px, py, pz) * 25), Math.cos(perlinNoise5.getPerlinNoise(px, py, pz) * 25)) / 2) + 0.5f; // [3] tunnellike
 //                        double cavernLikelyhood = Math.sin(perlinNoise.getPerlinNoise(px, py, pz) * 5);
 //                        double cavernLikelyhood2 = Math.sin(perlinNoise2.getPerlinNoise(px, py) * 5);
 //                        if ((x == 0) && (z == 0)) {
@@ -118,7 +122,7 @@ public class ChasmsExporter extends AbstractLayerExporter<Chasms> implements Fir
                                     }
                                 }
                                 if (surfaceBreaking) {
-                                    int blockAbove = chunk.getBlockType(x, y + 1, z);
+                                    final int blockAbove = chunk.getBlockType(x, y + 1, z);
                                     if (leaveWater) {
                                         if (blockAbove == BLK_STATIONARY_WATER) {
                                             chunk.setBlockType(x, y + 1, z, BLK_WATER);
@@ -128,7 +132,7 @@ public class ChasmsExporter extends AbstractLayerExporter<Chasms> implements Fir
                                     } else {
                                         if ((blockAbove == BLK_WATER) || (blockAbove == BLK_STATIONARY_WATER)) {
                                             for (int yy = y + 1; yy <= maxY; yy++) {
-                                                int blockType = chunk.getBlockType(x, yy, z);
+                                                final int blockType = chunk.getBlockType(x, yy, z);
                                                 if ((blockType == BLK_WATER) || (blockType == BLK_STATIONARY_WATER)) {
                                                     chunk.setBlockType(x, yy, z, BLK_AIR);
                                                     chunk.setDataValue(x, yy, z, 0);
@@ -153,7 +157,7 @@ public class ChasmsExporter extends AbstractLayerExporter<Chasms> implements Fir
                                             }
                                         } else if ((blockAbove == BLK_LAVA) || (blockAbove == BLK_STATIONARY_LAVA)) {
                                             for (int yy = y + 1; yy <= maxY; yy++) {
-                                                int blockType = chunk.getBlockType(x, yy, z);
+                                                final int blockType = chunk.getBlockType(x, yy, z);
                                                 if ((blockType == BLK_LAVA) || (blockType == BLK_STATIONARY_LAVA)) {
                                                     chunk.setBlockType(x, yy, z, BLK_AIR);
                                                     chunk.setDataValue(x, yy, z, 0);
@@ -182,14 +186,15 @@ public class ChasmsExporter extends AbstractLayerExporter<Chasms> implements Fir
                             }
                             breachedCeiling = true;
                             if ((! previousBlockInCavern) && (y < maxY)) {
-                                int blockAbove = chunk.getBlockType(x, y + 1, z);
+                                final int blockAbove = chunk.getBlockType(x, y + 1, z);
                                 if (blockAbove == BLK_SAND) {
                                     // Support sand with sandstone
                                     chunk.setBlockType(x, y + 1, z, BLK_SANDSTONE);
                                 } else if (blockAbove == BLK_GRAVEL) {
                                     // Support gravel with stone
                                     chunk.setBlockType(x, y + 1, z, BLK_STONE);
-                                } else if (Constants.INSUBSTANTIAL_BLOCKS.contains(blockAbove)) {
+                                } else if (Constants.INSUBSTANTIAL_BLOCKS.get(blockAbove)) {
+                                    // Don't leave floating plants, etc.
                                     chunk.setBlockType(x, y + 1, z, BLK_AIR);
                                     chunk.setDataValue(x, y + 1, z, 0);
                                 }
@@ -206,7 +211,9 @@ public class ChasmsExporter extends AbstractLayerExporter<Chasms> implements Fir
                                 }
                                 previousBlockInCavern = false;
                             }
-                        } else if (previousBlockInCavern && (! VERY_INSUBSTANTIAL_BLOCKS.contains(existingBlockType))) {
+                        } else if (previousBlockInCavern
+                                && (y >= waterLevel)
+                                && (! VERY_INSUBSTANTIAL_BLOCKS.get(existingBlockType))) {
 //                            Material material = subsurfaceMaterial.getMaterial(seed, worldX, worldY, 1);
 //                            if (material == Material.AIR) {
                                 int rnd = new Random(seed + (worldX * 65537) + (worldY * 4099)).nextInt(MUSHROOM_CHANCE);
@@ -306,6 +313,22 @@ public class ChasmsExporter extends AbstractLayerExporter<Chasms> implements Fir
             this.leaveWater = leaveWater;
         }
 
+        public int getMinimumLevel() {
+            return minimumLevel;
+        }
+
+        public void setMinimumLevel(int minimumLevel) {
+            this.minimumLevel = minimumLevel;
+        }
+
+        public int getMaximumLevel() {
+            return maximumLevel;
+        }
+
+        public void setMaximumLevel(int maximumLevel) {
+            this.maximumLevel = maximumLevel;
+        }
+
         @Override
         public boolean equals(Object obj) {
             if (obj == null) {
@@ -333,6 +356,12 @@ public class ChasmsExporter extends AbstractLayerExporter<Chasms> implements Fir
             if (this.leaveWater != other.leaveWater) {
                 return false;
             }
+            if (this.minimumLevel != other.minimumLevel) {
+                return false;
+            }
+            if (this.maximumLevel != other.maximumLevel) {
+                return false;
+            }
             return true;
         }
 
@@ -345,6 +374,8 @@ public class ChasmsExporter extends AbstractLayerExporter<Chasms> implements Fir
             hash = 29 * hash + (this.glassCeiling ? 1 : 0);
             hash = 29 * hash + (this.surfaceBreaking ? 1 : 0);
             hash = 29 * hash + (this.leaveWater ? 1 : 0);
+            hash = 29 * hash + this.minimumLevel;
+            hash = 29 * hash + this.maximumLevel;
             return hash;
         }
 
@@ -356,9 +387,19 @@ public class ChasmsExporter extends AbstractLayerExporter<Chasms> implements Fir
                 throw new RuntimeException(e);
             }
         }
+        
+        private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
+            in.defaultReadObject();
+            
+            // Legacy settings
+            if (maximumLevel == 0) {
+                maximumLevel = Integer.MAX_VALUE;
+            }
+        }
 
         private int waterLevel, chasmsEverywhereLevel;
         private boolean floodWithLava, glassCeiling, surfaceBreaking, leaveWater = true;
+        private int minimumLevel = 0, maximumLevel = Integer.MAX_VALUE;
 
         private static final long serialVersionUID = 1L;
     }

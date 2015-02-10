@@ -5,7 +5,6 @@
 package org.pepsoft.worldpainter;
 
 import java.awt.Point;
-import java.awt.Window;
 import java.beans.PropertyChangeListener;
 import java.util.Collection;
 import java.util.Collections;
@@ -22,7 +21,7 @@ import org.pepsoft.worldpainter.layers.exporters.ExporterSettings;
  */
 public final class DimensionSnapshot extends Dimension {
     public DimensionSnapshot(Dimension dimension, Snapshot snapshot) {
-        super(dimension.getMinecraftSeed(), dimension.getSeed(), dimension.getTileFactory(), dimension.getDim(), dimension.getMaxHeight());
+        super(dimension.getMinecraftSeed(), dimension.getTileFactory(), dimension.getDim(), dimension.getMaxHeight());
         this.dimension = dimension;
         this.snapshot = snapshot;
         super.setBorder(dimension.getBorder());
@@ -73,13 +72,38 @@ public final class DimensionSnapshot extends Dimension {
     }
 
     @Override
+    public void unregister() {
+        // Do nothing
+    }
+
+    @Override
+    public void clearRedo() {
+        // Do nothing
+    }
+
+    @Override
     public void armSavePoint() {
         // Do nothing
     }
 
     @Override
-    public void unregister() {
+    public void clearUndo() {
         // Do nothing
+    }
+
+    @Override
+    public boolean undoChanges() {
+        return false;
+    }
+
+    @Override
+    public void register(UndoManager undoManager) {
+        // Do nothing
+    }
+
+    @Override
+    public boolean isUndoAvailable() {
+        return false;
     }
 
     @Override
@@ -159,16 +183,6 @@ public final class DimensionSnapshot extends Dimension {
     }
 
     @Override
-    public void recalculateBiomes(BiomeScheme biomeScheme, Window parent) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public void register(UndoManager undoManager) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
     public void removeTile(Tile tile) {
         throw new UnsupportedOperationException();
     }
@@ -219,7 +233,7 @@ public final class DimensionSnapshot extends Dimension {
     }
 
     @Override
-    public void setHeightAt(Point coords, int height) {
+    public void setHeightAt(Point coords, float height) {
         throw new UnsupportedOperationException();
     }
 

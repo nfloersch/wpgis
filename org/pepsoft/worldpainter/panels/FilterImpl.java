@@ -7,6 +7,7 @@ package org.pepsoft.worldpainter.panels;
 import org.pepsoft.worldpainter.Dimension;
 import org.pepsoft.worldpainter.Terrain;
 import org.pepsoft.worldpainter.layers.Biome;
+import org.pepsoft.worldpainter.layers.FloodWithLava;
 import org.pepsoft.worldpainter.layers.Layer;
 import org.pepsoft.worldpainter.layers.Layer.DataSize;
 import org.pepsoft.worldpainter.operations.Filter;
@@ -16,7 +17,7 @@ import org.pepsoft.worldpainter.operations.Filter;
  * @author pepijn
  */
 public final class FilterImpl implements Filter {
-    public FilterImpl(Dimension dimension, int aboveLevel, int belowLevel, boolean feather, Object replace, boolean replaceIsExcept) {
+    public FilterImpl(Dimension dimension, int aboveLevel, int belowLevel, boolean feather, Object replace, boolean replaceIsExcept, int degrees, boolean slopeIsAbove) {
         this.dimension = dimension;
         this.aboveLevel = aboveLevel;
         this.belowLevel = belowLevel;
@@ -61,10 +62,35 @@ public final class FilterImpl implements Filter {
             biome = -1;
         } else if (replace instanceof Integer) {
             this.replace = true;
+            if ((Integer) replace < 0) {
+                objectType = ObjectType.AUTO_BIOME;
+                terrain = null;
+                layer = null;
+                biome = -(Integer) replace;
+            } else {
+                objectType = ObjectType.BIOME;
+                terrain = null;
+                layer = null;
+                biome = (Integer) replace;
+            }
+        } else if (BrushOptions.WATER.equals(replace)) {
+            this.replace = true;
+            objectType = ObjectType.WATER;
+            terrain = null;
+            layer = null;
+            biome = -1;
+        } else if (BrushOptions.LAND.equals(replace)) {
+            this.replace = true;
+            objectType = ObjectType.LAND;
+            terrain = null;
+            layer = null;
+            biome = -1;
+        } else if (BrushOptions.AUTO_BIOMES.equals(replace)) {
+            this.replace = true;
             objectType = ObjectType.BIOME;
             terrain = null;
             layer = null;
-            biome = (Integer) replace;
+            biome = 255;
         } else {
             this.replace = false;
             objectType = null;
@@ -73,30 +99,15 @@ public final class FilterImpl implements Filter {
             biome = -1;
         }
         this.replaceIsExcept = replaceIsExcept;
-    }
-
-    public Dimension getDimension() {
-        return dimension;
-    }
-
-    public boolean isCheckLevel() {
-        return checkLevel;
-    }
-
-    public boolean isReplace() {
-        return replace;
-    }
-
-    public boolean isFeather() {
-        return feather;
-    }
-
-    public LevelType getLevelType() {
-        return levelType;
-    }
-
-    public ObjectType getReplaceType() {
-        return objectType;
+        this.degrees = degrees;
+        checkSlope = degrees >= 0;
+        if (checkSlope) {
+            this.slope = (float) Math.tan(degrees / (180 / Math.PI));
+    //        System.out.println(degrees + "° -> " + slope);
+        } else {
+            slope = 0.0f;
+        }
+        this.slopeIsAbove = slopeIsAbove;
     }
 
     public int getAboveLevel() {
@@ -107,16 +118,12 @@ public final class FilterImpl implements Filter {
         return belowLevel;
     }
 
-    public int getBiome() {
-        return biome;
+    public Dimension getDimension() {
+        return dimension;
     }
 
-    public Terrain getTerrain() {
-        return terrain;
-    }
-
-    public Layer getLayer() {
-        return layer;
+    public void setDimension(Dimension dimension) {
+        this.dimension = dimension;
     }
 
     // Filter
@@ -128,6 +135,11 @@ public final class FilterImpl implements Filter {
                 switch (objectType) {
                     case BIOME:
                         if ((dimension.getLayerValueAt(Biome.INSTANCE, x, y) != biome) ^ replaceIsExcept) {
+                            return 0.0f;
+                        }
+                        break;
+                    case AUTO_BIOME:
+                        if (((dimension.getLayerValueAt(Biome.INSTANCE, x, y) != 255) || (dimension.getAutoBiome(x, y) != biome)) ^ replaceIsExcept) {
                             return 0.0f;
                         }
                         break;
@@ -146,10 +158,20 @@ public final class FilterImpl implements Filter {
                             return 0.0f;
                         }
                         break;
+                    case WATER:
+                        if (((dimension.getWaterLevelAt(x, y) <= dimension.getIntHeightAt(x, y)) || dimension.getBitLayerValueAt(FloodWithLava.INSTANCE, x, y)) ^ replaceIsExcept) {
+                            return 0.0f;
+                        }
+                        break;
+                    case LAND:
+                        if ((dimension.getWaterLevelAt(x, y) > dimension.getIntHeightAt(x, y)) ^ replaceIsExcept) {
+                            return 0.0f;
+                        }
+                        break;
                 }
             }
             if (checkLevel) {
-                int terrainLevel = dimension.getIntHeightAt(x, y);
+                final int terrainLevel = dimension.getIntHeightAt(x, y);
                 switch (levelType) {
                     case ABOVE:
                         if (terrainLevel < aboveLevel) {
@@ -173,12 +195,18 @@ public final class FilterImpl implements Filter {
                         break;
                 }
             }
+            if (checkSlope) {
+                float terrainSlope = dimension.getSlope(x, y);
+                if (slopeIsAbove ? (terrainSlope < slope) : (terrainSlope > slope)) {
+                    return 0.0f;
+                }
+            }
             return strength;
         } else {
             return 0.0f;
         }
     }
-    final Dimension dimension;
+    
     final boolean checkLevel;
     final boolean replace;
     final boolean feather;
@@ -190,12 +218,17 @@ public final class FilterImpl implements Filter {
     final int biome;
     final Terrain terrain;
     final Layer layer;
+    final float slope;
+    final boolean checkSlope;
+    final boolean slopeIsAbove;
+    final int degrees;
+    Dimension dimension;
 
     public enum LevelType {
         BETWEEN, OUTSIDE, ABOVE, BELOW
     }
 
     public enum ObjectType {
-        TERRAIN, BIT_LAYER, INT_LAYER, BIOME
+        TERRAIN, BIT_LAYER, INT_LAYER, BIOME, WATER, LAND, AUTO_BIOME
     }
 }

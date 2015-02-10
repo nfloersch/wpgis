@@ -8,8 +8,6 @@ package org.pepsoft.worldpainter.operations;
 import java.awt.Point;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.awt.event.KeyEvent;
-import java.awt.event.KeyListener;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.awt.event.MouseMotionListener;
@@ -36,7 +34,7 @@ import org.pepsoft.worldpainter.vo.EventVO;
  *
  * @author pepijn
  */
-public abstract class MouseOrTabletOperation extends AbstractOperation implements KeyListener, PenListener, MouseListener, MouseMotionListener {
+public abstract class MouseOrTabletOperation extends AbstractOperation implements PenListener, MouseListener, MouseMotionListener {
     protected MouseOrTabletOperation(String name, String description, WorldPainterView view, String statisticsKey) {
         this(name, description, view, -1, true, statisticsKey);
     }
@@ -93,59 +91,6 @@ public abstract class MouseOrTabletOperation extends AbstractOperation implement
         this.level = level;
     }
 
-    /**
-     * Convert view coordinates (may be zoomed and translated) to world
-     * coordinates (unzoomed and relative to world origin).
-     *
-     * @param x The X view coordinate.
-     * @param y The Y view coordinate.
-     * @return The corresponding point in world coordinates.
-     */
-    public Point viewToWorldCoordinates(Point viewCoordinates) {
-        Point imageCoordinates = view.viewToImageCoordinates(viewCoordinates);
-        return view.imageToWorldCoordinates(imageCoordinates);
-    }
-
-    public Point viewToWorldCoordinates(float x, float y) {
-        Point imageCoordinates = view.viewToImageCoordinates(x, y);
-        return view.imageToWorldCoordinates(imageCoordinates);
-    }
-    
-    /**
-     * Converts world coordinates (unzoomed and relative to world origin) to
-     * image coordinates (unzoomed, but may be translated).
-     *
-     * @param x The X world coordinate.
-     * @param y The Y world coordinate.
-     * @return The corresponding point in image coordinates.
-     */
-    public Point worldToImageCoordinates(int x, int y) {
-        return view.worldToImageCoordinates(x, y);
-    }
-
-    // KeyListener
-
-    @Override
-    public void keyPressed(KeyEvent e) {
-        int keyCode = e.getKeyCode();
-        if ((keyCode == KeyEvent.VK_ALT) || (keyCode == KeyEvent.VK_ALT_GRAPH)) {
-            altDown = true;
-            altPressed();
-        }
-    }
-
-    @Override
-    public void keyReleased(KeyEvent e) {
-        int keyCode = e.getKeyCode();
-        if ((keyCode == KeyEvent.VK_ALT) || (keyCode == KeyEvent.VK_ALT_GRAPH)) {
-            altDown = false;
-            altReleased();
-        }
-    }
-
-    @Override
-    public void keyTyped(KeyEvent e) {}
-
     // PenListener
     
     @Override
@@ -177,55 +122,59 @@ public abstract class MouseOrTabletOperation extends AbstractOperation implement
             return;
         }
         final PButton.Type buttonType = pbe.button.getType();
-        if ((buttonType != PButton.Type.LEFT) && (buttonType != PButton.Type.RIGHT)) {
-            // We don't want Ctrl, Alt, etc. events
-            return;
-        }
-        if (pbe.button.value) {
-            // Button pressed
-            if (! oneShot) {
-                undo = eraser || (buttonType == PButton.Type.RIGHT);
-                if (timer == null) {
-                    timer = new Timer(delay, new ActionListener() {
+        if (buttonType == PButton.Type.ALT) {
+            altDown = pbe.button.value;
+        } else if (buttonType == PButton.Type.CONTROL) {
+            ctrlDown = pbe.button.value;
+        } else if (buttonType == PButton.Type.SHIFT) {
+            shiftDown = pbe.button.value;
+        } else if ((buttonType == PButton.Type.LEFT) || (buttonType == PButton.Type.RIGHT)) {
+            if (pbe.button.value) {
+                // Button pressed
+                first = true;
+                if (! oneShot) {
+                    undo = eraser || (buttonType == PButton.Type.RIGHT);
+                    if (timer == null) {
+                        timer = new Timer(delay, new ActionListener() {
+                            @Override
+                            public void actionPerformed(ActionEvent e) {
+                                Point worldCoords = view.viewToWorld((int) x, (int) y);
+                                tick(worldCoords.x, worldCoords.y, undo, first, (stylus || eraser) ? dynamicLevel : 1.0f);
+                                view.updateStatusBar(worldCoords.x, worldCoords.y);
+                                first = false;
+                            }
+                        });
+                        timer.setInitialDelay(0);
+                        timer.start();
+    //                    start = System.currentTimeMillis();
+                    }
+                } else {
+                    SwingUtilities.invokeLater(new Runnable() {
                         @Override
-                        public void actionPerformed(ActionEvent e) {
-                            Point worldCoords = viewToWorldCoordinates(x, y);
-                            tick(worldCoords.x, worldCoords.y, undo, first, (stylus || eraser) ? dynamicLevel : 1.0f);
+                        public void run() {
+                            Point worldCoords = view.viewToWorld((int) x, (int) y);
+                            tick(worldCoords.x, worldCoords.y, eraser || (buttonType == PButton.Type.RIGHT), true, 1.0f);
                             view.updateStatusBar(worldCoords.x, worldCoords.y);
-                            first = false;
+                            getDimension().armSavePoint();
+                            logOperation(undo ? statisticsKeyUndo : statisticsKey);
                         }
                     });
-                    timer.setInitialDelay(0);
-                    timer.start();
-//                    start = System.currentTimeMillis();
                 }
             } else {
-                SwingUtilities.invokeLater(new Runnable() {
-                    @Override
-                    public void run() {
-                        Point worldCoords = viewToWorldCoordinates(x, y);
-                        tick(worldCoords.x, worldCoords.y, eraser || (buttonType == PButton.Type.RIGHT), true, 1.0f);
-                        view.updateStatusBar(worldCoords.x, worldCoords.y);
-                        getDimension().armSavePoint();
-                        logOperation(undo ? statisticsKeyUndo : statisticsKey);
-                    }
-                });
-            }
-        } else {
-            // Button released
-            if (! oneShot) {
-                SwingUtilities.invokeLater(new Runnable() {
-                    @Override
-                    public void run() {
-                        if (timer != null) {
-                            logOperation(undo ? statisticsKeyUndo : statisticsKey);
-                            timer.stop();
-                            timer = null;
+                // Button released
+                if (! oneShot) {
+                    SwingUtilities.invokeLater(new Runnable() {
+                        @Override
+                        public void run() {
+                            if (timer != null) {
+                                logOperation(undo ? statisticsKeyUndo : statisticsKey);
+                                timer.stop();
+                                timer = null;
+                            }
+                            getDimension().armSavePoint();
                         }
-                        first = true;
-                        getDimension().armSavePoint();
-                    }
-                });
+                    });
+                }
             }
         }
     }
@@ -241,12 +190,16 @@ public abstract class MouseOrTabletOperation extends AbstractOperation implement
         x = me.getX();
         y = me.getY();
         undo = me.getButton() == MouseEvent.BUTTON3;
+        altDown = me.isAltDown() || me.isAltGraphDown();
+        ctrlDown = me.isControlDown() || me.isMetaDown();
+        shiftDown = me.isShiftDown();
+        first = true;
         if (! oneShot) {
             if (timer == null) {
                 timer = new Timer(delay, new ActionListener() {
                     @Override
                     public void actionPerformed(ActionEvent e) {
-                        Point worldCoords = viewToWorldCoordinates(x, y);
+                        Point worldCoords = view.viewToWorld((int) x, (int) y);
                         tick(worldCoords.x, worldCoords.y, undo, first, 1.0f);
                         view.updateStatusBar(worldCoords.x, worldCoords.y);
                         first = false;
@@ -257,7 +210,7 @@ public abstract class MouseOrTabletOperation extends AbstractOperation implement
 //                start = System.currentTimeMillis();
             }
         } else {
-            Point worldCoords = viewToWorldCoordinates(x, y);
+            Point worldCoords = view.viewToWorld((int) x, (int) y);
             tick(worldCoords.x, worldCoords.y, undo, true, 1.0f);
             view.updateStatusBar(worldCoords.x, worldCoords.y);
             getDimension().armSavePoint();
@@ -273,7 +226,6 @@ public abstract class MouseOrTabletOperation extends AbstractOperation implement
                 timer.stop();
                 timer = null;
             }
-            first = true;
             getDimension().armSavePoint();
         }
     }
@@ -290,7 +242,11 @@ public abstract class MouseOrTabletOperation extends AbstractOperation implement
         y = me.getY();
     }
 
-    @Override public void mouseMoved(MouseEvent me) {}
+    @Override public void mouseMoved(MouseEvent me) {
+        altDown = me.isAltDown() || me.isAltGraphDown();
+        ctrlDown = me.isControlDown() || me.isMetaDown();
+        shiftDown = me.isShiftDown();
+    }
     
     @Override
     protected void activate() {
@@ -300,6 +256,8 @@ public abstract class MouseOrTabletOperation extends AbstractOperation implement
         } else {
             AwtPenToolkit.addPenListener(view, this);
         }
+        // Prevent hanging modifiers
+        altDown = ctrlDown = shiftDown = false;
     }
 
     @Override
@@ -328,14 +286,18 @@ public abstract class MouseOrTabletOperation extends AbstractOperation implement
      *     due to a pressure sensitive stylus being used. In other words,
      *     <strong>not</strong> the total level at which to apply the operation!
      */
-    protected abstract void tick(int x, int y, boolean inverse, boolean first, float dynamicLevel);
+    protected abstract void tick(int centreX, int centreY, boolean inverse, boolean first, float dynamicLevel);
     
-    protected void altPressed() {};
-
-    protected void altReleased() {};
-    
-    protected boolean isAltDown() {
+    protected final boolean isAltDown() {
         return altDown;
+    }
+    
+    protected final boolean isCtrlDown() {
+        return ctrlDown;
+    }
+    
+    protected final boolean isShiftDown() {
+        return shiftDown;
     }
     
     public static void flushEvents(EventLogger eventLogger) {
@@ -364,7 +326,7 @@ public abstract class MouseOrTabletOperation extends AbstractOperation implement
     private final String statisticsKey, statisticsKeyUndo;
     private WorldPainterView view;
     private volatile Timer timer;
-    private boolean altDown, first = true;
+    private boolean altDown, ctrlDown, shiftDown, first = true;
     private volatile float dynamicLevel = 1.0f;
     private volatile float x, y;
     private float level = 1.0f;

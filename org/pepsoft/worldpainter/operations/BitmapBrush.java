@@ -7,7 +7,7 @@ package org.pepsoft.worldpainter.operations;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
-import java.awt.image.DataBuffer;
+import java.awt.image.DataBufferByte;
 import java.awt.image.RescaleOp;
 import java.io.File;
 import java.io.IOException;
@@ -85,10 +85,10 @@ public final class BitmapBrush extends AbstractBrush {
         } finally {
             g2.dispose();
         }
-        fullStrengthBuffer = fullStrengthMask.getRaster().getDataBuffer();
+        fullStrengthBuffer = (DataBufferByte) fullStrengthMask.getRaster().getDataBuffer();
         if (level < 1.0f) {
             BufferedImage mask = rescaleOp.filter(fullStrengthMask, null);
-            buffer = mask.getRaster().getDataBuffer();
+            buffer = (DataBufferByte) mask.getRaster().getDataBuffer();
         } else {
             buffer = fullStrengthBuffer;
         }
@@ -111,7 +111,7 @@ public final class BitmapBrush extends AbstractBrush {
     }
     
     private final BufferedImage image;
-    private DataBuffer fullStrengthBuffer, buffer;
+    private DataBufferByte fullStrengthBuffer, buffer;
     private int radius, diameter;
     private float level;
     private RescaleOp rescaleOp;

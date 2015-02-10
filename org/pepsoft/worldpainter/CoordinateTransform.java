@@ -6,6 +6,7 @@ package org.pepsoft.worldpainter;
 
 import java.awt.Point;
 import java.awt.Rectangle;
+import javax.vecmath.Point3i;
 import org.pepsoft.minecraft.Direction;
 
 /**
@@ -15,9 +16,15 @@ import org.pepsoft.minecraft.Direction;
 public abstract class CoordinateTransform {
     public abstract Point transform(int x, int y);
 
+    public abstract Point3i transform(int x, int y, int z);
+    
     public abstract Point transform(Point coords);
     
+    public abstract Point3i transform(Point3i coords);
+    
     public abstract void transformInPlace(Point coords);
+    
+    public abstract void transformInPlace(Point3i coords);
     
     public Rectangle transform(Rectangle rectangle) {
         Point corner1 = rectangle.getLocation();
@@ -40,8 +47,18 @@ public abstract class CoordinateTransform {
         }
 
         @Override
+        public Point3i transform(int x, int y, int z) {
+            return new Point3i(-y - 1, x, z);
+        }
+        
+        @Override
         public Point transform(Point coords) {
             return new Point(-coords.y - 1, coords.x);
+        }
+        
+        @Override
+        public Point3i transform(Point3i coords) {
+            return new Point3i(-coords.y - 1, coords.x, coords.z);
         }
         
         @Override
@@ -51,6 +68,13 @@ public abstract class CoordinateTransform {
             coords.y = tmp;
         }
 
+        @Override
+        public void transformInPlace(Point3i coords) {
+            int tmp = coords.x;
+            coords.x = -coords.y - 1;
+            coords.y = tmp;
+        }
+        
         @Override
         public Direction transform(Direction direction) {
             return direction.right();
@@ -81,16 +105,32 @@ public abstract class CoordinateTransform {
         }
 
         @Override
+        public Point3i transform(int x, int y, int z) {
+            return new Point3i(-x - 1, -y - 1, z);
+        }
+
+        @Override
         public Point transform(Point coords) {
             return new Point(-coords.x - 1, -coords.y - 1);
         }
-        
+
+        @Override
+        public Point3i transform(Point3i coords) {
+            return new Point3i(-coords.x - 1, -coords.y - 1, coords.z);
+        }
+
         @Override
         public void transformInPlace(Point coords) {
             coords.x = -coords.x - 1;
             coords.y = -coords.y - 1;
         }
 
+        @Override
+        public void transformInPlace(Point3i coords) {
+            coords.x = -coords.x - 1;
+            coords.y = -coords.y - 1;
+        }
+        
         @Override
         public Direction transform(Direction direction) {
             return direction.opposite();
@@ -121,12 +161,29 @@ public abstract class CoordinateTransform {
         }
 
         @Override
+        public Point3i transform(int x, int y, int z) {
+            return new Point3i(y, -x - 1, z);
+        }
+
+        @Override
         public Point transform(Point coords) {
             return new Point(coords.y, -coords.x - 1);
+        }
+
+        @Override
+        public Point3i transform(Point3i coords) {
+            return new Point3i(coords.y, -coords.x - 1, coords.z);
         }
         
         @Override
         public void transformInPlace(Point coords) {
+            int tmp = -coords.x - 1;
+            coords.x = coords.y;
+            coords.y = tmp;
+        }
+
+        @Override
+        public void transformInPlace(Point3i coords) {
             int tmp = -coords.x - 1;
             coords.x = coords.y;
             coords.y = tmp;

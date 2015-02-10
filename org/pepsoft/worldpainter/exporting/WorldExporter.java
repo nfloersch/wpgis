@@ -19,11 +19,13 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
@@ -47,7 +49,6 @@ import org.pepsoft.worldpainter.Tile;
 import org.pepsoft.worldpainter.World2;
 import org.pepsoft.worldpainter.gardenofeden.GardenExporter;
 import org.pepsoft.worldpainter.gardenofeden.Seed;
-import org.pepsoft.worldpainter.layers.Frost;
 import org.pepsoft.worldpainter.layers.GardenCategory;
 import org.pepsoft.worldpainter.layers.Layer;
 import org.pepsoft.worldpainter.layers.ReadOnly;
@@ -57,6 +58,7 @@ import org.pepsoft.worldpainter.vo.EventVO;
 
 import static org.pepsoft.minecraft.Constants.*;
 import static org.pepsoft.worldpainter.Constants.*;
+import org.pepsoft.worldpainter.layers.CombinedLayer;
 
 /**
  *
@@ -76,7 +78,7 @@ public class WorldExporter {
         return world;
     }
     
-    public File getBackupDir(File worldDir) throws IOException {
+    public File selectBackupDir(File worldDir) throws IOException {
         File baseDir = worldDir.getParentFile();
         File minecraftDir = baseDir.getParentFile();
         File backupsDir = new File(minecraftDir, "backups");
@@ -89,7 +91,7 @@ public class WorldExporter {
         return new File(backupsDir, worldDir.getName() + "." + DATE_FORMAT.format(new Date()));
     }
 
-    public void export(File baseDir, String name, ProgressReceiver progressReceiver) throws IOException, ProgressReceiver.OperationCancelled {
+    public Map<Integer, ChunkFactory.Stats> export(File baseDir, String name, File backupDir, ProgressReceiver progressReceiver) throws IOException, ProgressReceiver.OperationCancelled {
         // Sanity checks
         if ((world.getVersion() != SUPPORTED_VERSION_1) && (world.getVersion() != SUPPORTED_VERSION_2)) {
             throw new IllegalArgumentException("Not a supported version: 0x" + Integer.toHexString(world.getVersion()));
@@ -99,12 +101,9 @@ public class WorldExporter {
         File worldDir = new File(baseDir, FileUtils.sanitiseName(name));
         logger.info("Exporting world " + world.getName() + " to map at " + worldDir);
         if (worldDir.isDirectory()) {
-            File backupWorldDir = getBackupDir(worldDir);
-            if (! worldDir.renameTo(backupWorldDir)) {
-                throw new FileInUseException("Could not move " + worldDir + " to " + backupWorldDir);
-            }
-            if (! worldDir.mkdirs()) {
-                throw new IOException("Could not create " + worldDir);
+            logger.info("Directory already exists; backing up to " + backupDir);
+            if (! worldDir.renameTo(backupDir)) {
+                throw new FileInUseException("Could not move " + worldDir + " to " + backupDir);
             }
         }
         
@@ -128,14 +127,19 @@ public class WorldExporter {
             level.setGeneratorOptions(world.getGeneratorOptions());
         }
         level.save(worldDir);
-        int totalDimensions = world.getDimensions().length, dim = 0;
+        Map<Integer, ChunkFactory.Stats> stats = new HashMap<Integer, ChunkFactory.Stats>();
         if (selectedDimension == -1) {
+            boolean first = true;
             for (Dimension dimension: world.getDimensions()) {
-                exportDimension(worldDir, dimension, world.getVersion(), (progressReceiver != null) ? new SubProgressReceiver(progressReceiver, (float) dim / totalDimensions, 1.0f / totalDimensions) : null);
-                dim++;
+                if (first) {
+                    first = false;
+                } else {
+                    progressReceiver.reset();
+                }
+                stats.put(dimension.getDim(), exportDimension(worldDir, dimension, world.getVersion(), progressReceiver));
             }
         } else {
-            exportDimension(worldDir, world.getDimension(selectedDimension), world.getVersion(), progressReceiver);
+            stats.put(selectedDimension, exportDimension(worldDir, world.getDimension(selectedDimension), world.getVersion(), progressReceiver));
         }
         
         // Log an event
@@ -174,9 +178,11 @@ public class WorldExporter {
             }
             config.logEvent(event);
         }
+        
+        return stats;
     }
     
-    protected boolean firstPass(MinecraftWorld minecraftWorld, Dimension dimension, Point regionCoords, Map<Point, Tile> tiles, boolean tileSelection, Map<Layer, LayerExporter<Layer>> exporters, ChunkFactory chunkFactory, ProgressReceiver progressReceiver) throws ProgressReceiver.OperationCancelled, IOException {
+    protected ExportResults firstPass(MinecraftWorld minecraftWorld, Dimension dimension, Point regionCoords, Map<Point, Tile> tiles, boolean tileSelection, Map<Layer, LayerExporter<Layer>> exporters, ChunkFactory chunkFactory, ProgressReceiver progressReceiver) throws ProgressReceiver.OperationCancelled, IOException {
         int lowestChunkX = (regionCoords.x << 5) - 1;
         int highestChunkX = (regionCoords.x << 5) + 32;
         int lowestChunkY = (regionCoords.y << 5) - 1;
@@ -185,16 +191,19 @@ public class WorldExporter {
         int highestRegionChunkX = highestChunkX - 1;
         int lowestRegionChunkY = lowestChunkY + 1;
         int highestRegionChunkY = highestChunkY - 1;
-        boolean regionContainsChunks = false;
+        ExportResults exportResults = new ExportResults();
         int chunkNo = 0;
         for (int chunkX = lowestChunkX; chunkX <= highestChunkX; chunkX++) {
             for (int chunkY = lowestChunkY; chunkY <= highestChunkY; chunkY++) {
-                Chunk chunk = getChunk(dimension, chunkFactory, tiles, chunkX, chunkY, tileSelection, exporters);
-                if (chunk != null) {
+                ChunkFactory.ChunkCreationResult chunkCreationResult = getChunk(dimension, chunkFactory, tiles, chunkX, chunkY, tileSelection, exporters);
+                if (chunkCreationResult != null) {
                     if ((chunkX >= lowestRegionChunkX) && (chunkX <= highestRegionChunkX) && (chunkY >= lowestRegionChunkY) && (chunkY <= highestRegionChunkY)) {
-                        regionContainsChunks = true;
+                        exportResults.chunksGenerated = true;
+                        exportResults.stats.landArea += chunkCreationResult.stats.landArea;
+                        exportResults.stats.surfaceArea += chunkCreationResult.stats.surfaceArea;
+                        exportResults.stats.waterArea += chunkCreationResult.stats.waterArea;
                     }
-                    minecraftWorld.addChunk(chunk);
+                    minecraftWorld.addChunk(chunkCreationResult.chunk);
                 }
                 chunkNo++;
                 if (progressReceiver != null) {
@@ -202,21 +211,21 @@ public class WorldExporter {
                 }
             }
         }
-        return regionContainsChunks;
+        return exportResults;
     }
     
     protected List<Fixup> secondPass(List<Layer> secondaryPassLayers, Set<Layer> mandatoryLayers, Dimension dimension, MinecraftWorld minecraftWorld, Map<Layer, LayerExporter<Layer>> exporters, Collection<Tile> tiles, Point regionCoords, ProgressReceiver progressReceiver) throws ProgressReceiver.OperationCancelled {
-        // Apply other secondary pass layers, except frost
+        // Apply other secondary pass layers
         int layerCount = secondaryPassLayers.size(), counter = 0;
         Rectangle area = new Rectangle((regionCoords.x << 9) - 16, (regionCoords.y << 9) - 16, 544, 544);
         Rectangle exportedArea = new Rectangle((regionCoords.x << 9), (regionCoords.y << 9), 512, 512);
         List<Fixup> fixups = new ArrayList<Fixup>();
-        boolean frost = false;
+//        boolean frost = false;
         for (Layer layer: secondaryPassLayers) {
-            if (layer instanceof Frost) {
-                frost = true;
-                continue;
-            }
+//            if (layer instanceof Frost) {
+//                frost = true;
+//                continue;
+//            }
             @SuppressWarnings("unchecked")
             SecondPassLayerExporter<Layer> exporter = (SecondPassLayerExporter<Layer>) exporters.get(layer);
             List<Fixup> layerFixups = exporter.render(dimension, area, exportedArea, minecraftWorld);
@@ -241,15 +250,16 @@ public class WorldExporter {
         }
         
         // Apply frost layer
-        if (frost) {
-            @SuppressWarnings("unchecked")
-            SecondPassLayerExporter<Layer> exporter = (SecondPassLayerExporter<Layer>) exporters.get(Frost.INSTANCE);
-            exporter.render(dimension, area, exportedArea, minecraftWorld);
-            if (progressReceiver != null) {
-                counter++;
-                progressReceiver.setProgress((float) counter / layerCount);
-            }
-        }
+        // TODO: why did we used to do this in a separate step? There must have been a reason...
+//        if (frost) {
+//            @SuppressWarnings("unchecked")
+//            SecondPassLayerExporter<Layer> exporter = (SecondPassLayerExporter<Layer>) exporters.get(Frost.INSTANCE);
+//            exporter.render(dimension, area, exportedArea, minecraftWorld);
+//            if (progressReceiver != null) {
+//                counter++;
+//                progressReceiver.setProgress((float) counter / layerCount);
+//            }
+//        }
         
         // TODO: trying to do this for every region should work but is not very
         // elegant
@@ -272,39 +282,110 @@ public class WorldExporter {
     }
 
     protected void postProcess(MinecraftWorld minecraftWorld, Point regionCoords, SubProgressReceiver progressReceiver) throws OperationCancelled {
-        int x1 = regionCoords.x << 9;
-        int y1 = regionCoords.y << 9;
-        int x2 = x1 + 511, y2 = y1 + 511;
-        int maxZ = minecraftWorld.getMaxHeight() - 1;
+        final int x1 = regionCoords.x << 9;
+        final int y1 = regionCoords.y << 9;
+        final int x2 = x1 + 511, y2 = y1 + 511;
+        final int maxZ = minecraftWorld.getMaxHeight() - 1;
+        final boolean dry = false;
         for (int x = x1; x <= x2; x ++) {
             for (int y = y1; y <= y2; y++) {
                 int blockTypeBelow = minecraftWorld.getBlockTypeAt(x, y, 0);
+                int blockTypeAbove = minecraftWorld.getBlockTypeAt(x, y, 1);
                 if (supportSand && (blockTypeBelow == BLK_SAND)) {
                     minecraftWorld.setMaterialAt(x, y, 0, Material.SANDSTONE);
                     blockTypeBelow = BLK_SANDSTONE;
                 }
                 for (int z = 1; z <= maxZ; z++) {
-                    int blockType = minecraftWorld.getBlockTypeAt(x, y, z);
-                    if (((blockTypeBelow == BLK_GRASS) || (blockTypeBelow == BLK_MYCELIUM)) && ((blockType == BLK_WATER) || (blockType == BLK_STATIONARY_WATER) || (blockType == BLK_ICE) || (! BLOCK_TRANSPARENCY.containsKey(blockType)))) {
-                        // Covered grass or mycelium block, should be dirt
+                    int blockType = blockTypeAbove;
+                    blockTypeAbove = (z < maxZ) ? minecraftWorld.getBlockTypeAt(x, y, z + 1) : BLK_AIR;
+                    if (((blockTypeBelow == BLK_GRASS) || (blockTypeBelow == BLK_MYCELIUM) || (blockTypeBelow == BLK_TILLED_DIRT)) && ((blockType == BLK_WATER) || (blockType == BLK_STATIONARY_WATER) || (blockType == BLK_ICE) || ((blockType <= HIGHEST_KNOWN_BLOCK_ID) && (BLOCK_TRANSPARENCY[blockType] == 15)))) {
+                        // Covered grass, mycelium or tilled earth block, should
+                        // be dirt. Note that unknown blocks are treated as
+                        // transparent for this check so that grass underneath
+                        // custom plants doesn't turn to dirt, for instance
                         minecraftWorld.setMaterialAt(x, y, z - 1, Material.DIRT);
                         blockTypeBelow = BLK_DIRT;
                     }
-                    if (supportSand && (blockType == BLK_SAND) && Constants.VERY_INSUBSTANTIAL_BLOCKS.contains(blockTypeBelow)) {
+                    if (supportSand && (blockType == BLK_SAND) && Constants.VERY_INSUBSTANTIAL_BLOCKS.get(blockTypeBelow)) {
                         // All unsupported sand should be supported by sandstone
                         minecraftWorld.setMaterialAt(x, y, z, Material.SANDSTONE);
                         blockType = BLK_SANDSTONE;
                     }
-                    if (blockType == BLK_TALL_GRASS) {
+                    if ((blockType == BLK_DEAD_SHRUBS) && (blockTypeBelow != BLK_SAND) && (blockTypeBelow != BLK_DIRT) && (blockTypeBelow != BLK_STAINED_CLAY) && (blockTypeBelow != BLK_HARDENED_CLAY)) {
+                        // Dead shrubs can only exist on Sand
+                        minecraftWorld.setMaterialAt(x, y, z, Material.AIR);
+                        blockType = BLK_AIR;
+                    } else if (((blockType == BLK_TALL_GRASS) || (blockType == BLK_ROSE) || (blockType == BLK_DANDELION)) && (blockTypeBelow != BLK_GRASS) && (blockTypeBelow != BLK_DIRT)) {
+                        // Tall grass and flowers can only exist on Grass or Dirt blocks
+                        minecraftWorld.setMaterialAt(x, y, z, Material.AIR);
+                        blockType = BLK_AIR;
+                    } else if (((blockType == BLK_RED_MUSHROOM) || (blockType == BLK_BROWN_MUSHROOM)) && (blockTypeBelow != BLK_GRASS) && (blockTypeBelow != BLK_DIRT) && (blockTypeBelow != BLK_MYCELIUM) && (blockTypeBelow != BLK_STONE)) {
+                        // Mushrooms can only exist on Grass, Dirt, Mycelium or Stone (in caves) blocks
+                        minecraftWorld.setMaterialAt(x, y, z, Material.AIR);
+                        blockType = BLK_AIR;
+                    } else if (dry && ((blockType == BLK_WATER) || (blockType == BLK_STATIONARY_WATER) || (blockType == BLK_SNOW) || (blockType == BLK_SNOW_BLOCK) || (blockType == BLK_LAVA) || (blockType == BLK_STATIONARY_LAVA) || (blockType == BLK_ICE) || (blockType == BLK_PACKED_ICE))) {
+                        minecraftWorld.setMaterialAt(x, y, z, Material.AIR);
+                        blockType = BLK_AIR;
+                    } else if ((blockType == BLK_SNOW) && ((blockTypeBelow == BLK_ICE) || (blockTypeBelow == BLK_SNOW) || (blockTypeBelow == BLK_AIR) || (blockTypeBelow == BLK_PACKED_ICE))) {
+                        // Snow can't be on ice, or another snow block, or air
+                        // (well it could be, but it makes no sense, would
+                        // disappear when touched, and it makes this algorithm
+                        // remove stacks of snow blocks correctly)
+                        minecraftWorld.setMaterialAt(x, y, z, Material.AIR);
+                        blockType = BLK_AIR;
+                    } else if ((blockType == BLK_WHEAT) && (blockTypeBelow != BLK_TILLED_DIRT)) {
+                        // Wheat can only exist on Tilled Dirt blocks
+                        minecraftWorld.setMaterialAt(x, y, z, Material.AIR);
+                        blockType = BLK_AIR;
+                    } else if (blockType == BLK_LARGE_FLOWERS) {
                         int data = minecraftWorld.getDataAt(x, y, z);
-                        if (((data == DATA_TALL_GRASS) || (data == DATA_FERN)) && (blockTypeBelow != BLK_GRASS) && (blockTypeBelow != BLK_DIRT)) {
-                            // Tall grass and ferns can only exist on Grass or Dirt blocks
-                            minecraftWorld.setMaterialAt(x, y, z, Material.AIR);
-                            blockType = BLK_AIR;
-                        } else if ((data == DATA_DEAD_SHRUB) && (blockTypeBelow != BLK_SAND)) {
-                            // Dead shrubs can only exist on Sand
-                            minecraftWorld.setMaterialAt(x, y, z, Material.AIR);
-                            blockType = BLK_AIR;
+                        if ((data & 0x8) == 0x8) {
+                            // Bit 4 set; top half of double high plant; check
+                            // there's a lower half beneath
+                            // If the block below is another double high plant
+                            // block we don't need to check whether it is of the
+                            // correct type because the combo was already
+                            // checked when the lower half was encountered
+                            // in the previous iteration
+                            if (blockTypeBelow != BLK_LARGE_FLOWERS) {
+                                // There's a non-double high plant block below;
+                                // replace this block with air
+                                if (logger.isLoggable(java.util.logging.Level.FINER)) {
+                                    logger.finer("Block @ " + x + "," + z + "," + y + " is upper large flower block; block below is " + BLOCK_TYPE_NAMES[blockTypeBelow] + "; removing block");
+                                }
+                                minecraftWorld.setMaterialAt(x, y, z, Material.AIR);
+                                blockType = BLK_AIR;
+                            }
+                        } else {
+                            // Otherwise: lower half of double high plant; check
+                            // there's a top half above and grass or dirt below
+                            if (blockTypeAbove == BLK_LARGE_FLOWERS) {
+                                if ((minecraftWorld.getDataAt(x, y, z + 1) & 0x8) == 0) {
+                                    // There's another lower half above. Replace
+                                    // this block with air
+                                    if (logger.isLoggable(java.util.logging.Level.FINER)) {
+                                        logger.finer("Block @ " + x + "," + z + "," + y + " is lower large flower block; block above is another lower large flower block; removing block");
+                                    }
+                                    minecraftWorld.setMaterialAt(x, y, z, Material.AIR);
+                                    blockType = BLK_AIR;
+                                } else if ((blockTypeBelow != BLK_GRASS) && (blockTypeBelow != BLK_DIRT)) {
+                                    // Double high plants can (presumably; TODO:
+                                    // check) only exist on grass or dirt
+                                    if (logger.isLoggable(java.util.logging.Level.FINER)) {
+                                        logger.finer("Block @ " + x + "," + z + "," + y + " is lower large flower block; block above is " + BLOCK_TYPE_NAMES[blockTypeBelow] + "; removing block");
+                                    }
+                                    minecraftWorld.setMaterialAt(x, y, z, Material.AIR);
+                                    blockType = BLK_AIR;
+                                }
+                            } else {
+                                // There's a non-double high plant block above;
+                                // replace this block with air
+                                if (logger.isLoggable(java.util.logging.Level.FINER)) {
+                                    logger.finer("Block @ " + x + "," + z + "," + y + " is lower large flower block; block above is " + BLOCK_TYPE_NAMES[blockTypeBelow] + "; removing block");
+                                }
+                                minecraftWorld.setMaterialAt(x, y, z, Material.AIR);
+                                blockType = BLK_AIR;
+                            }
                         }
                     }
                     blockTypeBelow = blockType;
@@ -355,7 +436,7 @@ public class WorldExporter {
         }
     }
     
-    protected final boolean exportRegion(MinecraftWorld minecraftWorld, Dimension dimension, Point regionCoords, boolean tileSelection, Map<Layer, LayerExporter<Layer>> exporters, ChunkFactory chunkFactory, List<Fixup> fixups, ProgressReceiver progressReceiver) throws ProgressReceiver.OperationCancelled, IOException {
+    protected final ExportResults exportRegion(MinecraftWorld minecraftWorld, Dimension dimension, Point regionCoords, boolean tileSelection, Map<Layer, LayerExporter<Layer>> exporters, ChunkFactory chunkFactory, ProgressReceiver progressReceiver) throws ProgressReceiver.OperationCancelled, IOException {
         int lowestTileX = (regionCoords.x << 2) - 1;
         int highestTileX = lowestTileX + 5;
         int lowestTileY = (regionCoords.y << 2) - 1;
@@ -389,18 +470,18 @@ public class WorldExporter {
         }
         Collections.sort(secondaryPassLayers);
 
+        long t1 = System.currentTimeMillis();
         // First pass. Create terrain and apply layers which don't need access
         // to neighbouring chunks
-        long t1 = System.currentTimeMillis();
-        if (firstPass(minecraftWorld, dimension, regionCoords, tiles, tileSelection, exporters, chunkFactory, (progressReceiver != null) ? new SubProgressReceiver(progressReceiver, 0.0f, 0.45f) : null)) {
+        ExportResults exportResults = firstPass(minecraftWorld, dimension, regionCoords, tiles, tileSelection, exporters, chunkFactory, (progressReceiver != null) ? new SubProgressReceiver(progressReceiver, 0.0f, 0.45f) : null);
+
+        if (exportResults.chunksGenerated) {
             // Second pass. Apply layers which need information from or apply
             // changes to neighbouring chunks
             long t2 = System.currentTimeMillis();
             List<Fixup> myFixups = secondPass(secondaryPassLayers, minimumLayers, dimension, minecraftWorld, exporters, tiles.values(), regionCoords, (progressReceiver != null) ? new SubProgressReceiver(progressReceiver, 0.45f, 0.1f) : null);
             if ((myFixups != null) && (! myFixups.isEmpty())) {
-                synchronized (fixups) {
-                    fixups.addAll(myFixups);
-                }
+                exportResults.fixups = myFixups;
             }
 
             // Post processing. Fix covered grass blocks, things like that
@@ -423,15 +504,14 @@ public class WorldExporter {
                     }
                 }
             }
-            return true;
-        } else {
-            return false;
         }
+        
+        return exportResults;
     }
     
     protected final void logLayers(Dimension dimension, EventVO event, String prefix) {
         StringBuilder sb = new StringBuilder();
-        for (Layer layer: dimension.getAllLayers()) {
+        for (Layer layer: dimension.getAllLayers(false)) {
             if (sb.length() > 0) {
                 sb.append(',');
             }
@@ -442,10 +522,11 @@ public class WorldExporter {
         }
     }
     
-    private Chunk getChunk(Dimension dimension, ChunkFactory chunkFactory, Map<Point, Tile> tiles, int chunkX, int chunkY, boolean tileSelection, Map<Layer, LayerExporter<Layer>> exporters) {
-        int tileX = chunkX >> 3;
-        int tileY = chunkY >> 3;
-        Point tileCoords = new Point(tileX, tileY);
+    private ChunkFactory.ChunkCreationResult getChunk(Dimension dimension, ChunkFactory chunkFactory, Map<Point, Tile> tiles, int chunkX, int chunkY, boolean tileSelection, Map<Layer, LayerExporter<Layer>> exporters) {
+        final int tileX = chunkX >> 3;
+        final int tileY = chunkY >> 3;
+        final Point tileCoords = new Point(tileX, tileY);
+        final boolean border = (dimension.getBorder() != null) && (dimension.getBorderSize() > 0);
         if (tileSelection) {
             // Tile selection. Don't export bedrock wall or border tiles
             if (tiles.containsKey(tileCoords) && (! dimension.getBitLayerValueAt(ReadOnly.INSTANCE, chunkX << 4, chunkY << 4))) {
@@ -454,47 +535,68 @@ public class WorldExporter {
                 return null;
             }
         } else {
-            int lowestX = dimension.getLowestX() << 3;
-            int highestX = (dimension.getHighestX() << 3) + 7;
-            int lowestY = dimension.getLowestY() << 3;
-            int highestY = (dimension.getHighestY() << 3) + 7;
-            if ((chunkX >= lowestX) && (chunkX <= highestX) && (chunkY >= lowestY) && (chunkY <= highestY)) {
-                // Inside border
-                if (dimension.getTile(tileCoords) != null) {
-                    if (! dimension.getBitLayerValueAt(ReadOnly.INSTANCE, chunkX << 4, chunkY << 4)) {
-                        return chunkFactory.createChunk(chunkX, chunkY);
-                    } else {
-                        return null;
-                    }
-                } else if (dimension.getBorder() != null) {
-                    return BorderChunkFactory.create(chunkX, chunkY, dimension, exporters);
+            if (dimension.getTile(tileCoords) != null) {
+                if (! dimension.getBitLayerValueAt(ReadOnly.INSTANCE, chunkX << 4, chunkY << 4)) {
+                    return chunkFactory.createChunk(chunkX, chunkY);
                 } else {
                     return null;
                 }
             } else {
-                int borderSize = (dimension.getBorder() != null) ? (dimension.getBorderSize() << 3) : 0;
-                int lowestBorderX = lowestX - borderSize;
-                int highestBorderX = highestX + borderSize;
-                int lowestBorderY = lowestY - borderSize;
-                int highestBorderY = highestY + borderSize;
-                if ((chunkX >= lowestBorderX) && (chunkX <= highestBorderX) && (chunkY >= lowestBorderY) && (chunkY <= highestBorderY)) {
-                    // Outside the world but inside the border
+                // Might be a border or bedrock wall chunk
+                if (border && isBorderChunk(dimension, chunkX, chunkY)) {
                     return BorderChunkFactory.create(chunkX, chunkY, dimension, exporters);
-                } else if (dimension.isBedrockWall() && (chunkX >= (lowestBorderX - 1)) && (chunkX <= (highestBorderX + 1)) && (chunkY >= (lowestBorderY - 1)) && (chunkY <= (highestBorderY + 1))) {
-                    // Bedrock wall
+                } else if (dimension.isBedrockWall()
+                        && (border
+                            ? (isBorderChunk(dimension, chunkX - 1, chunkY) || isBorderChunk(dimension, chunkX, chunkY - 1) || isBorderChunk(dimension, chunkX + 1, chunkY) || isBorderChunk(dimension, chunkX, chunkY + 1))
+                            : (isWorldChunk(dimension, chunkX - 1, chunkY) || isWorldChunk(dimension, chunkX, chunkY - 1) || isWorldChunk(dimension, chunkX + 1, chunkY) || isWorldChunk(dimension, chunkX, chunkY + 1)))) {
+                    // Bedrock wall is turned on and a neighbouring chunk is a
+                    // border chunk (if there is a border), or a world chunk (if
+                    // there is no border)
                     return BedrockWallChunk.create(chunkX, chunkY, dimension);
                 } else {
-                    // Outside of everything
+                    // Outside known space
                     return null;
                 }
             }
         }
     }
 
-    private void exportDimension(File worldDir, final Dimension dimension, final int version, ProgressReceiver progressReceiver) throws ProgressReceiver.OperationCancelled, IOException {
+    private boolean isWorldChunk(Dimension dimension, int x, int y) {
+        return dimension.getTile(x >> 3, y >> 3) != null;
+    }
+    
+    private boolean isBorderChunk(Dimension dimension, int x, int y) {
+        final int tileX = x >> 3, tileY = y >> 3;
+        final int borderSize = dimension.getBorderSize();
+        if ((dimension.getBorder() == null) || (borderSize == 0)) {
+            // There is no border configured, so definitely no border chunk
+            return false;
+        } else if (dimension.getTile(tileX, tileY) != null) {
+            // There is a tile here, so definitely no border chunk
+            return false;
+        } else {
+            // Check whether there is a tile within a radius of *borderSize*,
+            // in which case we are on a border tile
+            for (int dx = -borderSize; dx <= borderSize; dx++) {
+                for (int dy = -borderSize; dy <= borderSize; dy++) {
+                    if (dimension.getTile(tileX + dx, tileY + dy) != null) {
+                        // Tile found, we are a border chunk!
+                        return true;
+                    }
+                }
+            }
+            // No tiles found within a radius of *borderSize*, we are no border
+            // chunk
+            return false;
+        }
+    }
+
+    private ChunkFactory.Stats exportDimension(final File worldDir, final Dimension dimension, final int version, ProgressReceiver progressReceiver) throws ProgressReceiver.OperationCancelled, IOException {
         if (progressReceiver != null) {
             progressReceiver.setMessage("exporting " + dimension.getName() + " dimension");
         }
+        
+        long start = System.currentTimeMillis();
         
         final File dimensionDir;
         switch (dimension.getDim()) {
@@ -516,199 +618,336 @@ public class WorldExporter {
                 throw new RuntimeException("Could not create directory " + regionDir);
             }
         }
+
+        final ChunkFactory.Stats collectedStats = new ChunkFactory.Stats();
+        boolean wasDirty = dimension.isDirty();
+        dimension.rememberChanges();
+        try {
         
-        // Load all layer settings into the exporters
-        final Map<Layer, LayerExporter<Layer>> exporters = new HashMap<Layer, LayerExporter<Layer>>();
-        Set<Layer> allLayers = dimension.getAllLayers();
-        allLayers.addAll(dimension.getMinimumLayers());
-        for (Layer layer: allLayers) {
-            @SuppressWarnings("unchecked")
-            LayerExporter<Layer> exporter = (LayerExporter<Layer>) layer.getExporter();
-            if (exporter != null) {
-                exporter.setSettings(dimension.getLayerSettings(layer));
-                exporters.put(layer, exporter);
-            }
-        }
-            
-        // Determine regions to export
-        Set<Point> regions = new HashSet<Point>();
-        final boolean tileSelection = selectedTiles != null;
-        if (tileSelection) {
-            // Sanity check
-            assert selectedDimension == dimension.getDim();
-            for (Point tile: selectedTiles) {
-                regions.add(new Point(tile.x >> 2, tile.y >> 2));
-            }
-        } else {
-            for (Tile tile: dimension.getTiles()) {
-                int regionX = tile.getX() >> 2;
-                int regionZ = tile.getY() >> 2;
-                regions.add(new Point(regionX, regionZ));
-            }
-            // Make sure regions for bedrock wall and/or border tiles are present
-            if (dimension.isBedrockWall() || ((dimension.getBorder() != null) && (dimension.getBorderSize() > 0))) {
-                int borderSize = (dimension.getBorder() != null) ? dimension.getBorderSize() : 0;
-                if (dimension.isBedrockWall()) {
-                    borderSize++;
+            // Gather all layers used on the map
+            final Map<Layer, LayerExporter<Layer>> exporters = new HashMap<Layer, LayerExporter<Layer>>();
+            Set<Layer> allLayers = dimension.getAllLayers(false);
+            allLayers.addAll(dimension.getMinimumLayers());
+            // If there are combined layers, apply them and gather any newly
+            // added layers, recursively
+            boolean done;
+            do {
+                done = true;
+                for (Layer layer: new HashSet<Layer>(allLayers)) {
+                    if (layer instanceof CombinedLayer) {
+                        // Apply the combined layer
+                        Set<Layer> addedLayers = ((CombinedLayer) layer).apply(dimension);
+                        // Remove the combined layer from the list
+                        allLayers.remove(layer);
+                        // Add any layers it might have added
+                        allLayers.addAll(addedLayers);
+                        // Signal that we have to go around at least once more,
+                        // in case any of the newly added layers are themselves
+                        // combined layers
+                        done = false;
+                    }
                 }
-                int lowestRegionX = (dimension.getLowestX() - borderSize) >> 2;
-                int highestRegionX = (dimension.getHighestX() + borderSize) >> 2;
-                int lowestRegionY = (dimension.getLowestY() - borderSize) >> 2;
-                int highestRegionY = (dimension.getHighestY() + borderSize) >> 2;
-                for (int regionX = lowestRegionX; regionX <= highestRegionX; regionX++) {
-                    for (int regionY = lowestRegionY; regionY <= highestRegionY; regionY++) {
-                        regions.add(new Point(regionX, regionY));
+            } while (! done);
+
+            // Load all layer settings into the exporters
+            for (Layer layer: allLayers) {
+                @SuppressWarnings("unchecked")
+                LayerExporter<Layer> exporter = (LayerExporter<Layer>) layer.getExporter();
+                if (exporter != null) {
+                    exporter.setSettings(dimension.getLayerSettings(layer));
+                    exporters.put(layer, exporter);
+                }
+            }
+
+            // Determine regions to export
+            int lowestRegionX = Integer.MAX_VALUE, highestRegionX = Integer.MIN_VALUE, lowestRegionZ = Integer.MAX_VALUE, highestRegionZ = Integer.MIN_VALUE;
+            final Set<Point> regions = new HashSet<Point>(), exportedRegions = new HashSet<Point>();
+            final boolean tileSelection = selectedTiles != null;
+            if (tileSelection) {
+                // Sanity check
+                assert selectedDimension == dimension.getDim();
+                for (Point tile: selectedTiles) {
+                    int regionX = tile.x >> 2;
+                    int regionZ = tile.y >> 2;
+                    regions.add(new Point(regionX, regionZ));
+                    if (regionX < lowestRegionX) {
+                        lowestRegionX = regionX;
+                    }
+                    if (regionX > highestRegionX) {
+                        highestRegionX = regionX;
+                    }
+                    if (regionZ < lowestRegionZ) {
+                        lowestRegionZ = regionZ;
+                    }
+                    if (regionZ > highestRegionZ) {
+                        highestRegionZ = regionZ;
+                    }
+                }
+            } else {
+                for (Tile tile: dimension.getTiles()) {
+                    // Also add regions for any bedrock wall and/or border
+                    // tiles, if present
+                    int r = ((dimension.getBorder() != null) ? dimension.getBorderSize() : 0) + (dimension.isBedrockWall() ? 1 : 0);
+                    for (int dx = -r; dx <= r; dx++) {
+                        for (int dy = -r; dy <= r; dy++) {
+                            int regionX = (tile.getX() + dx) >> 2;
+                            int regionZ = (tile.getY() + dy) >> 2;
+                            regions.add(new Point(regionX, regionZ));
+                            if (regionX < lowestRegionX) {
+                                lowestRegionX = regionX;
+                            }
+                            if (regionX > highestRegionX) {
+                                highestRegionX = regionX;
+                            }
+                            if (regionZ < lowestRegionZ) {
+                                lowestRegionZ = regionZ;
+                            }
+                            if (regionZ > highestRegionZ) {
+                                highestRegionZ = regionZ;
+                            }
+                        }
                     }
                 }
             }
-        }
-        
-        final WorldPainterChunkFactory chunkFactory = new WorldPainterChunkFactory(dimension, exporters, world.getVersion(), world.getMaxHeight());
-        
-        Runtime runtime = Runtime.getRuntime();
-        runtime.gc();
-        long totalMemory = runtime.totalMemory();
-        long freeMemory = runtime.freeMemory();
-        long memoryInUse = totalMemory - freeMemory;
-        long maxMemory = runtime.maxMemory();
-        long maxMemoryAvailable = maxMemory - memoryInUse;
-        int maxThreadsByMem = (int) (maxMemoryAvailable / 250000000L);
-        int threads;
-        if (System.getProperty("org.pepsoft.worldpainter.threads") != null) {
-            threads = Math.max(Math.min(Integer.parseInt(System.getProperty("org.pepsoft.worldpainter.threads")), regions.size()), 1);
-        } else {
-            threads = Math.max(Math.min(Math.min(maxThreadsByMem, runtime.availableProcessors()), regions.size()), 1);
-        }
-        logger.info("Using " + threads + " thread(s) for export (cores: " + runtime.availableProcessors() + ", available memory: " + (maxMemoryAvailable / 1048576L) + " MB)");
 
-        final List<List<Fixup>> fixups = new ArrayList<List<Fixup>>();
-        ExecutorService executor = Executors.newFixedThreadPool(threads);
-        final ParallelProgressManager parallelProgressManager = (progressReceiver != null) ? new ParallelProgressManager(new SubProgressReceiver(progressReceiver, 0.0f, 0.9f), regions.size()) : null;
-        try {
-            // Export each individual region
-            for (Point region: regions) {
-                final Point regionCoords = region;
-                executor.execute(new Runnable() {
-                    @Override
-                    public void run() {
-                        ProgressReceiver progressReceiver = (parallelProgressManager != null) ? parallelProgressManager.createProgressReceiver() : null;
-                        if (progressReceiver != null) {
-                            try {
-                                progressReceiver.checkForCancellation();
-                            } catch (ProgressReceiver.OperationCancelled e) {
-                                return;
-                            }
+            // Sort the regions to export the first two rows together, and then
+            // row by row, to get the optimum tempo of performing fixups
+            List<Point> sortedRegions = new ArrayList<Point>(regions.size());
+            if (lowestRegionZ == highestRegionZ) {
+                // No point in sorting it
+                sortedRegions.addAll(regions);
+            } else {
+                for (int x = lowestRegionX; x <= highestRegionX; x++) {
+                    for (int z = lowestRegionZ; z <= (lowestRegionZ + 1); z++) {
+                        Point regionCoords = new Point(x, z);
+                        if (regions.contains(regionCoords)) {
+                            sortedRegions.add(regionCoords);
                         }
-                        try {
-                            WorldRegion minecraftWorld = new WorldRegion(regionCoords.x, regionCoords.y, dimension.getMaxHeight(), version);
-                            boolean saveWorld = false;
+                    }
+                }
+                for (int z = lowestRegionZ + 2; z <= highestRegionZ; z++) {
+                    for (int x = lowestRegionX; x <= highestRegionX; x++) {
+                        Point regionCoords = new Point(x, z);
+                        if (regions.contains(regionCoords)) {
+                            sortedRegions.add(regionCoords);
+                        }
+                    }
+                }
+            }
+            
+            final WorldPainterChunkFactory chunkFactory = new WorldPainterChunkFactory(dimension, exporters, world.getVersion(), world.getMaxHeight());
+
+            Runtime runtime = Runtime.getRuntime();
+            runtime.gc();
+            long totalMemory = runtime.totalMemory();
+            long freeMemory = runtime.freeMemory();
+            long memoryInUse = totalMemory - freeMemory;
+            long maxMemory = runtime.maxMemory();
+            long maxMemoryAvailable = maxMemory - memoryInUse;
+            int maxThreadsByMem = (int) (maxMemoryAvailable / 250000000L);
+            int threads;
+            if (System.getProperty("org.pepsoft.worldpainter.threads") != null) {
+                threads = Math.max(Math.min(Integer.parseInt(System.getProperty("org.pepsoft.worldpainter.threads")), sortedRegions.size()), 1);
+            } else {
+                threads = Math.max(Math.min(Math.min(maxThreadsByMem, runtime.availableProcessors()), sortedRegions.size()), 1);
+            }
+            logger.info("Using " + threads + " thread(s) for export (cores: " + runtime.availableProcessors() + ", available memory: " + (maxMemoryAvailable / 1048576L) + " MB)");
+
+            final Map<Point, List<Fixup>> fixups = new HashMap<Point, List<Fixup>>();
+            ExecutorService executor = Executors.newFixedThreadPool(threads);
+            final ParallelProgressManager parallelProgressManager = (progressReceiver != null) ? new ParallelProgressManager(progressReceiver, regions.size()) : null;
+            try {
+                // Export each individual region
+                for (Point region: sortedRegions) {
+                    final Point regionCoords = region;
+                    executor.execute(new Runnable() {
+                        @Override
+                        public void run() {
+                            ProgressReceiver progressReceiver = (parallelProgressManager != null) ? parallelProgressManager.createProgressReceiver() : null;
+                            if (progressReceiver != null) {
+                                try {
+                                    progressReceiver.checkForCancellation();
+                                } catch (ProgressReceiver.OperationCancelled e) {
+                                    return;
+                                }
+                            }
                             try {
-                                List<Fixup> regionFixups = new ArrayList<Fixup>();
-                                saveWorld = exportRegion(minecraftWorld, dimension, regionCoords, tileSelection, exporters, chunkFactory, regionFixups, progressReceiver);
-                                if (! regionFixups.isEmpty()) {
-                                    synchronized (fixups) {
-                                        fixups.add(regionFixups);
+                                WorldRegion minecraftWorld = new WorldRegion(regionCoords.x, regionCoords.y, dimension.getMaxHeight(), version);
+                                ExportResults exportResults = null;
+                                try {
+                                    exportResults = exportRegion(minecraftWorld, dimension, regionCoords, tileSelection, exporters, chunkFactory, (progressReceiver != null) ? new SubProgressReceiver(progressReceiver, 0.0f, 0.9f) : null);
+                                    if (logger.isLoggable(java.util.logging.Level.FINE)) {
+                                        logger.fine("Generated region " + regionCoords.x + "," + regionCoords.y);
+                                    }
+                                    if (exportResults.chunksGenerated) {
+                                        synchronized (collectedStats) {
+                                            collectedStats.landArea += exportResults.stats.landArea;
+                                            collectedStats.surfaceArea += exportResults.stats.surfaceArea;
+                                            collectedStats.waterArea += exportResults.stats.waterArea;
+                                        }
+                                    }
+                                } finally {
+                                    if ((exportResults != null) && exportResults.chunksGenerated) {
+                                        minecraftWorld.save(dimensionDir);
                                     }
                                 }
-                            } finally {
-                                if (saveWorld) {
-                                    minecraftWorld.save(dimensionDir);
+                                synchronized (fixups) {
+                                    if ((exportResults.fixups != null) && (! exportResults.fixups.isEmpty())) {
+                                        fixups.put(new Point(regionCoords.x, regionCoords.y), exportResults.fixups);
+                                    }
+                                    exportedRegions.add(regionCoords);
+                                }
+                                // Apply all fixups which can be applied because
+                                // all surrounding regions have been exported
+                                // (or are not going to be), but only if another
+                                // thread is not already doing it
+                                if (performingFixups.tryAcquire()) {
+                                    try {
+                                        Map<Point, List<Fixup>> myFixups = new HashMap<Point, List<Fixup>>();
+                                        synchronized (fixups) {
+                                            for (Iterator<Map.Entry<Point, List<Fixup>>> i = fixups.entrySet().iterator(); i.hasNext(); ) {
+                                                Map.Entry<Point, List<Fixup>> entry = i.next();
+                                                Point fixupRegionCoords = entry.getKey();
+                                                if (isReadyForFixups(regions, exportedRegions, fixupRegionCoords)) {
+                                                    myFixups.put(fixupRegionCoords, entry.getValue());
+                                                    i.remove();
+                                                }
+                                            }
+                                        }
+                                        if (! myFixups.isEmpty()) {
+                                            performFixups(worldDir, dimension, version, (progressReceiver != null) ? new SubProgressReceiver(progressReceiver, 0.9f, 0.1f) : null, myFixups);
+                                        }
+                                    } finally {
+                                        performingFixups.release();
+                                    }
+                                }
+                            } catch (Throwable t) {
+                                if (progressReceiver != null) {
+                                    progressReceiver.exceptionThrown(t);
+                                } else {
+                                    logger.log(java.util.logging.Level.SEVERE, "Exception while exporting region", t);
                                 }
                             }
-                        } catch (Throwable t) {
-                            if (progressReceiver != null) {
-                                progressReceiver.exceptionThrown(t);
-                            } else {
-                                logger.log(java.util.logging.Level.SEVERE, "Exception while exporting region", t);
-                            }
                         }
-                    }
-                });
-            }
-        } finally {
-            executor.shutdown();
-            try {
-                executor.awaitTermination(1000, TimeUnit.DAYS);
-            } catch (InterruptedException e) {
-                throw new RuntimeException("Thread interrupted while waiting for all tasks to finish", e);
-            }
-        }
-
-        if (! parallelProgressManager.isExceptionThrown()) {
-            performFixups(worldDir, dimension, version, (progressReceiver != null) ? new SubProgressReceiver(progressReceiver, 0.9f, 0.1f) : null, fixups);
-        }
-    }
-
-    protected void performFixups(final File worldDir, final Dimension dimension, final int version, final ProgressReceiver progressReceiver, final List<List<Fixup>> fixups) throws OperationCancelled {
-        synchronized (fixups) {
-            if (! fixups.isEmpty()) {
-                if (progressReceiver != null) {
-                    progressReceiver.setMessage("doing fixups for " + dimension.getName() + " dimension");
+                    });
                 }
-                long start = System.currentTimeMillis();
-                if (logger.isLoggable(java.util.logging.Level.FINE)) {
-                    logger.fine(fixups.size() + " regions have fixups");
-                }
-                // Make sure to honour the read-only layer:
-                MinecraftWorldImpl minecraftWorld = new MinecraftWorldImpl(worldDir, dimension, version, false, true, 256);
+            } finally {
+                executor.shutdown();
                 try {
-                    int count = 0, total = fixups.size();
-                    for (List<Fixup> regionFixups: fixups) {
-                        if (logger.isLoggable(java.util.logging.Level.FINE)) {
-                            logger.fine("Performing " + regionFixups.size() + " fixups");
-                        }
-                        for (Fixup fixup: regionFixups) {
-                            fixup.fixup(minecraftWorld, dimension);
-                        }
-                        count++;
-                        if ((count % 96) == 0) {
-                            if (logger.isLoggable(java.util.logging.Level.FINE)) {
-                                logger.fine("Flushing region files (chunks in cache: " + minecraftWorld.getCacheSize() + ")");
-                            }
-                            minecraftWorld.flush();
-                        }
-                        if (progressReceiver != null) {
-                            progressReceiver.setProgress((float) count / total);
-                        }
+                    executor.awaitTermination(366, TimeUnit.DAYS);
+                } catch (InterruptedException e) {
+                    throw new RuntimeException("Thread interrupted while waiting for all tasks to finish", e);
+                }
+            }
+            
+            // It's possible for there to be fixups left, if thread A was
+            // performing fixups and thread B added new ones and then quit
+            synchronized (fixups) {
+                if (! fixups.isEmpty()) {
+                    if (progressReceiver != null) {
+                        progressReceiver.setMessage("doing remaining fixups for " + dimension.getName());
+                        progressReceiver.reset();
                     }
-                } finally {
-                    minecraftWorld.flush();
+                    performFixups(worldDir, dimension, version, progressReceiver, fixups);
                 }
-                if (logger.isLoggable(java.util.logging.Level.FINE)) {
-                    logger.fine("Fixups took " + (System.currentTimeMillis() - start) + " ms");
-                }
-            } else if (progressReceiver != null) {
+            }
+            
+            // Calculate total size of dimension
+            for (Point region: regions) {
+                File file = new File(dimensionDir, "region/r." + region.x + "." + region.y + ((version == SUPPORTED_VERSION_2) ? ".mca" : ".mcr"));
+                collectedStats.size += file.length();
+            }
+            collectedStats.time = System.currentTimeMillis() - start;
+            
+            if (progressReceiver != null) {
                 progressReceiver.setProgress(1.0f);
             }
+        } finally {
+
+            // Undo any changes we made (such as applying any combined layers)
+            if (dimension.undoChanges()) {
+                // TODO: some kind of cleverer undo mechanism (undo history
+                // cloning?) so we don't mess up the user's redo history
+                dimension.clearRedo();
+                dimension.armSavePoint();
+            }
+            
+            // If the dimension wasn't dirty make sure it still isn't
+            dimension.setDirty(wasDirty);
+        }
+
+        return collectedStats;
+    }
+
+    protected boolean isReadyForFixups(Set<Point> regionsToExport, Set<Point> exportedRegions, Point coords) {
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dy = -1; dy <= 1; dy++) {
+                if ((dx == 0) && (dy ==0)) {
+                    continue;
+                }
+                Point checkCoords = new Point(coords.x + dx, coords.y + dy);
+                if (regionsToExport.contains(checkCoords) && (! exportedRegions.contains(checkCoords))) {
+                    // A surrounding region should be exported and hasn't yet
+                    // been, so the fixups can't be performed yet
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    protected void performFixups(final File worldDir, final Dimension dimension, final int version, final ProgressReceiver progressReceiver, final Map<Point, List<Fixup>> fixups) throws OperationCancelled {
+        long start = System.currentTimeMillis();
+        // Make sure to honour the read-only layer:
+        MinecraftWorldImpl minecraftWorld = new MinecraftWorldImpl(worldDir, dimension, version, false, true, 512);
+        int count = 0, total = fixups.size();
+        for (Map.Entry<Point, List<Fixup>> entry: fixups.entrySet()) {
+            List<Fixup> regionFixups = entry.getValue();
+            if (logger.isLoggable(java.util.logging.Level.FINE)) {
+                logger.fine("Performing " + regionFixups.size() + " fixups for region " + entry.getKey().x + "," + entry.getKey().y);
+            }
+            for (Fixup fixup: regionFixups) {
+                fixup.fixup(minecraftWorld, dimension);
+            }
+            if (logger.isLoggable(java.util.logging.Level.FINE)) {
+                logger.fine("Flushing region files (chunks in cache: " + minecraftWorld.getCacheSize() + ")");
+            }
+            minecraftWorld.flush(); // Might affect performance of other threads also performing fixups, but should not cause errors
+            if (progressReceiver != null) {
+                progressReceiver.setProgress((float) ++count / total);
+            }
+        }
+        if (logger.isLoggable(java.util.logging.Level.FINER)) {
+            logger.finer("Fixups for " + fixups.size() + " regions took " + (System.currentTimeMillis() - start) + " ms");
         }
     }
 
     private Chest createGoodiesChest() {
         List<InventoryItem> list = new ArrayList<InventoryItem>();
-        list.add(new InventoryItem(ITM_DIAMOND_SWORD,   0,  1,  0));
-        list.add(new InventoryItem(ITM_DIAMOND_SHOVEL,  0,  1,  1));
-        list.add(new InventoryItem(ITM_DIAMOND_PICKAXE, 0,  1,  2));
-        list.add(new InventoryItem(ITM_DIAMOND_AXE,     0,  1,  3));
-        list.add(new InventoryItem(BLK_SAPLING,         0, 64,  4));
-        list.add(new InventoryItem(BLK_SAPLING,         1, 64,  5));
-        list.add(new InventoryItem(BLK_SAPLING,         2, 64,  6));
-        list.add(new InventoryItem(BLK_BROWN_MUSHROOM,  0, 64,  7));
-        list.add(new InventoryItem(BLK_RED_MUSHROOM,    0, 64,  8));
-        list.add(new InventoryItem(ITM_BONE,            0, 64,  9));
-        list.add(new InventoryItem(ITM_WATER_BUCKET,    0,  1, 10));
-        list.add(new InventoryItem(ITM_WATER_BUCKET,    0,  1, 11));
-        list.add(new InventoryItem(ITM_COAL,            0, 64, 12));
-        list.add(new InventoryItem(ITM_IRON_INGOT,      0, 64, 13));
-        list.add(new InventoryItem(BLK_CACTUS,          0, 64, 14));
-        list.add(new InventoryItem(ITM_SUGAR_CANE,      0, 64, 15));
-        list.add(new InventoryItem(BLK_TORCH,           0, 64, 16));
-        list.add(new InventoryItem(ITM_BED,             0,  1, 17));
-        list.add(new InventoryItem(BLK_OBSIDIAN,        0, 64, 18));
-        list.add(new InventoryItem(ITM_FLINT_AND_STEEL, 0,  1, 19));
-        list.add(new InventoryItem(BLK_WOOD,            0, 64, 20));
-        list.add(new InventoryItem(BLK_CRAFTING_TABLE,  0,  1, 21));
-        list.add(new InventoryItem(BLK_END_PORTAL_FRAME,      0, 12, 22));
-        list.add(new InventoryItem(ITM_EYE_OF_ENDER,    0, 12, 23));
+        list.add(new InventoryItem(ITM_DIAMOND_SWORD,    0,  1,  0));
+        list.add(new InventoryItem(ITM_DIAMOND_SHOVEL,   0,  1,  1));
+        list.add(new InventoryItem(ITM_DIAMOND_PICKAXE,  0,  1,  2));
+        list.add(new InventoryItem(ITM_DIAMOND_AXE,      0,  1,  3));
+        list.add(new InventoryItem(BLK_SAPLING,          0, 64,  4));
+        list.add(new InventoryItem(BLK_SAPLING,          1, 64,  5));
+        list.add(new InventoryItem(BLK_SAPLING,          2, 64,  6));
+        list.add(new InventoryItem(BLK_BROWN_MUSHROOM,   0, 64,  7));
+        list.add(new InventoryItem(BLK_RED_MUSHROOM,     0, 64,  8));
+        list.add(new InventoryItem(ITM_BONE,             0, 64,  9));
+        list.add(new InventoryItem(ITM_WATER_BUCKET,     0,  1, 10));
+        list.add(new InventoryItem(ITM_WATER_BUCKET,     0,  1, 11));
+        list.add(new InventoryItem(ITM_COAL,             0, 64, 12));
+        list.add(new InventoryItem(ITM_IRON_INGOT,       0, 64, 13));
+        list.add(new InventoryItem(BLK_CACTUS,           0, 64, 14));
+        list.add(new InventoryItem(ITM_SUGAR_CANE,       0, 64, 15));
+        list.add(new InventoryItem(BLK_TORCH,            0, 64, 16));
+        list.add(new InventoryItem(ITM_BED,              0,  1, 17));
+        list.add(new InventoryItem(BLK_OBSIDIAN,         0, 64, 18));
+        list.add(new InventoryItem(ITM_FLINT_AND_STEEL,  0,  1, 19));
+        list.add(new InventoryItem(BLK_WOOD,             0, 64, 20));
+        list.add(new InventoryItem(BLK_CRAFTING_TABLE,   0,  1, 21));
+        list.add(new InventoryItem(BLK_END_PORTAL_FRAME, 0, 12, 22));
+        list.add(new InventoryItem(ITM_EYE_OF_ENDER,     0, 12, 23));
         Chest chest = new Chest();
         chest.setItems(list);
         return chest;
@@ -717,9 +956,28 @@ public class WorldExporter {
     protected final World2 world;
     protected final int selectedDimension;
     protected final Set<Point> selectedTiles;
+    protected final Semaphore performingFixups = new Semaphore(1);
 
     private static final DateFormat DATE_FORMAT = new SimpleDateFormat("yyyyMMddHHmmss");
     private static final boolean supportSand = ! "false".equalsIgnoreCase(System.getProperty("org.pepsoft.worldpainter.supportSand"));
     private static final Logger logger = Logger.getLogger(WorldExporter.class.getName());
     private static final Object TIMING_FILE_LOCK = new Object();
+    
+    public static class ExportResults {
+        /**
+         * Whether any chunks were actually generated for this region.
+         */
+        public boolean chunksGenerated;
+        
+        /**
+         * Statistics for the generated chunks, if any
+         */
+        public final ChunkFactory.Stats stats = new ChunkFactory.Stats();
+        
+        /**
+         * Fixups which have to be performed synchronously after all regions
+         * have been generated
+         */
+        public List<Fixup> fixups;
+    }
 }

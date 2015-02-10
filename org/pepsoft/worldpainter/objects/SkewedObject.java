@@ -5,6 +5,7 @@
 package org.pepsoft.worldpainter.objects;
 
 import java.io.Serializable;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import javax.vecmath.Point3i;
@@ -36,7 +37,7 @@ public class SkewedObject extends AbstractObject {
 //            originY -= dy;
 //        }
 //        origin = new Point3i(originX, originY, orig.z);
-        attributes = object.getAttributes();
+        attributes = (object.getAttributes() != null) ? new HashMap<String, Serializable>(object.getAttributes()) : new HashMap<String, Serializable>();
         // TODO: skew offset
     }
 
@@ -89,6 +90,11 @@ public class SkewedObject extends AbstractObject {
 
     @Override
     public void setAttributes(Map<String, Serializable> attributes) {
+        throw new UnsupportedOperationException("Not supported");
+    }
+
+    @Override
+    public void setAttribute(String key, Serializable value) {
         throw new UnsupportedOperationException("Not supported");
     }
 

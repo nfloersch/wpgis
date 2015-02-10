@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.Serializable;
 import java.util.Random;
+import javax.vecmath.Point3i;
 import org.pepsoft.worldpainter.CoordinateTransform;
 import org.pepsoft.worldpainter.Dimension;
 import org.pepsoft.worldpainter.Tile;
@@ -19,7 +20,7 @@ import org.pepsoft.worldpainter.exporting.MinecraftWorld;
  * @author pepijn
  */
 public abstract class Seed implements Serializable, org.pepsoft.util.undo.Cloneable<Seed> {
-    public Seed(Garden garden, long seed, Seed parent, Point location, int germinationTime, int category) {
+    public Seed(Garden garden, long seed, Seed parent, Point3i location, int germinationTime, int category) {
         this.id = nextId++;
         this.garden = garden;
         this.parent = parent;
@@ -41,7 +42,7 @@ public abstract class Seed implements Serializable, org.pepsoft.util.undo.Clonea
         return parent;
     }
 
-    public final Point getLocation() {
+    public final Point3i getLocation() {
         return location;
     }
     
@@ -140,7 +141,30 @@ public abstract class Seed implements Serializable, org.pepsoft.util.undo.Clonea
         drawLine(location1, location2, diameter, length, category);
     }
     
+    protected final void drawLine(Point3i location1, Point3i location2, int diameter, boolean stopWhenOccupied, int category) {
+        int length = Integer.MAX_VALUE;
+        if (stopWhenOccupied) {
+            length = scanLine(location1.x, location1.y, location2.x, location2.y);
+        }
+        drawLine(location1, location2, diameter, length, category);
+    }
+    
     protected final void drawLine(Point location1, Point location2, int diameter, int maxLength, int category) {
+        if (diameter > 1) {
+            int offset = diameter / 2;
+            for (int dx = 0; dx < diameter; dx++) {
+                for (int dy = 0; dy < diameter; dy++) {
+                    if ((dx != offset) || (dy != offset)) {
+                        drawLine(location1.x + dx - offset, location1.y + dy - offset, location2.x + dx - offset, location2.y + dy - offset, maxLength, category);
+                    }
+                }
+            }
+        } else {
+            drawLine(location1.x, location1.y, location2.x, location2.y, maxLength, category);
+        }
+    }
+    
+    protected final void drawLine(Point3i location1, Point3i location2, int diameter, int maxLength, int category) {
         if (diameter > 1) {
             int offset = diameter / 2;
             for (int dx = 0; dx < diameter; dx++) {
@@ -292,7 +316,7 @@ public abstract class Seed implements Serializable, org.pepsoft.util.undo.Clonea
         id = nextId++;
     }
     
-    public final Point location;
+    public final Point3i location;
     public transient Garden garden;
     public final Seed parent;
     public final int category;

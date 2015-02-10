@@ -7,6 +7,8 @@ package org.pepsoft.worldpainter.layers.pockets;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import org.pepsoft.minecraft.Material;
+import org.pepsoft.worldpainter.MixedMaterial;
+import org.pepsoft.worldpainter.Terrain;
 import org.pepsoft.worldpainter.exporting.LayerExporter;
 import org.pepsoft.worldpainter.layers.CustomLayer;
 import org.pepsoft.worldpainter.layers.Layer;
@@ -16,7 +18,7 @@ import org.pepsoft.worldpainter.layers.Layer;
  * @author pepijn
  */
 public class UndergroundPocketsLayer extends CustomLayer {
-    public UndergroundPocketsLayer(String name, Material material, int frequency, int minLevel, int maxLevel, int scale, int colour) {
+    public UndergroundPocketsLayer(String name, MixedMaterial material, Terrain terrain, int frequency, int minLevel, int maxLevel, int scale, int colour) {
         super(name, "underground pockets of " + name, DataSize.NIBBLE, 15, colour);
         if ((frequency < 1) || (frequency > 1000)) {
             throw new IllegalArgumentException("frequency");
@@ -30,7 +32,8 @@ public class UndergroundPocketsLayer extends CustomLayer {
         if (maxLevel < minLevel) {
             throw new IllegalArgumentException("maxLevel");
         }
-        this.material = material;
+        mixedMaterial = material;
+        this.terrain = terrain;
         this.frequency = frequency;
         this.minLevel = minLevel;
         this.maxLevel = maxLevel;
@@ -52,12 +55,12 @@ public class UndergroundPocketsLayer extends CustomLayer {
         this.frequency = frequency;
     }
 
-    public Material getMaterial() {
-        return material;
+    public MixedMaterial getMaterial() {
+        return mixedMaterial;
     }
 
-    public void setMaterial(Material material) {
-        this.material = material;
+    public void setMaterial(MixedMaterial material) {
+        mixedMaterial = material;
     }
 
     public int getScale() {
@@ -84,6 +87,14 @@ public class UndergroundPocketsLayer extends CustomLayer {
         this.minLevel = minLevel;
     }
 
+    public Terrain getTerrain() {
+        return terrain;
+    }
+
+    public void setTerrain(Terrain terrain) {
+        this.terrain = terrain;
+    }
+
     @Override
     public LayerExporter<? extends Layer> getExporter() {
         return exporter;
@@ -92,10 +103,18 @@ public class UndergroundPocketsLayer extends CustomLayer {
     private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
         in.defaultReadObject();
         exporter = new UndergroundPocketsLayerExporter(this);
+        
+        // Legacy
+        if (material != null) {
+            mixedMaterial = MixedMaterial.create(material);
+            material = null;
+        }
     }
     
     private Material material;
     private int scale, frequency, maxLevel, minLevel;
+    private MixedMaterial mixedMaterial;
+    private Terrain terrain;
     private transient UndergroundPocketsLayerExporter exporter;
     
     private static final long serialVersionUID = 1L;

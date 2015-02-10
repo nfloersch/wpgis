@@ -5,6 +5,8 @@
 
 package org.pepsoft.worldpainter.operations;
 
+import org.pepsoft.util.ObjectUtils;
+
 /**
  * An object which calculates brush strengths for simple mathematical brushes,
  * which must be symmetric in both the x and y axes (so that only one quadrant
@@ -13,8 +15,9 @@ package org.pepsoft.worldpainter.operations;
  * @author pepijn
  */
 public abstract class SymmetricBrush extends AbstractBrush {
-    public SymmetricBrush(String name) {
+    public SymmetricBrush(String name, boolean rotationallySymmetric) {
         super(name);
+        this.rotationallySymmetric = rotationallySymmetric;
     }
 
     @Override
@@ -55,6 +58,10 @@ public abstract class SymmetricBrush extends AbstractBrush {
         }
     }
 
+    public final boolean isRotationallySymmetric() {
+        return rotationallySymmetric;
+    }
+
     @Override
     public final float getStrength(int centerX, int centerY, int x, int y) {
         int dx = Math.abs(x - centerX), dy = Math.abs(y - centerY);
@@ -76,6 +83,22 @@ public abstract class SymmetricBrush extends AbstractBrush {
         return getName() + " (radius=" + radius + ", brushShape=" + brushShape + ", level=" + level + ')';
     }
 
+    @Override
+    public SymmetricBrush clone() {
+        SymmetricBrush clone = (SymmetricBrush) super.clone();
+        if (strengthCache != null) {
+            clone.strengthCache = ObjectUtils.clone(strengthCache);
+        }
+        if (fullStrengthCache != null) {
+            if (fullStrengthCache == strengthCache) {
+                clone.fullStrengthCache = clone.strengthCache;
+            } else {
+                clone.fullStrengthCache = ObjectUtils.clone(fullStrengthCache);
+            }
+        }
+        return clone;
+    }
+    
     protected abstract float calcStrength(int dx, int dy);
     
     private void cacheStrengths() {
@@ -112,12 +135,13 @@ public abstract class SymmetricBrush extends AbstractBrush {
         }
     }
 
+    private final boolean rotationallySymmetric;
     private int radius, cachedRadius;
     private BrushShape brushShape, cachedBrushshape;
     private float[][] strengthCache, fullStrengthCache;
     private float level = 1.0f, cachedLevel = 1.0f;
 
-    public static final SymmetricBrush CONSTANT_CIRCLE = new RadialBrush("Constant Circle") {
+    public static final SymmetricBrush CONSTANT_CIRCLE = new RadialBrush("Constant Circle", true) {
         {
             setBrushShape(BrushShape.CIRCLE);
         }
@@ -128,7 +152,7 @@ public abstract class SymmetricBrush extends AbstractBrush {
         }
     };
 
-    public static final SymmetricBrush CONSTANT_SQUARE = new RadialBrush("Constant Square") {
+    public static final SymmetricBrush CONSTANT_SQUARE = new RadialBrush("Constant Square", false) {
         {
             setBrushShape(BrushShape.SQUARE);
         }
@@ -139,7 +163,7 @@ public abstract class SymmetricBrush extends AbstractBrush {
         }
     };
     
-    public static final SymmetricBrush LINEAR_CIRCLE = new RadialBrush("Linear Circle") {
+    public static final SymmetricBrush LINEAR_CIRCLE = new RadialBrush("Linear Circle", true) {
         {
             setBrushShape(BrushShape.CIRCLE);
         }
@@ -150,7 +174,7 @@ public abstract class SymmetricBrush extends AbstractBrush {
         }
     };
 
-    public static final SymmetricBrush LINEAR_SQUARE = new RadialBrush("Linear Square") {
+    public static final SymmetricBrush LINEAR_SQUARE = new RadialBrush("Linear Square", false) {
         {
             setBrushShape(BrushShape.SQUARE);
         }
@@ -161,7 +185,7 @@ public abstract class SymmetricBrush extends AbstractBrush {
         }
     };
 
-    public static final SymmetricBrush COSINE_CIRCLE = new RadialBrush("Sine Circle") {
+    public static final SymmetricBrush COSINE_CIRCLE = new RadialBrush("Sine Circle", true) {
         {
             setBrushShape(BrushShape.CIRCLE);
         }
@@ -172,7 +196,7 @@ public abstract class SymmetricBrush extends AbstractBrush {
         }
     };
     
-    public static final SymmetricBrush COSINE_SQUARE = new RadialBrush("Sine Square") {
+    public static final SymmetricBrush COSINE_SQUARE = new RadialBrush("Sine Square", false) {
         {
             setBrushShape(BrushShape.SQUARE);
         }
@@ -183,7 +207,7 @@ public abstract class SymmetricBrush extends AbstractBrush {
         }
     };
 
-    public static final SymmetricBrush PLATEAU_CIRCLE = new RadialBrush("Plateau Circle") {
+    public static final SymmetricBrush PLATEAU_CIRCLE = new RadialBrush("Plateau Circle", true) {
         {
             setBrushShape(BrushShape.CIRCLE);
         }
@@ -198,7 +222,7 @@ public abstract class SymmetricBrush extends AbstractBrush {
         }
     };
     
-    public static final SymmetricBrush PLATEAU_SQUARE = new RadialBrush("Plateau Square") {
+    public static final SymmetricBrush PLATEAU_SQUARE = new RadialBrush("Plateau Square", false) {
         {
             setBrushShape(BrushShape.SQUARE);
         }
@@ -213,7 +237,7 @@ public abstract class SymmetricBrush extends AbstractBrush {
         }
     };
 
-    public static final SymmetricBrush SPIKE_CIRCLE = new RadialBrush("Spike Circle") {
+    public static final SymmetricBrush SPIKE_CIRCLE = new RadialBrush("Spike Circle", true) {
         {
             setBrushShape(BrushShape.CIRCLE);
         }
@@ -224,7 +248,7 @@ public abstract class SymmetricBrush extends AbstractBrush {
         }
     };
 
-    public static final SymmetricBrush SPIKE_SQUARE = new RadialBrush("Spike Square") {
+    public static final SymmetricBrush SPIKE_SQUARE = new RadialBrush("Spike Square", false) {
         {
             setBrushShape(BrushShape.SQUARE);
         }
@@ -235,5 +259,27 @@ public abstract class SymmetricBrush extends AbstractBrush {
         }
     };
 
+    public static final SymmetricBrush DOME_CIRCLE = new RadialBrush("Dome Circle", true) {
+        {
+            setBrushShape(BrushShape.CIRCLE);
+        }
+        
+        @Override
+        protected float calcStrength(float dr) {
+            return (float) Math.sqrt(1 - dr * dr);
+        }
+    };
+
+    public static final SymmetricBrush DOME_SQUARE = new RadialBrush("Dome Square", false) {
+        {
+            setBrushShape(BrushShape.SQUARE);
+        }
+        
+        @Override
+        protected float calcStrength(float dr) {
+            return (float) Math.sqrt(1 - dr * dr);
+        }
+    };
+    
     private static final float TWO_PI = (float) (Math.PI * 2);
 }

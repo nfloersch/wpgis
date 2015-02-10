@@ -25,9 +25,7 @@ public class QueueLinearFloodFiller {
     // Whether to remove a layer of material instead of adding it
     private final boolean undo;
     //cached image properties
-    protected int width = 0;
-    protected int height = 0;
-    protected int offsetX, offsetY;
+    private final int width, height, offsetX, offsetY;
     //internal, initialized per fill
     protected BitSet blocksChecked;
     //Queue of floodfill ranges
@@ -57,6 +55,11 @@ public class QueueLinearFloodFiller {
     // Fills the specified point on the bitmap with the currently selected fill color.
     // int x, int y: The starting coords for the fill
     public boolean floodFill(int x, int y, Window parent) {
+        // Normalise coordinates (the algorithm needs them to always be
+        // positive)
+        x -= offsetX;
+        y -= offsetY;
+        
         //Setup
         prepare();
 
@@ -85,15 +88,17 @@ public class QueueLinearFloodFiller {
 
                     @Override
                     public Dimension execute(ProgressReceiver progressReceiver) throws OperationCancelled {
-                        //***Call floodfill routine while floodfill ranges still exist on the queue
-                        FloodFillRange range;
-                        while (ranges.size() > 0) {
-                            //**Get Next Range Off the Queue
-                            range = ranges.remove();
-                            processRange(range);
-                            progressReceiver.checkForCancellation();
+                        synchronized (dimension) {
+                            //***Call floodfill routine while floodfill ranges still exist on the queue
+                            FloodFillRange range;
+                            while (ranges.size() > 0) {
+                                //**Get Next Range Off the Queue
+                                range = ranges.remove();
+                                processRange(range);
+                                progressReceiver.checkForCancellation();
+                            }
+                            return dimension;
                         }
-                        return dimension;
                     }
                 }) == null) {
                     // Operation cancelled
@@ -195,7 +200,6 @@ public class QueueLinearFloodFiller {
     protected boolean checkBlock(int px) {
         int y = px / width;
         int x = px % width;
-        // If block is VOID return
         if (dimension.getBitLayerValueAt(org.pepsoft.worldpainter.layers.Void.INSTANCE, offsetX + x, offsetY + y)) {
             return false;
         } else {
@@ -207,7 +211,8 @@ public class QueueLinearFloodFiller {
             } else {
                 return (height != -1)
                     && (waterLevel > height)
-                    && (waterLevel > dimension.getWaterLevelAt(offsetX + x, offsetY + y));
+                    && ((waterLevel > dimension.getWaterLevelAt(offsetX + x, offsetY + y))
+                        || (floodWithLava != dimension.getBitLayerValueAt(FloodWithLava.INSTANCE, offsetX + x, offsetY + y)));
             }
         }
     }

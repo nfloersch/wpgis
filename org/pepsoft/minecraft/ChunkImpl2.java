@@ -16,7 +16,8 @@ import org.jnbt.Tag;
 import static org.pepsoft.minecraft.Constants.*;
 
 /**
- *
+ * An "Anvil" chunk.
+ * 
  * @author pepijn
  */
 public final class ChunkImpl2 extends AbstractNBTItem implements Chunk {
@@ -149,11 +150,10 @@ public final class ChunkImpl2 extends AbstractNBTItem implements Chunk {
 
     @Override
     public int getBlockType(int x, int y, int z) {
-        int level = y >> 4;
-        if (sections[level] == null) {
+        Section section = sections[y >> 4];
+        if (section == null) {
             return 0;
         } else {
-            Section section = sections[level];
             if (section.add != null) {
                 return (section.blocks[blockOffset(x, y, z)] & 0xFF) | (getDataByte(section.add, x, y, z) << 8);
             } else {
@@ -164,9 +164,6 @@ public final class ChunkImpl2 extends AbstractNBTItem implements Chunk {
 
     @Override
     public void setBlockType(int x, int y, int z, int blockType) {
-//        if ((blockType < 0) || (blockType > 4095)) {
-//            throw new IllegalArgumentException("blockType " + blockType);
-//        }
         if (readOnly) {
             return;
         }
@@ -182,6 +179,10 @@ public final class ChunkImpl2 extends AbstractNBTItem implements Chunk {
                 section.add = new byte[128 * 16];
             }
             setDataByte(section.add, x, y, z, blockType >> 8);
+        } else if (section.add != null) {
+            // An extended block might have been set earlier, so zero out the
+            // high portion
+            setDataByte(section.add, x, y, z, 0);
         }
     }
 
@@ -204,10 +205,12 @@ public final class ChunkImpl2 extends AbstractNBTItem implements Chunk {
             return;
         }
         int level = y >> 4;
-        if (sections[level] == null) {
-            sections[level] = new Section((byte) level);
+        Section section = sections[level];
+        if (section == null) {
+            section = new Section((byte) level);
+            sections[level] = section;
         }
-        setDataByte(sections[level].data, x, y, z, dataValue);
+        setDataByte(section.data, x, y, z, dataValue);
     }
 
     @Override
@@ -229,10 +232,12 @@ public final class ChunkImpl2 extends AbstractNBTItem implements Chunk {
             return;
         }
         int level = y >> 4;
-        if (sections[level] == null) {
-            sections[level] = new Section((byte) level);
+        Section section = sections[level];
+        if (section == null) {
+            section = new Section((byte) level);
+            sections[level] = section;
         }
-        setDataByte(sections[level].skyLight, x, y, z, skyLightLevel);
+        setDataByte(section.skyLight, x, y, z, skyLightLevel);
     }
 
     @Override
@@ -254,10 +259,12 @@ public final class ChunkImpl2 extends AbstractNBTItem implements Chunk {
             return;
         }
         int level = y >> 4;
-        if (sections[level] == null) {
-            sections[level] = new Section((byte) level);
+        Section section = sections[level];
+        if (section == null) {
+            section = new Section((byte) level);
+            sections[level] = section;
         }
-        setDataByte(sections[level].blockLight, x, y, z, blockLightLevel);
+        setDataByte(section.blockLight, x, y, z, blockLightLevel);
     }
 
     @Override
@@ -319,13 +326,42 @@ public final class ChunkImpl2 extends AbstractNBTItem implements Chunk {
 
     @Override
     public Material getMaterial(int x, int y, int z) {
-        return Material.get(getBlockType(x, y, z), getDataValue(x, y, z));
+        Section section = sections[y >> 4];
+        if (section == null) {
+            return Material.AIR;
+        } else {
+            if (section.add != null) {
+                return Material.get((section.blocks[blockOffset(x, y, z)] & 0xFF) | (getDataByte(section.add, x, y, z) << 8), getDataByte(section.data, x, y, z));
+            } else {
+                return Material.get(section.blocks[blockOffset(x, y, z)] & 0xFF, getDataByte(section.data, x, y, z));
+            }
+        }
     }
 
     @Override
     public void setMaterial(int x, int y, int z, Material material) {
-        setBlockType(x, y, z, material.getBlockType());
-        setDataValue(x, y, z, material.getData());
+        if (readOnly) {
+            return;
+        }
+        int level = y >> 4;
+        Section section = sections[level];
+        if (section == null) {
+            section = new Section((byte) level);
+            sections[level] = section;
+        }
+        int blockType = material.getBlockType();
+        section.blocks[blockOffset(x, y, z)] = (byte) blockType;
+        if (blockType > 255) {
+            if (section.add == null) {
+                section.add = new byte[128 * 16];
+            }
+            setDataByte(section.add, x, y, z, blockType >> 8);
+        } else if (section.add != null) {
+            // An extended block might have been set earlier, so zero out the
+            // high portion
+            setDataByte(section.add, x, y, z, 0);
+        }
+        setDataByte(section.data, x, y, z, material.getData());
     }
 
     @Override
@@ -462,43 +498,28 @@ public final class ChunkImpl2 extends AbstractNBTItem implements Chunk {
         boolean isEmpty() {
             for (byte b: blocks) {
                 if (b != 0) {
-//                    if (level == 15) {
-//                        System.out.println("Top section not empty due to block " + b + "!");
-//                    }
                     return false;
                 }
             }
             if (add != null) {
                 for (byte b: add) {
                     if (b != 0) {
-//                        if (level == 15) {
-//                            System.out.println("Top section not empty due to additional ID for block " + b + "!");
-//                        }
                         return false;
                     }
                 }
             }
             for (byte b: skyLight) {
                 if (b != -1) {
-//                    if (level == 15) {
-//                        System.out.println("Top section not empty due to sky light " + b + "!");
-//                    }
                     return false;
                 }
             }
             for (byte b: blockLight) {
                 if (b != 0) {
-//                    if (level == 15) {
-//                        System.out.println("Top section not empty due to block light " + b + "!");
-//                    }
                     return false;
                 }
             }
             for (byte b: data) {
                 if (b != 0) {
-//                    if (level == 15) {
-//                        System.out.println("Top section not empty due to data value " + b + "!");
-//                    }
                     return false;
                 }
             }

@@ -13,7 +13,9 @@ import java.util.NoSuchElementException;
 import java.util.Set;
 
 /**
- * A combination of the List and Set interfaces.
+ * A combination of the List and Set interfaces. A List which can only contain
+ * equal objects once (according to their <code>equals()</code> and
+ * <code>hashCode()</code> methods). Or in other words an ordered Set.
  * 
  * <p>This collection's iterator is read-only and does not support the add(),
  * etc. methods. It is also <i>not</i> fail-fast! If you modify the collection
@@ -37,6 +39,7 @@ public class HashList<E> extends AbstractList<E> implements Set<E> {
     }
     
     @Override
+    @SuppressWarnings("element-type-mismatch")
     public boolean contains(Object o) {
         return map.containsKey(o);
     }
@@ -85,6 +88,7 @@ public class HashList<E> extends AbstractList<E> implements Set<E> {
     }
 
     @Override
+    @SuppressWarnings("element-type-mismatch")
     public boolean remove(Object o) {
         if (map.containsKey(o)) {
             Element element = map.remove(o);
@@ -113,6 +117,7 @@ public class HashList<E> extends AbstractList<E> implements Set<E> {
         return map.size();
     }
 
+    @Override
     public E get(int index) {
         if ((index < 0) || (index >= map.size())) {
             throw new IndexOutOfBoundsException(Integer.toString(index));
@@ -177,6 +182,7 @@ public class HashList<E> extends AbstractList<E> implements Set<E> {
     }
 
     @Override
+    @SuppressWarnings("element-type-mismatch")
     public int indexOf(Object o) {
         if (! map.containsKey(o)) {
             return -1;
@@ -207,23 +213,27 @@ public class HashList<E> extends AbstractList<E> implements Set<E> {
         }
         final Element startElement = element;
         return new ListIterator<E>() {
+            @Override
             public boolean hasNext() {
                 return element.next != anchor;
             }
 
+            @Override
             public E next() {
-                element = element.next;
-                if (element == anchor) {
+                if (element.next == anchor) {
                     throw new NoSuchElementException();
                 }
+                element = element.next;
                 index++;
                 return element.object;
             }
 
+            @Override
             public boolean hasPrevious() {
                 return element != anchor;
             }
 
+            @Override
             public E previous() {
                 if (element == anchor) {
                     throw new NoSuchElementException();
@@ -234,22 +244,27 @@ public class HashList<E> extends AbstractList<E> implements Set<E> {
                 return obj;
             }
 
+            @Override
             public int nextIndex() {
                 return index + 1;
             }
 
+            @Override
             public int previousIndex() {
                 return index;
             }
 
+            @Override
             public void remove() {
                 HashList.this.remove(element.object);
             }
 
+            @Override
             public void set(E e) {
                 throw new UnsupportedOperationException("Not supported");
             }
 
+            @Override
             public void add(E e) {
                 throw new UnsupportedOperationException("Not supported");
             }
@@ -260,7 +275,7 @@ public class HashList<E> extends AbstractList<E> implements Set<E> {
     }
 
     private final Map<E, Element> map;
-    private Element anchor;
+    private final Element anchor;
     
     class Element {
         Element(E object) {

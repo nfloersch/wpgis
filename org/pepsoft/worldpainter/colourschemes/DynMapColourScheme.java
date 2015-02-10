@@ -8,6 +8,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.util.Arrays;
 import org.jetbrains.annotations.NonNls;
 import org.pepsoft.minecraft.Material;
 import org.pepsoft.worldpainter.ColourScheme;
@@ -17,30 +18,34 @@ import org.pepsoft.worldpainter.ColourScheme;
  * @author pepijn
  */
 public final class DynMapColourScheme implements ColourScheme {
-    public DynMapColourScheme(InputStream in) { 
-        loadColours(in);
+    public DynMapColourScheme(InputStream in, boolean bright) { 
+        loadColours(in, bright);
     }
 
-    public DynMapColourScheme(@NonNls String name) {
-        loadColours(DynMapColourScheme.class.getResourceAsStream(name + ".txt"));
+    public DynMapColourScheme(@NonNls String name, boolean bright) {
+        loadColours(DynMapColourScheme.class.getResourceAsStream(name + ".txt"), bright);
     }
     
     @Override
     public int getColour(int blockType) {
-        return COLOURS[blockType];
+        return (blockType < 256) ? COLOURS[blockType] : UNKNOWN_BLOCK_TYPE_COLOUR;
     }
 
     @Override
     public int getColour(int blockType, int dataValue) {
-        return COLOURS[blockType + dataValue * 256];
+        return (blockType < 256) ? COLOURS[blockType + dataValue * 256] : UNKNOWN_BLOCK_TYPE_COLOUR;
     }
 
     @Override
     public int getColour(Material material) {
-        return COLOURS[material.getBlockType() + material.getData() * 256];
+        final int blockType = material.getBlockType();
+        return (blockType < 256) ? COLOURS[blockType + material.getData() * 256] : UNKNOWN_BLOCK_TYPE_COLOUR;
     }
     
-    private void loadColours(InputStream in) {
+    private void loadColours(InputStream in, boolean bright) {
+        // Make all unknown blocks cyan instead of black
+        Arrays.fill(COLOURS, UNKNOWN_BLOCK_TYPE_COLOUR);
+        
         try {
             try {
                 BufferedReader reader = new BufferedReader(new InputStreamReader(in));
@@ -82,9 +87,17 @@ public final class DynMapColourScheme implements ColourScheme {
                     //  4  5  6  7 3
                     //  8  9 10 11 1
                     // 12 13 14 15 2
-                    int red   = (colourComponents[ 8] + colourComponents[4]) / 2;
-                    int green = (colourComponents[ 9] + colourComponents[5]) / 2;
-                    int blue  = (colourComponents[10] + colourComponents[6]) / 2;
+                    int red, green, blue;
+                    if (bright) {
+                        red   = colourComponents[0];
+                        green = colourComponents[1];
+                        blue  = colourComponents[2];
+                    } else {
+                        red   = (colourComponents[ 8] + colourComponents[4]) / 2;
+                        green = (colourComponents[ 9] + colourComponents[5]) / 2;
+                        blue  = (colourComponents[10] + colourComponents[6]) / 2;
+                    }
+
                     int colour = (red << 16) | (green << 8) | blue;
                     
                     // Store the colour
@@ -105,4 +118,6 @@ public final class DynMapColourScheme implements ColourScheme {
     }
     
     private final int COLOURS[] = new int[256 * 16];
+    
+    private static final int UNKNOWN_BLOCK_TYPE_COLOUR = 0x00ffff; // Cyan
 }

@@ -228,6 +228,11 @@ public class ParallelProgressManager {
         public void checkForCancellation() throws OperationCancelled {
             ParallelProgressManager.this.checkForCancellation();
         }
+
+        @Override
+        public void reset() {
+            throw new UnsupportedOperationException("Not supported");
+        }
         
         private final int index;
     }

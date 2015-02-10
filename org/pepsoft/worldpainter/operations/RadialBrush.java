@@ -7,15 +7,15 @@ package org.pepsoft.worldpainter.operations;
 import org.pepsoft.util.MathUtils;
 
 /**
- * A brush where the strength is purely a function of the distance from the
- * middle of the brush (in other words, a circular symmetric brush). This class
- * automatically supports square brushes by mapping the distance appropriately.
+ * A brush where the strength is purely a function of the angle to and distance
+ * from the middle of the brush. This class automatically supports square
+ * brushes by mapping the distance appropriately.
  *
  * @author pepijn
  */
 public abstract class RadialBrush extends SymmetricBrush {
-    public RadialBrush(String name) {
-        super(name);
+    public RadialBrush(String name, boolean rotationallySymmetric) {
+        super(name, rotationallySymmetric);
     }
     
     @Override

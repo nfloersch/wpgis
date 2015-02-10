@@ -41,9 +41,9 @@ public class Statistics {
                 return regionFilePattern.matcher(name).matches();
             }
         });
-        int[][] blockTypeCounts = new int[maxHeight][256];
-        int[][] blockTypeTotals = new int[maxHeight][256];
-        int totalBlockCount = 0, totalBlocksPerLevel = 0;
+        int[][] blockTypeCounts = new int[maxHeight >> 4][256];
+        int[][] blockTypeTotals = new int[maxHeight >> 4][256];
+//        int totalBlockCount = 0, totalBlocksPerLevel = 0;
         System.out.println("Scanning " + worldDir);
         System.out.print('|');
         for (int i = 0; i < regionFiles.length - 2; i++) {
@@ -56,7 +56,7 @@ public class Statistics {
                 for (int x = 0; x < 32; x++) {
                     for (int z = 0; z < 32; z++) {
                         if (regionFile.containsChunk(x, z)) {
-                            totalBlocksPerLevel += 256;
+//                            totalBlocksPerLevel += 256;
                             
 //                            System.out.println("Chunk " + x + ", " + z);
 //                            System.out.print('.');
@@ -75,9 +75,9 @@ public class Statistics {
                                 for (int zz = 0; zz < 16; zz++) {
                                     for (int y = maxY; y >= 0; y--) {
                                         int blockType = chunk.getBlockType(xx, y, zz);
-                                        blockTypeCounts[y][blockType]++;
-                                        blockTypeTotals[y][blockType]++;
-                                        totalBlockCount++;
+                                        blockTypeCounts[y >> 4][blockType]++;
+                                        blockTypeTotals[y >> 4][blockType]++;
+//                                        totalBlockCount++;
                                     }
                                 }
                             }
@@ -93,7 +93,7 @@ public class Statistics {
         System.out.println();
         
         System.out.println("\tDirt\tGravel\tGold\tIron\tCoal\tLapis\tDiamond\tRedstoneEmerald\tWater\tLava");
-        for (int y = 0; y < maxHeight; y++) {
+        for (int y = 0; y < maxHeight >> 4; y++) {
             int stoneLikeTotal = blockTypeTotals[y][BLK_STONE]
                                + blockTypeTotals[y][BLK_GOLD_ORE]
                                + blockTypeTotals[y][BLK_IRON_ORE]
@@ -105,21 +105,21 @@ public class Statistics {
                                + blockTypeTotals[y][BLK_EMERALD_ORE]
                                + blockTypeTotals[y][BLK_DIRT]
                                + blockTypeTotals[y][BLK_GRAVEL]
-                               + blockTypeTotals[y][BLK_STATIONARY_WATER]
-                               + blockTypeTotals[y][BLK_STATIONARY_LAVA];
+                               + blockTypeTotals[y][BLK_WATER]
+                               + blockTypeTotals[y][BLK_LAVA];
 //            System.out.println("Total stonelike blocks: " + stoneLikeTotal);
             System.out.print(y + "\t");
-            System.out.printf("%6.1f‰\t", ((float) blockTypeTotals[y][BLK_DIRT] / stoneLikeTotal * 1000));
-            System.out.printf("%6.1f‰\t", ((float) blockTypeTotals[y][BLK_GRAVEL] / stoneLikeTotal * 1000));
-            System.out.printf("%6.1f‰\t", ((float) blockTypeTotals[y][BLK_GOLD_ORE] / stoneLikeTotal * 1000));
-            System.out.printf("%6.1f‰\t", ((float) blockTypeTotals[y][BLK_IRON_ORE] / stoneLikeTotal * 1000));
-            System.out.printf("%6.1f‰\t", ((float) blockTypeTotals[y][BLK_COAL] / stoneLikeTotal * 1000));
-            System.out.printf("%6.1f‰\t", ((float) blockTypeTotals[y][BLK_LAPIS_LAZULI_ORE] / stoneLikeTotal * 1000));
-            System.out.printf("%6.1f‰\t", ((float) blockTypeTotals[y][BLK_DIAMOND_ORE] / stoneLikeTotal * 1000));
-            System.out.printf("%6.1f‰\t", ((float) (blockTypeTotals[y][BLK_REDSTONE_ORE] + blockTypeTotals[y][BLK_GLOWING_REDSTONE_ORE]) / stoneLikeTotal * 1000));
-            System.out.printf("%6.1f‰\t", ((float) blockTypeTotals[y][BLK_EMERALD_ORE] / stoneLikeTotal * 1000));
-            System.out.printf("%6.1f‰\t", ((float) (blockTypeTotals[y][BLK_STATIONARY_WATER]) / stoneLikeTotal * 1000));
-            System.out.printf("%6.1f‰%n", ((float) (blockTypeTotals[y][BLK_STATIONARY_LAVA]) / stoneLikeTotal * 1000));
+            System.out.printf("%6.2f‰\t", ((float) blockTypeTotals[y][BLK_DIRT] / stoneLikeTotal * 1000));
+            System.out.printf("%6.2f‰\t", ((float) blockTypeTotals[y][BLK_GRAVEL] / stoneLikeTotal * 1000));
+            System.out.printf("%6.2f‰\t", ((float) blockTypeTotals[y][BLK_GOLD_ORE] / stoneLikeTotal * 1000));
+            System.out.printf("%6.2f‰\t", ((float) blockTypeTotals[y][BLK_IRON_ORE] / stoneLikeTotal * 1000));
+            System.out.printf("%6.2f‰\t", ((float) blockTypeTotals[y][BLK_COAL] / stoneLikeTotal * 1000));
+            System.out.printf("%6.2f‰\t", ((float) blockTypeTotals[y][BLK_LAPIS_LAZULI_ORE] / stoneLikeTotal * 1000));
+            System.out.printf("%6.2f‰\t", ((float) blockTypeTotals[y][BLK_DIAMOND_ORE] / stoneLikeTotal * 1000));
+            System.out.printf("%6.2f‰\t", ((float) (blockTypeTotals[y][BLK_REDSTONE_ORE] + blockTypeTotals[y][BLK_GLOWING_REDSTONE_ORE]) / stoneLikeTotal * 1000));
+            System.out.printf("%6.2f‰\t", ((float) blockTypeTotals[y][BLK_EMERALD_ORE] / stoneLikeTotal * 1000));
+            System.out.printf("%6.2f‰\t", ((float) (blockTypeTotals[y][BLK_WATER]) / stoneLikeTotal * 1000));
+            System.out.printf("%6.2f‰%n", ((float) (blockTypeTotals[y][BLK_LAVA]) / stoneLikeTotal * 1000));
         }
     }
 }

@@ -34,6 +34,7 @@ public class Bo2ObjectTube implements Bo2ObjectProvider {
         return name;
     }
 
+    @Override
     public void setSeed(long seed) {
         random.setSeed(seed);
     }

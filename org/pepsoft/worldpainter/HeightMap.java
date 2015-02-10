@@ -4,6 +4,7 @@
  */
 package org.pepsoft.worldpainter;
 
+import java.awt.Rectangle;
 import java.io.Serializable;
 
 /**
@@ -11,6 +12,8 @@ import java.io.Serializable;
  * @author pepijn
  */
 public interface HeightMap extends Serializable {
+    String getName();
+    
     long getSeed();
     
     void setSeed(long seed);
@@ -18,4 +21,10 @@ public interface HeightMap extends Serializable {
     float getHeight(int x, int y);
     
     float getBaseHeight();
+    
+    HeightMap clone();
+    
+    Rectangle getExtent();
+    
+    int getColour(int x, int y);
 }

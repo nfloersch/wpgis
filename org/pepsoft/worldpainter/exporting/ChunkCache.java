@@ -47,7 +47,7 @@ public class ChunkCache {
         this.version = version;
         long maxMemory = Runtime.getRuntime().maxMemory();
         minimumFreeMemory = Math.min(maxMemory / 4, 256 * 1024 * 1024);
-        System.out.println("Creating cache; minimum free memory: " + minimumFreeMemory + " bytes");
+//        System.out.println("Creating cache; minimum free memory: " + minimumFreeMemory + " bytes");
     }
     
     public boolean chunkExists(Point coords) throws IOException {
@@ -99,7 +99,7 @@ public class ChunkCache {
      * Save all dirty chunks and then clear the cache and release all resources.
      */
     public void flush() throws IOException {
-        System.out.println("Flushing cache");
+//        System.out.println("Flushing cache");
         for (Chunk dirtyChunk: dirtyChunks) {
             saveChunk(dirtyChunk);
         }
@@ -111,7 +111,7 @@ public class ChunkCache {
     
     private Chunk loadChunk(Point coords) throws IOException {
         int x = coords.x, z = coords.y;
-        System.out.println("Loading chunk " + x + "," + z);
+//        System.out.println("Loading chunk " + x + "," + z);
         RegionFile regionFile = RegionFileCache.getRegionFile(dir, x, z, version);
         openRegionFiles.add(regionFile);
         DataInputStream dataIn = regionFile.getChunkDataInputStream(x & 0x1F, z & 0x1F);
@@ -129,7 +129,7 @@ public class ChunkCache {
     
     private void saveChunk(Chunk chunk) throws IOException {
         int x = chunk.getxPos(), z = chunk.getzPos();
-        System.out.println("Saving chunk " + x + "," + z);
+//        System.out.println("Saving chunk " + x + "," + z);
         RegionFile regionFile = RegionFileCache.getRegionFile(dir, x, z, version);
         openRegionFiles.add(regionFile);
         NBTOutputStream out = new NBTOutputStream(regionFile.getChunkDataOutputStream(x & 0x1F, z & 0x1F));
@@ -154,7 +154,7 @@ public class ChunkCache {
     
     private void flushRegionFiles() throws IOException {
         for (RegionFile regionFile: openRegionFiles) {
-            System.out.println("Closing region file");
+//            System.out.println("Closing region file");
             regionFile.close();
         }
         openRegionFiles.clear();
@@ -179,30 +179,30 @@ public class ChunkCache {
     private final Set<RegionFile> openRegionFiles = new HashSet<RegionFile>();
     
     private static final Chunk NON_EXISTANT_CHUNK = new Chunk() {
-        public int getBlockLightLevel(int x, int y, int z) {return 0;}
-        public void setBlockLightLevel(int x, int y, int z, int blockLightLevel) {}
-        public int getBlockType(int x, int y, int z) {return 0;}
-        public void setBlockType(int x, int y, int z, int blockType) {}
-        public int getDataValue(int x, int y, int z) {return 0;}
-        public void setDataValue(int x, int y, int z, int dataValue) {}
-        public int getHeight(int x, int z) {return 0;}
-        public void setHeight(int x, int z, int height) {}
-        public int getSkyLightLevel(int x, int y, int z) {return 0;}
-        public void setSkyLightLevel(int x, int y, int z, int skyLightLevel) {}
-        public int getxPos() {return 0;}
-        public int getzPos() {return 0;}
-        public Point getCoords() {return null;}
-        public boolean isTerrainPopulated() {return false;}
-        public Material getMaterial(int x, int y, int z) {return null;}
-        public void setMaterial(int x, int y, int z, Material material) {}
-        public List<Entity> getEntities() {return null;}
-        public List<TileEntity> getTileEntities() {return null;}
-        public int getMaxHeight() {return 0;}
-        public Tag toNBT() {return null;}
-        public void setTerrainPopulated(boolean terrainPopulated) {}
-        public boolean isBiomesAvailable() {return false;}
-        public int getBiome(int x, int z) {return 0;}
-        public void setBiome(int x, int z, int biome) {}
-        public boolean isReadOnly() {return false;}
+        @Override public int getBlockLightLevel(int x, int y, int z) {return 0;}
+        @Override public void setBlockLightLevel(int x, int y, int z, int blockLightLevel) {}
+        @Override public int getBlockType(int x, int y, int z) {return 0;}
+        @Override public void setBlockType(int x, int y, int z, int blockType) {}
+        @Override public int getDataValue(int x, int y, int z) {return 0;}
+        @Override public void setDataValue(int x, int y, int z, int dataValue) {}
+        @Override public int getHeight(int x, int z) {return 0;}
+        @Override public void setHeight(int x, int z, int height) {}
+        @Override public int getSkyLightLevel(int x, int y, int z) {return 0;}
+        @Override public void setSkyLightLevel(int x, int y, int z, int skyLightLevel) {}
+        @Override public int getxPos() {return 0;}
+        @Override public int getzPos() {return 0;}
+        @Override public Point getCoords() {return null;}
+        @Override public boolean isTerrainPopulated() {return false;}
+        @Override public Material getMaterial(int x, int y, int z) {return null;}
+        @Override public void setMaterial(int x, int y, int z, Material material) {}
+        @Override public List<Entity> getEntities() {return null;}
+        @Override public List<TileEntity> getTileEntities() {return null;}
+        @Override public int getMaxHeight() {return 0;}
+        @Override public Tag toNBT() {return null;}
+        @Override public void setTerrainPopulated(boolean terrainPopulated) {}
+        @Override public boolean isBiomesAvailable() {return false;}
+        @Override public int getBiome(int x, int z) {return 0;}
+        @Override public void setBiome(int x, int z, int biome) {}
+        @Override public boolean isReadOnly() {return false;}
     };
 }

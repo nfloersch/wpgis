@@ -9,6 +9,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Random;
 import static org.pepsoft.minecraft.Constants.*;
+import org.pepsoft.util.FileUtils;
 import org.pepsoft.util.ProgressReceiver.OperationCancelled;
 import org.pepsoft.worldpainter.Dimension;
 import org.pepsoft.worldpainter.Terrain;
@@ -25,17 +26,17 @@ import org.pepsoft.worldpainter.gardenofeden.Garden;
  */
 public class TestTool {
     public static void main(String[] args) throws IOException, OperationCancelled {
-//        TileFactory tileFactory = new NoiseTileFactory(Terrain.GRASS, DEFAULT_MAX_HEIGHT_2, 58, 62, false, false);
-        TileFactory tileFactory = TileFactoryFactory.createFlatTileFactory(Terrain.GRASS, DEFAULT_MAX_HEIGHT_2, 62, 0, false, false);
         Random random = new Random();
         long seed = random.nextLong();
-        World2 world = new World2(seed, seed, tileFactory, DEFAULT_MAX_HEIGHT_2);
+//        TileFactory tileFactory = new NoiseTileFactory(Terrain.GRASS, DEFAULT_MAX_HEIGHT_2, 58, 62, false, false);
+        TileFactory tileFactory = TileFactoryFactory.createFlatTileFactory(seed, Terrain.GRASS, DEFAULT_MAX_HEIGHT_2, 62, 0, false, false);
+        World2 world = new World2(seed, tileFactory, DEFAULT_MAX_HEIGHT_2);
         world.setVersion(SUPPORTED_VERSION_2);
         world.setName("TestWorld");
         world.setSpawnPoint(new Point(64, 64));
         world.setGameType(GAME_TYPE_CREATIVE);
         Dimension dimension = world.getDimension(0);
-        dimension.addTile(tileFactory.createTile(seed, 0, 0));
+        dimension.addTile(tileFactory.createTile(0, 0));
         Garden garden = dimension.getGarden();
 //        Inn inn = new Inn(garden, seed, null, new Point(64, 64), 1, 9, 9, EAST, 3, RandomOne.of(ThemeManager.getInstance().getThemes()), false, true, true, true, true, true, true, true, true, true, true, Inn.createName(seed));
 //        Inn inn = new Inn(garden, seed, null, new Point(48, 48), 1, 9, 9, SOUTH, 3, RandomOne.of(ThemeManager.getInstance().getThemes()), false, true, true, true, true, true, true, true, true, true, true, Inn.createName(seed));
@@ -49,6 +50,7 @@ public class TestTool {
 //        garden.plantSeed(inn);
         while (! garden.tick());
         WorldExporter worldExporter = new WorldExporter(world);
-        worldExporter.export(new File(args[0]), "TestWorld", null);
+        File exportDir = new File(args[0]);
+        worldExporter.export(exportDir, "TestWorld", worldExporter.selectBackupDir(new File(exportDir, "TestWorld")), null);
     }
 }

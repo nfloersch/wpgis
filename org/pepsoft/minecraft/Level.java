@@ -25,6 +25,7 @@ import org.jnbt.NBTInputStream;
 import org.jnbt.NBTOutputStream;
 import org.jnbt.Tag;
 import static org.pepsoft.minecraft.Constants.*;
+import org.pepsoft.worldpainter.AccessDeniedException;
 import org.pepsoft.worldpainter.Generator;
 
 /**
@@ -67,7 +68,7 @@ public final class Level extends AbstractNBTItem {
     public void save(File worldDir) throws IOException {
         if (! worldDir.exists()) {
             if (! worldDir.mkdirs()) {
-                throw new RuntimeException("Could not create directory " + worldDir);
+                throw new AccessDeniedException("Could not create directory " + worldDir);
             }
         }
 

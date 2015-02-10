@@ -16,7 +16,7 @@ public class MinecraftUtil {
     }
     
     public static File findMinecraftDir() {
-        File candidate = null;
+        File candidate;
         String appData = System.getenv("APPDATA");
         if (appData != null) {
             candidate = new File(appData, ".minecraft");

@@ -17,7 +17,7 @@ import org.pepsoft.worldpainter.WorldPainter;
  */
 public class TerrainPaint extends RadiusOperation implements TerrainOperation {
     public TerrainPaint(WorldPainter view, RadiusControl radiusControl, MapDragControl mapDragControl, Terrain terrain) {
-        super(terrain.getName(), terrain.getDescription(), view, radiusControl, mapDragControl, 100, true, "operation.terrainPaint." + terrain.getName());
+        super(terrain.getName(), terrain.getDescription(), view, radiusControl, mapDragControl, 100, "operation.terrainPaint." + terrain.getName());
         setTerrain(terrain);
     }
 
@@ -35,16 +35,16 @@ public class TerrainPaint extends RadiusOperation implements TerrainOperation {
     }
 
     @Override
-    protected void tick(int centerX, int centerY, boolean undo, boolean first, float dynamicLevel) {
+    protected void tick(int centreX, int centreY, boolean inverse, boolean first, float dynamicLevel) {
         Dimension dimension = getDimension();
         dimension.setEventsInhibited(true);
         try {
-            int radius = getRadius();
-            for (int x = centerX - radius; x <= centerX + radius; x++) {
-                for (int y = centerY - radius; y <= centerY + radius; y++) {
-                    float strength = dynamicLevel * getStrength(centerX, centerY, x, y);
+            int radius = getEffectiveRadius();
+            for (int x = centreX - radius; x <= centreX + radius; x++) {
+                for (int y = centreY - radius; y <= centreY + radius; y++) {
+                    float strength = dynamicLevel * getStrength(centreX, centreY, x, y);
                     if ((strength > 0.95f) || (Math.random() < strength)) {
-                        if (undo) {
+                        if (inverse) {
                             dimension.applyTheme(x, y);
                         } else {
                             dimension.setTerrainAt(x, y, terrain);

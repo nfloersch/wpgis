@@ -22,4 +22,15 @@ public abstract class AbstractObject implements WPObject {
             return _default;
         }
     }
+
+    @Override
+    public AbstractObject clone() {
+        try {
+            return (AbstractObject) super.clone();
+        } catch (CloneNotSupportedException e) {
+            throw new RuntimeException(e);
+        }
+    }
+    
+    private static final long serialVersionUID = -5872104411389620683L;
 }

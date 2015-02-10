@@ -32,8 +32,15 @@ public abstract class TreeType implements Serializable {
         for (int i = 1; i < size; i++) {
             minecraftWorld.setMaterialAt(blockInWorldX, blockInWorldY, height + i, trunkMaterial);
         }
-        Material capMaterial = (trunkMaterial.getBlockType() == BLK_WOOD) ? Material.get(trunkMaterial.getBlockType(), (trunkMaterial.getData() & 0x3) | 0xC) : trunkMaterial;
-        minecraftWorld.setMaterialAt(blockInWorldX, blockInWorldY, height + size, capMaterial);
+        minecraftWorld.setMaterialAt(blockInWorldX, blockInWorldY, height + size, getCapMaterial());
+    }
+    
+    protected final Material getCapMaterial() {
+        if ((trunkMaterial.getBlockType() == BLK_WOOD) || (trunkMaterial.getBlockType() == BLK_WOOD2)) {
+            return Material.get(trunkMaterial.getBlockType(), (trunkMaterial.getData() & 0x3) | 0xC);
+        } else {
+            return trunkMaterial;
+        }
     }
     
     protected void maybePlaceLeaves(int x, int y, int h, int r, float distance, MinecraftWorld minecraftWorld, Random random) {
@@ -65,9 +72,9 @@ public abstract class TreeType implements Serializable {
                                 cursor.turnRight();
                             }
                             if (isTreeBlock(cursor.getBlockInFront())) {
-                                int vineLength = random.nextInt(vineLengthBase) + vineLengthBase;
+                                int vineLength = random.nextInt(vineLengthVariation) + vineLengthBase;
                                 for (int i = 0; i < vineLength; i++) {
-                                    if (! addVine(world, x + dx, y + dy, z + dz - i, cursor.getDirection())) {
+                                    if (((z + dz - i) <= 0) || (! addVine(world, x + dx, y + dy, z + dz - i, cursor.getDirection()))) {
                                         break;
                                     }
                                 }
@@ -80,7 +87,15 @@ public abstract class TreeType implements Serializable {
     }
     
     private boolean isTreeBlock(Material material) {
-        return (material != null) && (material.getBlockType() == BLK_WOOD || material.getBlockType() == BLK_LEAVES);
+        if (material != null) {
+            final int blockType = material.getBlockType();
+            return blockType == BLK_WOOD
+                    || blockType == BLK_WOOD2
+                    || blockType == BLK_LEAVES
+                    || blockType == BLK_LEAVES2;
+        } else {
+            return false;
+        }
     }
     
     private boolean addVine(MinecraftWorld world, int x, int y, int z, Direction direction) {

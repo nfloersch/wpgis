@@ -1,13 +1,9 @@
 package org.pepsoft.worldpainter;
 
-import java.awt.Color;
-import java.awt.Font;
-import java.awt.Graphics2D;
-import java.awt.font.TextAttribute;
 import java.awt.image.BufferedImage;
-import java.text.AttributedCharacterIterator.Attribute;
-import java.util.HashMap;
-import java.util.Map;
+import java.io.IOException;
+import java.io.InputStream;
+import javax.imageio.ImageIO;
 import org.pepsoft.minecraft.Material;
 
 import static org.pepsoft.minecraft.Material.AIR;
@@ -18,26 +14,17 @@ import static org.pepsoft.minecraft.Material.AIR;
 public class CustomTerrainHelper {
     public CustomTerrainHelper(int index) {
         this.index = index;
-        icon = new BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB);
-        Graphics2D g2 =icon.createGraphics();
-        try {
-            Map<Attribute, Object> attributes = new HashMap<Attribute, Object>();
-            attributes.put(TextAttribute.FAMILY, Font.SANS_SERIF);
-            attributes.put(TextAttribute.WEIGHT, TextAttribute.WEIGHT_BOLD);
-            attributes.put(TextAttribute.SIZE, 16);
-            if (index > 8) {
-                attributes.put(TextAttribute.WIDTH, TextAttribute.WIDTH_CONDENSED);
-            }
-            g2.setFont(Font.getFont(attributes));
-            g2.setColor(SHADOW_COLOUR);
-            g2.drawString(Integer.toString(index + 1), (index < 9) ? 3 : 1, 15);
-            g2.setColor(Color.BLACK);
-            g2.drawString(Integer.toString(index + 1), (index < 9) ? 2 : 0, 14);
-        } finally {
-            g2.dispose();
-        }
     }
 
+    public Material getMaterial(long seed, int x, int y, float z, int height) {
+        final float dz = z - height;
+        if (dz >= 0.5f) {
+            return AIR;
+        } else {
+            return Terrain.customMaterials[index].getMaterial(seed, x, y, z);
+        }
+    }
+    
     public Material getMaterial(long seed, int x, int y, int z, int height) {
         final int dz = z - height;
         if (dz > 0) {
@@ -47,8 +34,9 @@ public class CustomTerrainHelper {
         }
     }
 
-    public BufferedImage getIcon() {
-        return icon;
+    public BufferedImage getIcon(ColourScheme colourScheme) {
+        MixedMaterial material = Terrain.customMaterials[index];
+        return (material != null) ? material.getIcon(colourScheme) : UNKNOWN_ICON;
     }
 
     public int getDefaultBiome() {
@@ -68,6 +56,12 @@ public class CustomTerrainHelper {
         return index;
     }
 
+    public int getColour(long seed, int x, int y, float z, int height, ColourScheme colourScheme) {
+        MixedMaterial material = Terrain.customMaterials[index];
+        Integer colour = (material != null) ? material.getColour() : null;
+        return (colour != null) ? colour : colourScheme.getColour(getMaterial(seed, x, y, z, height));
+    }
+    
     public int getColour(long seed, int x, int y, int z, int height, ColourScheme colourScheme) {
         MixedMaterial material = Terrain.customMaterials[index];
         Integer colour = (material != null) ? material.getColour() : null;
@@ -75,7 +69,17 @@ public class CustomTerrainHelper {
     }
     
     private final int index;
-    private final BufferedImage icon;
     
-    private static final Color SHADOW_COLOUR = new Color(224, 224, 224);
+    private static final BufferedImage UNKNOWN_ICON;
+    
+    static {
+        try {
+            // If we're being loaded for some kind of headless library the image
+            // may not be there
+            InputStream iconStream = CustomTerrainHelper.class.getResourceAsStream("/org/pepsoft/worldpainter/icons/unknown_pattern.png");
+            UNKNOWN_ICON = (iconStream != null) ? ImageIO.read(iconStream) : null;
+        } catch (IOException e) {
+            throw new RuntimeException("I/O error loading unknown_pattern.png from classpath", e);
+        }
+    }
 }

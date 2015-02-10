@@ -12,13 +12,13 @@ import java.util.logging.Logger;
  * @author pepijn
  */
 public class WPPluginManager {
-    private WPPluginManager(UUID uuid) {
-        allPlugins = org.pepsoft.util.PluginManager.findPlugins(Plugin.class, FILENAME);
+    private WPPluginManager(UUID uuid, String logPrefix, ClassLoader classLoader) {
+        allPlugins = org.pepsoft.util.PluginManager.findPlugins(Plugin.class, FILENAME, classLoader);
         Set<String> namesEncountered = new HashSet<String>();
         for (Iterator<Plugin> i = allPlugins.iterator(); i.hasNext(); ) {
             Plugin plugin = i.next();
             if ((plugin.getUUIDs() != null) && (uuid != null) && (! plugin.getUUIDs().contains(uuid))) {
-                logger.severe(plugin.getName() + " plugin is not authorised for this installation; not loading it");
+                logger.severe(logPrefix + plugin.getName() + " plugin is not authorised for this installation; not loading it");
                 i.remove();
                 continue;
             }
@@ -28,7 +28,7 @@ public class WPPluginManager {
             } else {
                 namesEncountered.add(name);
             }
-            logger.info("Loaded plugin: " + name + " (version " + plugin.getVersion() + ")");
+            logger.info(logPrefix + "Loaded plugin: " + name + " (version " + plugin.getVersion() + ")");
         }
     }
     
@@ -48,10 +48,14 @@ public class WPPluginManager {
     }
     
     public static synchronized void initialise(UUID uuid) {
+        initialise(uuid, "", ClassLoader.getSystemClassLoader());
+    }
+    
+    public static synchronized void initialise(UUID uuid, String logPrefix, ClassLoader classLoader) {
         if (instance != null) {
             throw new IllegalStateException("Already initialised");
         }
-        instance = new WPPluginManager(uuid);
+        instance = new WPPluginManager(uuid, logPrefix, classLoader);
     }
     
     public static synchronized WPPluginManager getInstance() {

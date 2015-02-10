@@ -76,12 +76,12 @@ public final class Cursor implements Cloneable {
     
     public boolean isFreeOrInsubstantial() {
         int blockType = minecraftWorld.getBlockTypeAt(x, y, height);
-        return (blockType == BLK_AIR) || INSUBSTANTIAL_BLOCKS.contains(blockType);
+        return (blockType == BLK_AIR) || INSUBSTANTIAL_BLOCKS.get(blockType);
     }
     
     public boolean setBlockIfFree(Material material) {
         int existingBlock = minecraftWorld.getBlockTypeAt(x, y, height);
-        if ((existingBlock == BLK_AIR) || INSUBSTANTIAL_BLOCKS.contains(existingBlock)) {
+        if ((existingBlock == BLK_AIR) || INSUBSTANTIAL_BLOCKS.get(existingBlock)) {
             minecraftWorld.setMaterialAt(x, y, height, material);
             return true;
         } else {
@@ -95,7 +95,7 @@ public final class Cursor implements Cloneable {
     
     public boolean setBlockWithDirectionIfFree(Material material) {
         int existingBlock = minecraftWorld.getBlockTypeAt(x, y, height);
-        if ((existingBlock == BLK_AIR) || INSUBSTANTIAL_BLOCKS.contains(existingBlock)) {
+        if ((existingBlock == BLK_AIR) || INSUBSTANTIAL_BLOCKS.get(existingBlock)) {
             minecraftWorld.setMaterialAt(x, y, height, material.setDirection(direction));
             return true;
         } else {

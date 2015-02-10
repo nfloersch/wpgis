@@ -11,8 +11,11 @@ import java.io.Serializable;
  *
  * @author pepijn
  */
-public interface TileFactory extends Serializable {
+public interface TileFactory extends Serializable, TileProvider {
     int getMaxHeight();
-    Tile createTile(long seed, int x, int y);
-    void applyTheme(long seed, Tile tile, int x, int y);
+    void setMaxHeight(int maxHeight, HeightTransform transform);
+    long getSeed();
+    void setSeed(long seed);
+    Tile createTile(int x, int y);
+    void applyTheme(Tile tile, int x, int y);
 }

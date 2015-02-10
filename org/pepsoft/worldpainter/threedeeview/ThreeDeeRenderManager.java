@@ -6,21 +6,23 @@ package org.pepsoft.worldpainter.threedeeview;
 
 import java.util.HashSet;
 import java.util.Set;
-import org.pepsoft.util.jobqueue.JobQueue;
+import org.pepsoft.util.jobqueue.UniqueJobQueue;
 import org.pepsoft.worldpainter.BiomeScheme;
 import org.pepsoft.worldpainter.ColourScheme;
 import org.pepsoft.worldpainter.Dimension;
 import org.pepsoft.worldpainter.Tile;
+import org.pepsoft.worldpainter.biomeschemes.CustomBiomeManager;
 
 /**
  *
  * @author pepijn
  */
 public class ThreeDeeRenderManager {
-    public ThreeDeeRenderManager(Dimension dimension, ColourScheme colourScheme, BiomeScheme biomeScheme, int rotation) {
+    public ThreeDeeRenderManager(Dimension dimension, ColourScheme colourScheme, BiomeScheme biomeScheme, CustomBiomeManager customBiomeManager, int rotation) {
         this.dimension = dimension;
         this.colourScheme = colourScheme;
         this.biomeScheme = biomeScheme;
+        this.customBiomeManager = customBiomeManager;
         this.rotation = rotation;
     }
     
@@ -69,18 +71,19 @@ public class ThreeDeeRenderManager {
         }
         renderThreads = null;
         jobQueue = null;
+        results.clear();
     }
-    
+
     synchronized void tileFinished(RenderResult renderResult) {
         results.add(renderResult);
     }
     
     private void startThreads() {
-        jobQueue = new JobQueue<Tile3DRenderJob>();
+        jobQueue = new UniqueJobQueue<Tile3DRenderJob>();
         int noOfThreads = Math.max(1, Runtime.getRuntime().availableProcessors() - 1);
         renderThreads = new Background3DTileRenderer[noOfThreads];
         for (int i = 0; i < noOfThreads; i++) {
-            renderThreads[i] = new Background3DTileRenderer(dimension, colourScheme, biomeScheme, rotation, jobQueue, this);
+            renderThreads[i] = new Background3DTileRenderer(dimension, colourScheme, biomeScheme, customBiomeManager, rotation, jobQueue, this);
             renderThreads[i].start();
         }
     }
@@ -88,8 +91,9 @@ public class ThreeDeeRenderManager {
     private final Dimension dimension;
     private final ColourScheme colourScheme;
     private final BiomeScheme biomeScheme;
+    private final CustomBiomeManager customBiomeManager;
     private final int rotation;
     private HashSet<RenderResult> results = new HashSet<RenderResult>();
     private Background3DTileRenderer[] renderThreads;
-    private JobQueue<Tile3DRenderJob> jobQueue;
+    private UniqueJobQueue<Tile3DRenderJob> jobQueue;
 }

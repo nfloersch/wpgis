@@ -19,14 +19,14 @@ import org.pepsoft.worldpainter.layers.FloodWithLava;
  */
 public class Sponge extends RadiusOperation {
     public Sponge(WorldPainterView view, RadiusControl radiusControl, MapDragControl mapDragControl) {
-        super("Sponge", "Dry up or reset water and lava", view, radiusControl, mapDragControl, 100, true, "operation.sponge");
+        super("Sponge", "Dry up or reset water and lava", view, radiusControl, mapDragControl, 100, "operation.sponge");
     }
 
     @Override
-    protected void tick(int x, int y, boolean inverse, boolean first, float level) {
-        int waterHeight;
-        Dimension dimension = getDimension();
-        TileFactory tileFactory = dimension.getTileFactory();
+    protected void tick(int centreX, int centreY, boolean inverse, boolean first, float dynamicLevel) {
+        final int waterHeight;
+        final Dimension dimension = getDimension();
+        final TileFactory tileFactory = dimension.getTileFactory();
         if (tileFactory instanceof HeightMapTileFactory) {
             waterHeight = ((HeightMapTileFactory) tileFactory).getWaterHeight();
         } else {
@@ -38,15 +38,15 @@ public class Sponge extends RadiusOperation {
         }
         dimension.setEventsInhibited(true);
         try {
-            int radius = getRadius();
+            final int radius = getEffectiveRadius();
             for (int dx = -radius; dx <= radius; dx++) {
                 for (int dy = -radius; dy <= radius; dy++) {
-                    if (getStrength(x, y, x + dx, y + dy) != 0f) {
+                    if (getStrength(centreX, centreY, centreX + dx, centreY + dy) != 0f) {
                         if (inverse) {
-                            dimension.setWaterLevelAt(x + dx, y + dy, waterHeight);
-                            dimension.setBitLayerValueAt(FloodWithLava.INSTANCE, x + dx, y + dy, false);
+                            dimension.setWaterLevelAt(centreX + dx, centreY + dy, waterHeight);
+                            dimension.setBitLayerValueAt(FloodWithLava.INSTANCE, centreX + dx, centreY + dy, false);
                         } else {
-                            dimension.setWaterLevelAt(x + dx, y + dy, 0);
+                            dimension.setWaterLevelAt(centreX + dx, centreY + dy, 0);
                         }
                     }
                 }

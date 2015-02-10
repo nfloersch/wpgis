@@ -33,10 +33,12 @@ public class RegionFileNode implements Node {
         return z;
     }
 
+    @Override
     public boolean isLeaf() {
         return false;
     }
 
+    @Override
     public Node[] getChildren() {
         if (children == null) {
             loadChildren();
@@ -48,10 +50,10 @@ public class RegionFileNode implements Node {
         try {
             List<Node> chunks = new ArrayList<Node>();
             RegionFile regionFile = new RegionFile(file);
-            for (int x = 0; x < 32; x++) {
-                for (int z = 0; z < 32; z++) {
-                    if (regionFile.containsChunk(x, z)) {
-                        chunks.add(new ChunkNode(regionFile, x, z));
+            for (int chunkX = 0; chunkX < 32; chunkX++) {
+                for (int chunkZ = 0; chunkZ < 32; chunkZ++) {
+                    if (regionFile.containsChunk(chunkX, chunkZ)) {
+                        chunks.add(new ChunkNode(regionFile, chunkX, chunkZ));
                     }
                 }
             }

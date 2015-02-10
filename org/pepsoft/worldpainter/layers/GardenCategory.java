@@ -16,22 +16,22 @@ public class GardenCategory extends Layer {
     /**
      * Unoccupied land
      */
-    public static final int CATEGORY_UNOCCUPIED       = 0;
+    public static final int CATEGORY_UNOCCUPIED = 0;
     
     /**
      * Roadway
      */
-    public static final int CATEGORY_ROAD             = 1;
+    public static final int CATEGORY_ROAD = 1;
     
     /**
      * A building
      */
-    public static final int CATEGORY_BUILDING         = 2;
+    public static final int CATEGORY_BUILDING = 2;
     
     /**
      * A garden, park or field
      */
-    public static final int CATEGORY_FIELD            = 3;
+    public static final int CATEGORY_FIELD = 3;
     
     /**
      * Street furniture such as awnings, lighting, seats, fountains, wells, etc.
@@ -41,7 +41,12 @@ public class GardenCategory extends Layer {
     /**
      * Water
      */
-    public static final int CATEGORY_WATER            = 5;
+    public static final int CATEGORY_WATER = 5;
+    
+    /**
+     * Tree
+     */
+    public static final int CATEGORY_TREE = 6;
     
     public static final GardenCategory INSTANCE = new GardenCategory();
 

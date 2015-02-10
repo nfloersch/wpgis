@@ -23,6 +23,10 @@ public abstract class BetterAction extends AbstractAction {
         super(name);
     }
     
+    public final String getName() {
+        return (String) getValue(NAME);
+    }
+    
     public final void setShortDescription(String shortDescription) {
         StringBuilder sb = new StringBuilder();
         sb.append(shortDescription);

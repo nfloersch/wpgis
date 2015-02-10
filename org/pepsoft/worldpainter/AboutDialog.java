@@ -10,6 +10,7 @@
  */
 package org.pepsoft.worldpainter;
 
+import java.awt.Font;
 import java.awt.Window;
 import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
@@ -53,8 +54,8 @@ public class AboutDialog extends javax.swing.JDialog implements WindowListener {
     public AboutDialog(Window parent, World2 world, WorldPainter view, UndoManager undoManager) {
         super(parent, ModalityType.APPLICATION_MODAL);
         initComponents();
-        jTextPane1.setText(loadCredits());
         jTextPane2.setText(loadChangelog());
+        jTextPane1.setText(loadCredits());
         jTextPane3.setText(loadTechInfo(world, view, undoManager));
 
         ActionMap actionMap = rootPane.getActionMap();
@@ -102,6 +103,8 @@ public class AboutDialog extends javax.swing.JDialog implements WindowListener {
     @Override public void windowDeactivated(WindowEvent e) {}
 
     private String loadCredits() {
+        Font defaultTextPaneFont = jTextPane2.getFont();
+        String style = "font-family: " + defaultTextPaneFont.getFamily() + "; font-size: " + defaultTextPaneFont.getSize() + "pt";
         InputStreamReader in = new InputStreamReader(AboutDialog.class.getResourceAsStream("resources/credits.html"), Charset.forName("UTF-8"));
         try {
             StringBuilder sb = new StringBuilder();
@@ -117,7 +120,8 @@ public class AboutDialog extends javax.swing.JDialog implements WindowListener {
                 Version.VERSION,
                 (donationStatus != null)
                     ? donationStatus.ordinal()
-                    : Configuration.DonationStatus.NO_THANK_YOU.ordinal()});
+                    : Configuration.DonationStatus.NO_THANK_YOU.ordinal(),
+                style});
         } catch (IOException e) {
             throw new RuntimeException("I/O error reading resource", e);
         } finally {
@@ -153,6 +157,25 @@ public class AboutDialog extends javax.swing.JDialog implements WindowListener {
         }
     }
 
+    private void donateBitcoin() {
+        try {
+            DesktopUtils.copyToClipboard("1NK8PFYFetTiWReujPsQXDcarXKJuYtqgF");
+            if (DesktopUtils.open(new URL("bitcoin:1NK8PFYFetTiWReujPsQXDcarXKJuYtqgF?label=pepsoft.org&message=WorldPainter%20donation"))) {
+                JOptionPane.showMessageDialog(this, "The bitcoin address for donations has been copied to your clipboard. In addition,\n"
+                                                  + "if you have a Bitcoin client installed, it may have been opened with the required information filled in.\n"
+                                                  + "Thank you very much for donating!", strings.getString("thank.you"), JOptionPane.INFORMATION_MESSAGE);
+            } else {
+                JOptionPane.showMessageDialog(this, "The bitcoin address for donations has been copied to your clipboard.\n"
+                                                  + "Thank you very much for donating!", strings.getString("thank.you"), JOptionPane.INFORMATION_MESSAGE);
+            }
+            Configuration config = Configuration.getInstance();
+            config.setDonationStatus(Configuration.DonationStatus.DONATED);
+            config.logEvent(new EventVO(Constants.EVENT_KEY_DONATION_DONATE_BITCOIN).addTimestamp());
+        } catch (MalformedURLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+    
     private String loadTechInfo(World2 world, WorldPainter view, UndoManager undoManager) {
         File installDir = null;
         ClassLoader classLoader = AboutDialog.class.getClassLoader();
@@ -195,7 +218,7 @@ public class AboutDialog extends javax.swing.JDialog implements WindowListener {
         Runtime runtime = Runtime.getRuntime();
         int dataSize = (world != null) ? world.measureSize() : 0;
         int undoDataSize = (undoManager != null) ? undoManager.getDataSize() : 0;
-        int imageSize = view.getImageSize();
+//        int imageSize = view.getImageSize();
         int overlayImageSize = view.getOverlayImageSize();
         message += MessageFormat.format(strings.getString("available.cpu.cores.0.nmaximum.configured.memory.1.mb.ncurrently.allocated.memory.2.mb.n"), runtime.availableProcessors(), runtime.maxMemory() / 1024 / 1024, runtime.totalMemory() / 1024 / 1024);
         if (dataSize > 0) {
@@ -204,9 +227,9 @@ public class AboutDialog extends javax.swing.JDialog implements WindowListener {
         if ((undoDataSize - dataSize) > 0) {
             message += MessageFormat.format(strings.getString("additional.undo.data.size.0.kb.n"), (undoDataSize - dataSize) / 1024);
         }
-        if (imageSize > 0) {
-            message += MessageFormat.format(strings.getString("world.image.data.size.0.kb.n"), imageSize / 1024);
-        }
+//        if (imageSize > 0) {
+//            message += MessageFormat.format(strings.getString("world.image.data.size.0.kb.n"), imageSize / 1024);
+//        }
         if (overlayImageSize > 0) {
             message += MessageFormat.format(strings.getString("overlay.image.data.size.0.kb.n"), overlayImageSize / 1024);
         }
@@ -233,13 +256,13 @@ public class AboutDialog extends javax.swing.JDialog implements WindowListener {
         jTextPane3 = new javax.swing.JTextPane();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
-        setTitle(strings.getString("about.worldpainter"));
+        setTitle("About WorldPainter");
         setResizable(false);
 
         jLabel1.setIcon(new javax.swing.ImageIcon(getClass().getResource("/org/pepsoft/worldpainter/resources/banner.png"))); // NOI18N
         jLabel1.setBorder(javax.swing.BorderFactory.createBevelBorder(javax.swing.border.BevelBorder.LOWERED));
 
-        buttonClose.setText(strings.getString("close"));
+        buttonClose.setText("Close");
         buttonClose.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 buttonCloseActionPerformed(evt);
@@ -248,9 +271,9 @@ public class AboutDialog extends javax.swing.JDialog implements WindowListener {
 
         jScrollPane1.setBorder(null);
 
-        jTextPane1.setContentType("text/html");
         jTextPane1.setEditable(false);
-        jTextPane1.setText("<html>\n  <head>\n  </head>\n  <body>\n    <p style=\"margin-top: 0\">\nEen paar regels<br>\nom te laten zien<br>\nhoe het er in het echt<br>\nuit zal zien.      \n    </p>\n  </body>\n</html>"); // NOI18N
+        jTextPane1.setContentType("text/html"); // NOI18N
+        jTextPane1.setText("<html>\n  <head>\n  </head>\n  <body>\n    <p style=\"margin-top: 0\">\nEen paar regels<br>\nom te laten zien<br>\nhoe het er in het echt<br>\nuit zal zien.      \n    </p>\n  </body>\n</html>");
         jTextPane1.addHyperlinkListener(new javax.swing.event.HyperlinkListener() {
             public void hyperlinkUpdate(javax.swing.event.HyperlinkEvent evt) {
                 jTextPane1HyperlinkUpdate(evt);
@@ -258,21 +281,23 @@ public class AboutDialog extends javax.swing.JDialog implements WindowListener {
         });
         jScrollPane1.setViewportView(jTextPane1);
 
-        jTabbedPane1.addTab(strings.getString("credits"), jScrollPane1);
+        jTabbedPane1.addTab("Credits", jScrollPane1);
 
         jScrollPane2.setBorder(null);
 
         jTextPane2.setEditable(false);
-        jTextPane2.setText("Een paar regels\nom te laten zien\nhoe het er in het echt\nuit zal zien."); // NOI18N
+        jTextPane2.setText("Een paar regels\nom te laten zien\nhoe het er in het echt\nuit zal zien.");
         jScrollPane2.setViewportView(jTextPane2);
 
-        jTabbedPane1.addTab(strings.getString("change.log"), jScrollPane2);
+        jTabbedPane1.addTab("Change log", jScrollPane2);
+
+        jScrollPane3.setBorder(null);
 
         jTextPane3.setEditable(false);
-        jTextPane3.setText("Een paar regels\nom te laten zien\nhoe het er in het echt\nuit zal zien."); // NOI18N
+        jTextPane3.setText("Een paar regels\nom te laten zien\nhoe het er in het echt\nuit zal zien.");
         jScrollPane3.setViewportView(jTextPane3);
 
-        jTabbedPane1.addTab(strings.getString("tech.info"), jScrollPane3);
+        jTabbedPane1.addTab("Tech Info", jScrollPane3);
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
         getContentPane().setLayout(layout);
@@ -282,15 +307,12 @@ public class AboutDialog extends javax.swing.JDialog implements WindowListener {
                 .addContainerGap()
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addGroup(layout.createSequentialGroup()
-                        .addComponent(jTabbedPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 504, Short.MAX_VALUE)
-                        .addContainerGap())
-                    .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                        .addGroup(layout.createSequentialGroup()
+                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                             .addComponent(jLabel1)
-                            .addContainerGap())
-                        .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
-                            .addComponent(buttonClose)
-                            .addContainerGap()))))
+                            .addComponent(buttonClose, javax.swing.GroupLayout.Alignment.TRAILING))
+                        .addGap(0, 0, Short.MAX_VALUE))
+                    .addComponent(jTabbedPane1))
+                .addContainerGap())
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -314,6 +336,8 @@ public class AboutDialog extends javax.swing.JDialog implements WindowListener {
                 String action = url.getPath().toLowerCase().trim();
                 if (action.equals("/donate")) { // NOI18N
                     donate();
+                } else if (action.equals("/donatebitcoin")) {
+                    donateBitcoin();
                 }
             } else {
                 DesktopUtils.open(url);

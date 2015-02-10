@@ -4,7 +4,6 @@
  */
 package org.pepsoft.worldpainter.tools;
 
-import java.net.URL;
 import java.awt.AlphaComposite;
 import java.awt.Color;
 import java.awt.Composite;
@@ -19,7 +18,6 @@ import java.util.HashSet;
 import java.util.Set;
 import javax.imageio.ImageIO;
 import org.pepsoft.util.swing.TiledImageViewer;
-import static org.pepsoft.worldpainter.Constants.*;
 
 /**
  *
@@ -30,8 +28,8 @@ public class WPTileSelectionViewer extends TiledImageViewer {
         // Do nothing
     }
 
-    public WPTileSelectionViewer(boolean leftClickDrags) {
-        super(leftClickDrags);
+    public WPTileSelectionViewer(boolean leftClickDrags, int threads, boolean paintCentre) {
+        super(leftClickDrags, threads, paintCentre);
     }
     
     @Override
@@ -47,7 +45,7 @@ public class WPTileSelectionViewer extends TiledImageViewer {
             try {
                 Rectangle clipBounds = g2.getClipBounds();
                 for (Point selectedTile: selectedTiles) {
-                    Rectangle tileBounds = getTileCoordinates(selectedTile);
+                    Rectangle tileBounds = getTileBounds(selectedTile.x, selectedTile.y);
                     if (tileBounds.intersects(clipBounds)) {
                         g2.fillRect(tileBounds.x, tileBounds.y, tileBounds.width, tileBounds.height);
                     }
@@ -64,23 +62,24 @@ public class WPTileSelectionViewer extends TiledImageViewer {
         }
         
         if (highlightedTileLocation != null) {
-            Rectangle rect = getTileCoordinates(highlightedTileLocation);
+            Rectangle rect = getTileBounds(highlightedTileLocation.x, highlightedTileLocation.y);
             g2.setColor(Color.RED);
             g2.drawRect(rect.x, rect.y, rect.width - 1, rect.height - 1);
         }
         
-        if (getTileProvider() != null) {
-            int zoom = getTileProvider().getZoom();
-            if (SCALE_BAR != null) {
-                g2.drawImage(SCALE_BAR, 10, getHeight() - 10 - SCALE_BAR.getHeight(), this);
-                g2.setColor(Color.WHITE);
-                g2.drawString(zoom + "00 m", 15 + SCALE_BAR.getWidth(), getHeight() - 10);
-            }
-            
-            int middleX = getWidth() / 2;
-            int middleY = getHeight() / 2;
-            g2.drawString(((getViewX() + middleX) * zoom) + ", " + ((getViewY() + middleY) * zoom), 10, 20);
-        }
+        int zoom = getZoom();
+        g2.drawImage(SCALE_BAR, 10, getHeight() - 10 - SCALE_BAR.getHeight(), this);
+        g2.setColor(Color.BLACK);
+        String str = ((zoom < 0) ? (100 << -zoom) : (100 >> zoom)) + " blocks";
+        g2.drawString(str, 15 + SCALE_BAR.getWidth() + 1, getHeight() - 9);
+        g2.setColor(Color.WHITE);
+        g2.drawString(str, 15 + SCALE_BAR.getWidth(), getHeight() - 10);
+
+        g2.setColor(Color.BLACK);
+        str = getViewX() + ", " + getViewY();
+        g2.drawString(str, 11, 21);
+        g2.setColor(Color.WHITE);
+        g2.drawString(str, 10, 20);
     }
 
     public Point getHighlightedTileLocation() {
@@ -89,18 +88,18 @@ public class WPTileSelectionViewer extends TiledImageViewer {
 
     public void setHighlightedTileLocation(Point highlightedTileLocation) {
         if (this.highlightedTileLocation != null) {
-            repaint(getTileCoordinates(this.highlightedTileLocation));
+            repaint(getTileBounds(this.highlightedTileLocation.x, this.highlightedTileLocation.y));
         }
         this.highlightedTileLocation = highlightedTileLocation;
         if (highlightedTileLocation != null) {
-            repaint(getTileCoordinates(highlightedTileLocation));
+            repaint(getTileBounds(highlightedTileLocation.x, highlightedTileLocation.y));
         }
     }
     
     public void addSelectedTile(Point tileLocation) {
         if (! selectedTiles.contains(tileLocation)) {
             selectedTiles.add(tileLocation);
-            repaint(getTileCoordinates(tileLocation));
+            repaint(getTileBounds(tileLocation.x, tileLocation.y));
         }
     }
 
@@ -121,7 +120,7 @@ public class WPTileSelectionViewer extends TiledImageViewer {
     public void removeSelectedTile(Point tileLocation) {
         if (selectedTiles.contains(tileLocation)) {
             selectedTiles.remove(tileLocation);
-            repaint(getTileCoordinates(tileLocation));
+            repaint(getTileBounds(tileLocation.x, tileLocation.y));
         }
     }
     
@@ -160,15 +159,9 @@ public class WPTileSelectionViewer extends TiledImageViewer {
         }
     }
     
-    private Rectangle getTileCoordinates(Point tileLocation) {
-        int zoom = getTileProvider().getZoom();
-        return new Rectangle(tileLocation.x * TILE_SIZE / zoom - getViewX(), tileLocation.y * TILE_SIZE / zoom - getViewY(), TILE_SIZE / zoom, TILE_SIZE / zoom);
-    }
-    
     private Rectangle getTileRectangleCoordinates(Point tileCorner1, Point tileCorner2) {
-        int zoom = getTileProvider().getZoom();
-        Rectangle corner1Coords = new Rectangle(tileCorner1.x * TILE_SIZE / zoom - getViewX(), tileCorner1.y * TILE_SIZE / zoom - getViewY(), TILE_SIZE / zoom, TILE_SIZE / zoom);
-        Rectangle corner2Coords = new Rectangle(tileCorner2.x * TILE_SIZE / zoom - getViewX(), tileCorner2.y * TILE_SIZE / zoom - getViewY(), TILE_SIZE / zoom, TILE_SIZE / zoom);
+        Rectangle corner1Coords = getTileBounds(tileCorner1.x, tileCorner1.y);
+        Rectangle corner2Coords = getTileBounds(tileCorner2.x, tileCorner2.y);
         int left = Math.min(corner1Coords.x, corner2Coords.x);
         int right = Math.max(corner1Coords.x + corner1Coords.width - 1, corner2Coords.x + corner2Coords.width - 1);
         int top = Math.min(corner1Coords.y, corner2Coords.y);
@@ -184,10 +177,9 @@ public class WPTileSelectionViewer extends TiledImageViewer {
     
     static {
         try {
-            URL url = ClassLoader.getSystemResource("org/pepsoft/worldpainter/scale_bar.png");
-            SCALE_BAR = (url != null) ? ImageIO.read(url) : null;
+            SCALE_BAR = ImageIO.read(WPTileSelectionViewer.class.getResourceAsStream("/org/pepsoft/worldpainter/scale_bar.png"));
         } catch (IOException e) {
-            throw new RuntimeException("I/O error loading image", e);
+            throw new RuntimeException("I/O error loading scale bar from classpath", e);
         }
     }
 

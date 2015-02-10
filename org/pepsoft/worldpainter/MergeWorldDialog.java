@@ -46,6 +46,7 @@ import org.pepsoft.util.swing.ProgressTask;
 import org.pepsoft.worldpainter.merging.WorldMerger;
 import org.pepsoft.worldpainter.util.FileInUseException;
 import static org.pepsoft.worldpainter.Constants.*;
+import org.pepsoft.worldpainter.biomeschemes.CustomBiomeManager;
 import org.pepsoft.worldpainter.layers.Layer;
 
 /**
@@ -55,14 +56,16 @@ import org.pepsoft.worldpainter.layers.Layer;
 // TODO: add support for multiple dimensions
 public class MergeWorldDialog extends javax.swing.JDialog implements Listener {
     /** Creates new form ExportWorldDialog */
-    public MergeWorldDialog(java.awt.Frame parent, World2 world, BiomeScheme biomeScheme, ColourScheme colourScheme, Collection<Layer> hiddenLayers, boolean contourLines, TileRenderer.LightOrigin lightOrigin) {
+    public MergeWorldDialog(java.awt.Frame parent, World2 world, BiomeScheme biomeScheme, ColourScheme colourScheme, CustomBiomeManager customBiomeManager, Collection<Layer> hiddenLayers, boolean contourLines, int contourSeparation, TileRenderer.LightOrigin lightOrigin) {
         super(parent, true);
         this.world = world;
         this.biomeScheme = biomeScheme;
         this.colourScheme = colourScheme;
         this.hiddenLayers = hiddenLayers;
         this.contourLines = contourLines;
+        this.contourSeparation = contourSeparation;
         this.lightOrigin = lightOrigin;
+        this.customBiomeManager = customBiomeManager;
         selectedTiles = world.getTilesToExport();
         selectedDimension = (selectedTiles != null) ? world.getDimensionToExport() : DIM_NORMAL;
         
@@ -82,12 +85,10 @@ public class MergeWorldDialog extends javax.swing.JDialog implements Listener {
             }
         }
         if (selectedTiles != null) {
-            radioButtonExportSelection.setText("export " + selectedTiles.size() + " selected tiles");
+            radioButtonExportSelection.setText("merge " + selectedTiles.size() + " selected tiles");
             radioButtonExportSelection.setSelected(true);
         }
         
-        biomeMergingEnabled = world.getBiomeAlgorithm() != World2.BIOME_ALGORITHM_1_7_3;
-
         DocumentListener documentListener = new DocumentListener() {
             @Override
             public void insertUpdate(DocumentEvent e) {
@@ -124,6 +125,7 @@ public class MergeWorldDialog extends javax.swing.JDialog implements Listener {
         rootPane.setDefaultButton(buttonMerge);
 
         setControlStates();
+        pack();
     }
 
     // ProgressComponent.Listener
@@ -203,6 +205,12 @@ public class MergeWorldDialog extends javax.swing.JDialog implements Listener {
         jRadioButton1.setEnabled(false);
         radioButtonExportEverything.setEnabled(false);
         radioButtonExportSelection.setEnabled(false);
+        checkBoxFillCaves.setEnabled(false);
+        checkBoxRemoveManMadeAboveGround.setEnabled(false);
+        checkBoxRemoveManMadeBelowGround.setEnabled(false);
+        checkBoxRemoveResources.setEnabled(false);
+        checkBoxRemoveTrees.setEnabled(false);
+        checkBoxRemoveVegetation.setEnabled(false);
         labelSelectTiles.setForeground(null);
         labelSelectTiles.setCursor(null);
 
@@ -219,7 +227,6 @@ public class MergeWorldDialog extends javax.swing.JDialog implements Listener {
         }
 
         setDefaultCloseOperation(JDialog.DO_NOTHING_ON_CLOSE);
-        merging = true;
 
         start = System.currentTimeMillis();
         progressComponent1.setTask(new ProgressTask<Void>() {
@@ -232,14 +239,21 @@ public class MergeWorldDialog extends javax.swing.JDialog implements Listener {
             public Void execute(ProgressReceiver progressReceiver) throws OperationCancelled {
                 final WorldMerger merger = new WorldMerger(world, levelDatFile);
                 try {
-                    backupDir = merger.getBackupDir(levelDatFile.getParentFile());
+                    backupDir = merger.selectBackupDir(levelDatFile.getParentFile());
                     if (biomesOnly) {
-                        merger.mergeBiomes(progressReceiver);
+                        merger.mergeBiomes(backupDir, progressReceiver);
                     } else {
                         if (replaceChunks) {
                             merger.setReplaceChunks(true);
+                        } else {
+                            merger.setClearManMadeAboveGround(checkBoxRemoveManMadeAboveGround.isSelected());
+                            merger.setClearManMadeBelowGround(checkBoxRemoveManMadeBelowGround.isSelected());
+                            merger.setClearResources(checkBoxRemoveResources.isSelected());
+                            merger.setClearTrees(checkBoxRemoveTrees.isSelected());
+                            merger.setClearVegetation(checkBoxRemoveVegetation.isSelected());
+                            merger.setFillCaves(checkBoxFillCaves.isSelected());
                         }
-                        merger.merge(progressReceiver);
+                        merger.merge(backupDir, progressReceiver);
                     }
                     if (merger.getWarnings() != null) {
                         try {
@@ -281,24 +295,27 @@ public class MergeWorldDialog extends javax.swing.JDialog implements Listener {
         boolean levelDatSelected = file.isFile() && (file.getName().equalsIgnoreCase("level.dat"));
         if (levelDatSelected) {
             levelDatFile = file;
-            if (biomeMergingEnabled) {
-                try {
-                    Level level = Level.load(levelDatFile);
-                    if (level.getVersion() != org.pepsoft.minecraft.Constants.SUPPORTED_VERSION_2) {
-                        if (radioButtonBiomes.isSelected()) {
-                            radioButtonAll.setSelected(true);
-                        }
-                        radioButtonBiomes.setEnabled(false);
-                    } else {
-                        radioButtonBiomes.setEnabled(true);
+            try {
+                Level level = Level.load(levelDatFile);
+                if (level.getVersion() != org.pepsoft.minecraft.Constants.SUPPORTED_VERSION_2) {
+                    if (radioButtonBiomes.isSelected()) {
+                        radioButtonAll.setSelected(true);
                     }
-                } catch (IOException e) {
-                    throw new RuntimeException("I/O error while loading level.dat", e);
+                    radioButtonBiomes.setEnabled(false);
+                } else {
+                    radioButtonBiomes.setEnabled(true);
                 }
-            } else {
-                radioButtonBiomes.setEnabled(false);
+            } catch (IOException e) {
+                throw new RuntimeException("I/O error while loading level.dat", e);
             }
         }
+        boolean mergeAll = radioButtonAll.isSelected();
+        checkBoxFillCaves.setEnabled(mergeAll);
+        checkBoxRemoveManMadeAboveGround.setEnabled(mergeAll);
+        checkBoxRemoveManMadeBelowGround.setEnabled(mergeAll);
+        checkBoxRemoveResources.setEnabled(mergeAll);
+        checkBoxRemoveTrees.setEnabled(mergeAll);
+        checkBoxRemoveVegetation.setEnabled(mergeAll);
         buttonMerge.setEnabled(levelDatSelected);
         if (radioButtonExportSelection.isSelected()) {
             labelSelectTiles.setForeground(Color.BLUE);
@@ -336,7 +353,7 @@ public class MergeWorldDialog extends javax.swing.JDialog implements Listener {
 
     private void selectTiles() {
         if (radioButtonExportSelection.isSelected()) {
-            ExportTileSelectionDialog dialog = new ExportTileSelectionDialog(this, world, selectedDimension, selectedTiles, colourScheme, biomeScheme, hiddenLayers, contourLines, lightOrigin);
+            ExportTileSelectionDialog dialog = new ExportTileSelectionDialog(this, world, selectedDimension, selectedTiles, colourScheme, biomeScheme, customBiomeManager, hiddenLayers, contourLines, contourSeparation, lightOrigin);
             dialog.setVisible(true);
             selectedDimension = dialog.getSelectedDimension();
             selectedTiles = dialog.getSelectedTiles();
@@ -365,13 +382,22 @@ public class MergeWorldDialog extends javax.swing.JDialog implements Listener {
         radioButtonAll = new javax.swing.JRadioButton();
         radioButtonBiomes = new javax.swing.JRadioButton();
         jRadioButton1 = new javax.swing.JRadioButton();
-        jLabel3 = new javax.swing.JLabel();
         progressComponent1 = new org.pepsoft.util.swing.ProgressComponent();
         radioButtonExportEverything = new javax.swing.JRadioButton();
         radioButtonExportSelection = new javax.swing.JRadioButton();
         labelSelectTiles = new javax.swing.JLabel();
         jLabel1 = new javax.swing.JLabel();
         jLabel4 = new javax.swing.JLabel();
+        jLabel5 = new javax.swing.JLabel();
+        jLabel6 = new javax.swing.JLabel();
+        checkBoxRemoveTrees = new javax.swing.JCheckBox();
+        checkBoxRemoveVegetation = new javax.swing.JCheckBox();
+        checkBoxRemoveManMadeAboveGround = new javax.swing.JCheckBox();
+        checkBoxRemoveResources = new javax.swing.JCheckBox();
+        checkBoxFillCaves = new javax.swing.JCheckBox();
+        checkBoxRemoveManMadeBelowGround = new javax.swing.JCheckBox();
+        jLabel7 = new javax.swing.JLabel();
+        jLabel3 = new javax.swing.JLabel();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
         setTitle("Merging");
@@ -398,15 +424,29 @@ public class MergeWorldDialog extends javax.swing.JDialog implements Listener {
         radioButtonAll.setSelected(true);
         radioButtonAll.setText("Merge old and new chunks");
         radioButtonAll.setToolTipText("Will merge everything (terrain type and height changes, new layers, biome changes, etc.). Takes a very long time.");
+        radioButtonAll.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                radioButtonAllActionPerformed(evt);
+            }
+        });
 
         buttonGroup1.add(radioButtonBiomes);
         radioButtonBiomes.setText("Only change the biomes");
         radioButtonBiomes.setToolTipText("<html>Will merge <i>only</i> biome changes. Ignores the read-only layer. Much quicker than merging everything, and with no side effects.</html>");
+        radioButtonBiomes.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                radioButtonBiomesActionPerformed(evt);
+            }
+        });
 
         buttonGroup1.add(jRadioButton1);
         jRadioButton1.setText("Completely replace chunks with new chunks");
-
-        jLabel3.setText("<html><i>This will </i>replace<i> all non-read-only chunks,<br>destroying everything that's there in the existing map! </i></html>");
+        jRadioButton1.setToolTipText("<html><i>This will </i>replace<i> all non-read-only chunks,<br>destroying everything that's there in the existing map! </i></html>");
+        jRadioButton1.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                jRadioButton1ActionPerformed(evt);
+            }
+        });
 
         buttonGroup2.add(radioButtonExportEverything);
         radioButtonExportEverything.setSelected(true);
@@ -436,6 +476,34 @@ public class MergeWorldDialog extends javax.swing.JDialog implements Listener {
 
         jLabel4.setText("Choose what kind of merge to perform:");
 
+        jLabel5.setText("<html>Options for the existing map (<b>non-read-only</b> chunks in <b>selected tiles</b> only):</html>");
+
+        jLabel6.setText("<html><b>Above</b> ground:</html>");
+
+        checkBoxRemoveTrees.setText("Remove all trees and huge mushrooms");
+        checkBoxRemoveTrees.setToolTipText("Removes all wood and leaf blocks, as wells as cocoa plants, vines and saplings.");
+
+        checkBoxRemoveVegetation.setText("Remove all other vegetation and crops");
+        checkBoxRemoveVegetation.setToolTipText("Removes all tall grass, flowers, mushrooms, nether wart, pumpkins and melons, carrots and potatoes, wheat, etc.");
+
+        checkBoxRemoveManMadeAboveGround.setText("Remove all man-made structures");
+        checkBoxRemoveManMadeAboveGround.setToolTipText("Removes any block which cannot occur naturally, above ground.");
+
+        checkBoxRemoveResources.setText("Remove all resources/ores");
+        checkBoxRemoveResources.setToolTipText("Replaces all resource/ore blocks with stone (or netherrack in the case of quartz).");
+
+        checkBoxFillCaves.setText("Fill in all caves and other hollow spaces");
+        checkBoxFillCaves.setToolTipText("<html>Replaces all air, water, lava and other insubstantial blocks with stone.<br>\nTo replace man-made blocks as well, use \"remove all man-made structures\" also.</html>");
+
+        checkBoxRemoveManMadeBelowGround.setText("Remove all man-made structures");
+        checkBoxRemoveManMadeBelowGround.setToolTipText("Replaces any block which cannot occur naturally with stone or air, below ground.");
+
+        jLabel7.setText("<html><b>Below</b> ground:</html>");
+
+        jLabel3.setIcon(new javax.swing.ImageIcon(getClass().getResource("/org/pepsoft/worldpainter/icons/error.png"))); // NOI18N
+        jLabel3.setText(" ");
+        jLabel3.setToolTipText("<html>This removes <em>all</em> wood and leaf blocks, including man-made ones!<br>\nWorldPainter can't tell the difference between natural and man-made wood blocks.<br>\nBe sure to protect your builds with the Read-Only layer.</html>");
+
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
         getContentPane().setLayout(layout);
         layout.setHorizontalGroup(
@@ -443,31 +511,51 @@ public class MergeWorldDialog extends javax.swing.JDialog implements Listener {
             .addGroup(layout.createSequentialGroup()
                 .addContainerGap()
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
-                        .addComponent(fieldLevelDatFile)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(buttonSelectDirectory))
-                    .addComponent(progressComponent1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                    .addComponent(buttonMerge, javax.swing.GroupLayout.Alignment.TRAILING)
                     .addGroup(layout.createSequentialGroup()
                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addGroup(layout.createSequentialGroup()
-                                .addGap(12, 12, 12)
-                                .addComponent(jLabel3, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-                            .addComponent(jLabel2)
-                            .addComponent(radioButtonAll)
-                            .addComponent(radioButtonBiomes)
-                            .addComponent(jRadioButton1)
-                            .addGroup(layout.createSequentialGroup()
-                                .addComponent(radioButtonExportEverything)
+                            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
+                                .addComponent(fieldLevelDatFile)
                                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                .addComponent(radioButtonExportSelection)
+                                .addComponent(buttonSelectDirectory))
+                            .addComponent(progressComponent1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                            .addComponent(buttonMerge, javax.swing.GroupLayout.Alignment.TRAILING)
+                            .addGroup(layout.createSequentialGroup()
+                                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                                    .addComponent(jLabel2)
+                                    .addGroup(layout.createSequentialGroup()
+                                        .addComponent(radioButtonExportEverything)
+                                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                        .addComponent(radioButtonExportSelection)
+                                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                        .addComponent(labelSelectTiles, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                                    .addComponent(jLabel1)
+                                    .addComponent(jLabel4)
+                                    .addComponent(jLabel5, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                    .addGroup(layout.createSequentialGroup()
+                                        .addGap(12, 12, 12)
+                                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                                            .addComponent(radioButtonBiomes)
+                                            .addComponent(radioButtonAll)
+                                            .addComponent(jRadioButton1))))
+                                .addGap(0, 0, Short.MAX_VALUE)))
+                        .addContainerGap())
+                    .addGroup(layout.createSequentialGroup()
+                        .addGap(12, 12, 12)
+                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addGroup(layout.createSequentialGroup()
+                                .addComponent(checkBoxRemoveTrees)
                                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                .addComponent(labelSelectTiles, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-                            .addComponent(jLabel1)
-                            .addComponent(jLabel4))
-                        .addGap(0, 0, Short.MAX_VALUE)))
-                .addContainerGap())
+                                .addComponent(jLabel3))
+                            .addComponent(checkBoxRemoveVegetation)
+                            .addComponent(checkBoxRemoveManMadeAboveGround)
+                            .addComponent(jLabel6, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                        .addGap(0, 0, 0)
+                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addComponent(jLabel7, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addComponent(checkBoxRemoveManMadeBelowGround)
+                            .addComponent(checkBoxFillCaves)
+                            .addComponent(checkBoxRemoveResources))
+                        .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))))
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -493,8 +581,25 @@ public class MergeWorldDialog extends javax.swing.JDialog implements Listener {
                 .addComponent(radioButtonBiomes)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(jRadioButton1)
+                .addGap(18, 18, 18)
+                .addComponent(jLabel5, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(jLabel3, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(jLabel6, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(jLabel7, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(checkBoxRemoveTrees)
+                    .addComponent(checkBoxRemoveResources)
+                    .addComponent(jLabel3))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(checkBoxRemoveVegetation)
+                    .addComponent(checkBoxFillCaves))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(checkBoxRemoveManMadeAboveGround)
+                    .addComponent(checkBoxRemoveManMadeBelowGround))
                 .addGap(18, 18, 18)
                 .addComponent(progressComponent1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
@@ -529,16 +634,37 @@ public class MergeWorldDialog extends javax.swing.JDialog implements Listener {
         selectTiles();
     }//GEN-LAST:event_labelSelectTilesMouseClicked
 
+    private void radioButtonAllActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_radioButtonAllActionPerformed
+        setControlStates();
+    }//GEN-LAST:event_radioButtonAllActionPerformed
+
+    private void radioButtonBiomesActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_radioButtonBiomesActionPerformed
+        setControlStates();
+    }//GEN-LAST:event_radioButtonBiomesActionPerformed
+
+    private void jRadioButton1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jRadioButton1ActionPerformed
+        setControlStates();
+    }//GEN-LAST:event_jRadioButton1ActionPerformed
+
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.ButtonGroup buttonGroup1;
     private javax.swing.ButtonGroup buttonGroup2;
     private javax.swing.JButton buttonMerge;
     private javax.swing.JButton buttonSelectDirectory;
+    private javax.swing.JCheckBox checkBoxFillCaves;
+    private javax.swing.JCheckBox checkBoxRemoveManMadeAboveGround;
+    private javax.swing.JCheckBox checkBoxRemoveManMadeBelowGround;
+    private javax.swing.JCheckBox checkBoxRemoveResources;
+    private javax.swing.JCheckBox checkBoxRemoveTrees;
+    private javax.swing.JCheckBox checkBoxRemoveVegetation;
     private javax.swing.JTextField fieldLevelDatFile;
     private javax.swing.JLabel jLabel1;
     private javax.swing.JLabel jLabel2;
     private javax.swing.JLabel jLabel3;
     private javax.swing.JLabel jLabel4;
+    private javax.swing.JLabel jLabel5;
+    private javax.swing.JLabel jLabel6;
+    private javax.swing.JLabel jLabel7;
     private javax.swing.JRadioButton jRadioButton1;
     private javax.swing.JLabel labelSelectTiles;
     private org.pepsoft.util.swing.ProgressComponent progressComponent1;
@@ -553,11 +679,11 @@ public class MergeWorldDialog extends javax.swing.JDialog implements Listener {
     private final ColourScheme colourScheme;
     private final Collection<Layer> hiddenLayers;
     private final boolean contourLines;
+    private final int contourSeparation;
     private final TileRenderer.LightOrigin lightOrigin;
+    private final CustomBiomeManager customBiomeManager;
     private File levelDatFile;
     private volatile File backupDir;
-    private boolean merging, biomeMergingEnabled;
-    private volatile boolean cancelled;
     private long start;
     private int selectedDimension;
     private Set<Point> selectedTiles;

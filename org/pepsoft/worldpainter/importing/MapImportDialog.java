@@ -186,7 +186,7 @@ public class MapImportDialog extends javax.swing.JDialog {
             public MapStatistics execute(ProgressReceiver progressReceiver) throws OperationCancelled {
                 MapStatistics stats = new MapStatistics();
                 
-                int regionCount = 0, chunkCount = 0;
+                int chunkCount = 0;
                 List<Integer> xValues = new ArrayList<Integer>(), zValues = new ArrayList<Integer>();
                 List<Point2i> chunks = new ArrayList<Point2i>();
                 int count = 0;
@@ -194,7 +194,6 @@ public class MapImportDialog extends javax.swing.JDialog {
                     String[] nameFrags = file.getName().split("\\.");
                     int regionX = Integer.parseInt(nameFrags[1]);
                     int regionZ = Integer.parseInt(nameFrags[2]);
-                    regionCount++;
                     try {
                         RegionFile regionFile = new RegionFile(file);
                         try {
@@ -232,6 +231,12 @@ public class MapImportDialog extends javax.swing.JDialog {
                 }
                 stats.chunkCount = chunkCount;
 
+                if (chunkCount == 0) {
+                    // Completely empty map (wrong region file format)?
+                    progressReceiver.setProgress(1.0f);
+                    return stats;
+                }
+                
                 Collections.sort(xValues);
                 int p1 = xValues.size() / 4;
                 float q1 = xValues.get(p1) * 0.75f + xValues.get(p1 + 1) * 0.25f;
@@ -292,17 +297,13 @@ public class MapImportDialog extends javax.swing.JDialog {
                 return stats;
             }
         }, true);
-        if (mapStatistics != null) {
+        if ((mapStatistics != null) && (mapStatistics.chunkCount > 0)) {
             int width = mapStatistics.highestChunkXNoOutliers - mapStatistics.lowestChunkXNoOutliers + 1;
             int length = mapStatistics.highestChunkZNoOutliers - mapStatistics.lowestChunkZNoOutliers + 1;
             int area = (mapStatistics.chunkCount - mapStatistics.outlyingChunks.size());
             labelWidth.setText(FORMATTER.format(width * 16) + " blocks (from " + FORMATTER.format(mapStatistics.lowestChunkXNoOutliers << 4) + " to " + FORMATTER.format((mapStatistics.highestChunkXNoOutliers << 4) + 15) + "; " + FORMATTER.format(width) + " chunks)");
             labelLength.setText(FORMATTER.format(length * 16) + " blocks (from " + FORMATTER.format(mapStatistics.lowestChunkZNoOutliers << 4) + " to " + FORMATTER.format((mapStatistics.highestChunkZNoOutliers << 4) + 15) + "; " + FORMATTER.format(length) + " chunks)");
-            labelArea.setText(FORMATTER.format(area * 256L) + " blocks (" + FORMATTER.format(area) + " chunks)");
-            long areaWithoutOutliersInTiles = ((mapStatistics.highestChunkXNoOutliers >> 3) - (mapStatistics.lowestChunkXNoOutliers >> 3) + 1L) * ((mapStatistics.highestChunkZNoOutliers >> 3) - (mapStatistics.lowestChunkZNoOutliers >> 3) + 1L);
-            if (areaWithoutOutliersInTiles > MAX_AREA_IN_TILES) {
-                labelTooLarge.setVisible(true);
-            }
+            labelArea.setText(FORMATTER.format(area * 256L) + " blocks² (" + FORMATTER.format(area) + " chunks)");
             if (! mapStatistics.outlyingChunks.isEmpty()) {
                 // There are outlying chunks
                 int widthWithOutliers = mapStatistics.highestChunkX - mapStatistics.lowestChunkX + 1;
@@ -316,17 +317,9 @@ public class MapImportDialog extends javax.swing.JDialog {
                 labelLengthWithOutliers.setText(FORMATTER.format(lengthWithOutliers * 16) + " blocks (" + FORMATTER.format(lengthWithOutliers) + " chunks)");
                 labelLengthWithOutliers.setVisible(true);
                 labelOutliers4.setVisible(true);
-                labelAreaOutliers.setText(FORMATTER.format(areaOfOutliers * 256L) + " blocks (" + FORMATTER.format(areaOfOutliers) + " chunks)");
+                labelAreaOutliers.setText(FORMATTER.format(areaOfOutliers * 256L) + " blocks² (" + FORMATTER.format(areaOfOutliers) + " chunks)");
                 labelAreaOutliers.setVisible(true);
                 checkBoxImportOutliers.setVisible(true);
-                long areaWithOutliersInTiles = ((mapStatistics.highestChunkX >> 3) - (mapStatistics.lowestChunkX >> 3) + 1L) * ((mapStatistics.highestChunkZ >> 3) - (mapStatistics.lowestChunkZ >> 3) + 1L);
-                if ((areaWithOutliersInTiles > MAX_AREA_IN_TILES) || (areaWithoutOutliersInTiles > MAX_AREA_IN_TILES)) {
-                    // With outlying chunks the map would be too large to import, so don't allow it
-                    checkBoxImportOutliers.setEnabled(false);
-                    checkBoxImportOutliers.setToolTipText("Including outlying chunks the map would be too large to import.");
-                } else {
-                    checkBoxImportOutliers.setToolTipText(null);
-                }
                 // The dialog may need to become bigger:
                 pack();
             }
@@ -336,18 +329,17 @@ public class MapImportDialog extends javax.swing.JDialog {
     private void setControlStates() {
         String fileStr = fieldFilename.getText().trim();
         File file = (! fileStr.isEmpty()) ? new File(fileStr) : null;
-        if ((mapStatistics == null) || (file == null) || (! file.isFile())) {
+        if ((mapStatistics == null) || (mapStatistics.chunkCount == 0) || (file == null) || (! file.isFile())) {
             buttonOK.setEnabled(false);
         } else {
-            long areaWithoutOutliersInTiles = ((mapStatistics.highestChunkXNoOutliers >> 3) - (mapStatistics.lowestChunkXNoOutliers >> 3) + 1L) * ((mapStatistics.highestChunkZNoOutliers >> 3) - (mapStatistics.lowestChunkZNoOutliers >> 3) + 1L);
-            buttonOK.setEnabled(areaWithoutOutliersInTiles <= MAX_AREA_IN_TILES);
+            buttonOK.setEnabled(true);
         }
     }
     
     private void resetStats() {
         labelWidth.setText("0 blocks (from ? to ?; 0 chunks)");
         labelLength.setText("0 blocks (from ? to ?; 0 chunks)");
-        labelArea.setText("0 blocks (0 chunks)");
+        labelArea.setText("0 blocks² (0 chunks)");
 
         labelOutliers1.setVisible(false);
         labelOutliers2.setVisible(false);
@@ -358,8 +350,6 @@ public class MapImportDialog extends javax.swing.JDialog {
         labelAreaOutliers.setVisible(false);
         checkBoxImportOutliers.setSelected(false);
         checkBoxImportOutliers.setVisible(false);
-
-        labelTooLarge.setVisible(false);
     }
     
     private void selectFile() {
@@ -395,6 +385,8 @@ public class MapImportDialog extends javax.swing.JDialog {
             readOnlyOption = MapImporter.ReadOnlyOption.ALL;
         } else if (radioButtonReadOnlyManMade.isSelected()) {
             readOnlyOption = MapImporter.ReadOnlyOption.MAN_MADE;
+        } else if (radioButtonReadOnlyManMadeAboveGround.isSelected()) {
+            readOnlyOption = MapImporter.ReadOnlyOption.MAN_MADE_ABOVE_GROUND;
         } else {
             readOnlyOption = MapImporter.ReadOnlyOption.NONE;
         }
@@ -417,7 +409,7 @@ public class MapImportDialog extends javax.swing.JDialog {
                         waterLevel = 62;
                     }
                     int terrainLevel = waterLevel - 4;
-                    TileFactory tileFactory = TileFactoryFactory.createNoiseTileFactory(Terrain.GRASS, maxHeight, terrainLevel, waterLevel, false, true, 20, 1.0);
+                    TileFactory tileFactory = TileFactoryFactory.createNoiseTileFactory(0, Terrain.GRASS, maxHeight, terrainLevel, waterLevel, false, true, 20, 1.0);
                     final MapImporter importer = new MapImporter(tileFactory, levelDatFile, false, chunksToSkip, readOnlyOption);
                     World2 world = importer.doImport(progressReceiver);
                     if (importer.getWarnings() != null) {
@@ -491,11 +483,11 @@ public class MapImportDialog extends javax.swing.JDialog {
         buttonCancel = new javax.swing.JButton();
         buttonOK = new javax.swing.JButton();
         checkBoxImportOutliers = new javax.swing.JCheckBox();
-        labelTooLarge = new javax.swing.JLabel();
         jLabel5 = new javax.swing.JLabel();
         radioButtonReadOnlyNone = new javax.swing.JRadioButton();
         radioButtonReadOnlyManMade = new javax.swing.JRadioButton();
         radioButtonReadOnlyAll = new javax.swing.JRadioButton();
+        radioButtonReadOnlyManMadeAboveGround = new javax.swing.JRadioButton();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
         setTitle("Import Existing Minecraft Map");
@@ -555,20 +547,20 @@ public class MapImportDialog extends javax.swing.JDialog {
 
         checkBoxImportOutliers.setText("include outlying chunks in import");
 
-        labelTooLarge.setIcon(new javax.swing.ImageIcon(getClass().getResource("/org/pepsoft/worldpainter/icons/error.png"))); // NOI18N
-        labelTooLarge.setText("This map is too large to import, even without outlying chunks!");
-
         jLabel5.setText("Options:");
 
         buttonGroup1.add(radioButtonReadOnlyNone);
         radioButtonReadOnlyNone.setText("do not mark any chunks read-only");
 
         buttonGroup1.add(radioButtonReadOnlyManMade);
-        radioButtonReadOnlyManMade.setSelected(true);
         radioButtonReadOnlyManMade.setText("mark chunks containing man-made blocks read-only");
 
         buttonGroup1.add(radioButtonReadOnlyAll);
         radioButtonReadOnlyAll.setText("mark all chunks read-only");
+
+        buttonGroup1.add(radioButtonReadOnlyManMadeAboveGround);
+        radioButtonReadOnlyManMadeAboveGround.setSelected(true);
+        radioButtonReadOnlyManMadeAboveGround.setText("<html>mark chunks containing man-made blocks <i>above ground</i> read-only</html>");
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
         getContentPane().setLayout(layout);
@@ -582,13 +574,13 @@ public class MapImportDialog extends javax.swing.JDialog {
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                         .addComponent(buttonSelectFile))
                     .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
-                        .addComponent(labelTooLarge)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                        .addGap(0, 0, Short.MAX_VALUE)
                         .addComponent(buttonOK)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                         .addComponent(buttonCancel))
                     .addGroup(layout.createSequentialGroup()
                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addComponent(radioButtonReadOnlyManMadeAboveGround, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                             .addComponent(radioButtonReadOnlyAll)
                             .addComponent(radioButtonReadOnlyManMade)
                             .addComponent(radioButtonReadOnlyNone)
@@ -625,7 +617,7 @@ public class MapImportDialog extends javax.swing.JDialog {
                                     .addComponent(labelOutliers1)
                                     .addComponent(checkBoxImportOutliers)))
                             .addComponent(jLabel5))
-                        .addGap(0, 0, Short.MAX_VALUE)))
+                        .addGap(0, 107, Short.MAX_VALUE)))
                 .addContainerGap())
         );
         layout.setVerticalGroup(
@@ -666,14 +658,15 @@ public class MapImportDialog extends javax.swing.JDialog {
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(radioButtonReadOnlyNone)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(radioButtonReadOnlyManMadeAboveGround, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(radioButtonReadOnlyManMade)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(radioButtonReadOnlyAll)
                 .addGap(18, 18, Short.MAX_VALUE)
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(buttonCancel)
-                    .addComponent(buttonOK)
-                    .addComponent(labelTooLarge))
+                    .addComponent(buttonOK))
                 .addContainerGap())
         );
 
@@ -713,11 +706,11 @@ public class MapImportDialog extends javax.swing.JDialog {
     private javax.swing.JLabel labelOutliers2;
     private javax.swing.JLabel labelOutliers3;
     private javax.swing.JLabel labelOutliers4;
-    private javax.swing.JLabel labelTooLarge;
     private javax.swing.JLabel labelWidth;
     private javax.swing.JLabel labelWidthWithOutliers;
     private javax.swing.JRadioButton radioButtonReadOnlyAll;
     private javax.swing.JRadioButton radioButtonReadOnlyManMade;
+    private javax.swing.JRadioButton radioButtonReadOnlyManMadeAboveGround;
     private javax.swing.JRadioButton radioButtonReadOnlyNone;
     // End of variables declaration//GEN-END:variables
 
@@ -727,7 +720,6 @@ public class MapImportDialog extends javax.swing.JDialog {
     private boolean cancelled = true;
     private World2 importedWorld;
     
-    private static final long MAX_AREA_IN_TILES = 131072L;
     private static final Logger logger = Logger.getLogger(MapImportDialog.class.getName());
     private static final ResourceBundle strings = ResourceBundle.getBundle("org.pepsoft.worldpainter.resources.strings"); // NOI18N
     private static final NumberFormat FORMATTER = NumberFormat.getIntegerInstance();
